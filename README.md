@@ -1,73 +1,198 @@
-# Welcome to your Lovable project
+# JuanRide - Digital Vehicle Rental System for Siargao Island
 
-## Project info
+A modern, full-stack vehicle rental platform built with Next.js 14 and Supabase, designed specifically for the tourism ecosystem in Siargao Island, Philippines.
 
-**URL**: https://lovable.dev/projects/e347b602-04f0-435b-8fa9-3123fbe1da04
+## 🌟 Features
 
-## How can I edit this code?
+### For Renters
+- 🔍 **Smart Vehicle Search** - Find the perfect ride with advanced filters
+- 📅 **Instant Booking** - Reserve vehicles in real-time with availability checking
+- 💳 **Secure Payments** - Multiple payment options (GCash, Maya, Cards, Bank Transfer)
+- ⭐ **Reviews & Ratings** - Make informed decisions based on community feedback
+- 💬 **Real-time Chat** - Communicate directly with vehicle owners
+- 📱 **Mobile-First Design** - Optimized for browsing on the go
 
-There are several ways of editing your application.
+### For Vehicle Owners
+- 🚗 **Fleet Management** - Manage all your vehicles from one dashboard
+- 📊 **Analytics & Insights** - Track revenue, utilization, and performance
+- 📆 **Booking Calendar** - Visual overview of all reservations
+- 🔧 **Maintenance Tracking** - Schedule and log vehicle maintenance
+- 💰 **Financial Reports** - Monitor earnings and export transaction data
+- 🔔 **Smart Notifications** - Stay updated on bookings and payments
 
-**Use Lovable**
+### For Administrators
+- 👥 **User Management** - Oversee all renters and owners
+- ✅ **Listing Moderation** - Approve and manage vehicle listings
+- 💵 **Transaction Oversight** - Monitor all platform transactions
+- 🛡️ **Dispute Resolution** - Handle conflicts between users
+- 📈 **Platform Analytics** - Comprehensive metrics and reporting
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e347b602-04f0-435b-8fa9-3123fbe1da04) and start prompting.
+## 🛠️ Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Database:** PostgreSQL (via Supabase)
+- **Authentication:** Supabase Auth
+- **Storage:** Supabase Storage
+- **Styling:** Tailwind CSS
+- **UI Components:** Shadcn/UI
+- **State Management:** React Query (TanStack Query)
+- **Forms:** React Hook Form + Zod
+- **Deployment:** Vercel
+- **Real-time:** Supabase Realtime
 
-**Use your preferred IDE**
+## 📋 Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 18+ and npm
+- Supabase account
+- Payment gateway accounts (GCash, Maya) for production
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🚀 Getting Started
 
-Follow these steps:
+### 1. Clone the repository
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+```bash
+git clone https://github.com/yourusername/juanride-siargao-hub.git
+cd juanride-siargao-hub
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 2. Install dependencies
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 3. Set up Supabase
+
+1. Create a new project at [https://supabase.com](https://supabase.com)
+2. Run the database migrations in `supabase/migrations/` directory
+3. Set up Storage buckets:
+   - `vehicle-images`
+   - `profile-images`
+   - `review-images`
+4. Enable authentication providers (Email, Google, etc.)
+
+### 4. Configure environment variables
+
+Copy `.env.example` to `.env.local` and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-project-url.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### 5. Run the development server
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 6. Generate TypeScript types from Supabase
 
-**Use GitHub Codespaces**
+```bash
+npm run supabase:gen-types
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📁 Project Structure
 
-## What technologies are used for this project?
+```
+juanride-siargao-hub/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── (auth)/            # Authentication pages
+│   │   ├── (renter)/          # Renter dashboard
+│   │   ├── (owner)/           # Owner dashboard
+│   │   ├── (admin)/           # Admin panel
+│   │   ├── vehicles/          # Vehicle browsing
+│   │   └── api/               # API routes
+│   ├── components/            # React components
+│   │   ├── ui/               # Shadcn/UI components
+│   │   ├── shared/           # Shared components
+│   │   ├── vehicle/          # Vehicle-related components
+│   │   ├── booking/          # Booking components
+│   │   ├── owner/            # Owner dashboard components
+│   │   └── admin/            # Admin panel components
+│   ├── lib/                  # Utility libraries
+│   │   ├── supabase/        # Supabase clients and queries
+│   │   └── utils/           # Helper functions
+│   ├── hooks/               # Custom React hooks
+│   └── types/               # TypeScript type definitions
+├── supabase/
+│   └── migrations/          # Database migrations
+├── public/                  # Static assets
+└── docs/                    # Documentation
 
-This project is built with:
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🧪 Testing
 
-## How can I deploy this project?
+```bash
+# Run unit tests
+npm run test
 
-Simply open [Lovable](https://lovable.dev/projects/e347b602-04f0-435b-8fa9-3123fbe1da04) and click on Share -> Publish.
+# Run E2E tests
+npm run test:e2e
 
-## Can I connect a custom domain to my Lovable project?
+# Type checking
+npm run type-check
 
-Yes, you can!
+# Linting
+npm run lint
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🚢 Deployment
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Deploy to Vercel
+
+1. Push your code to GitHub
+2. Import the project to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy!
+
+Alternatively, use the Vercel CLI:
+
+```bash
+vercel --prod
+```
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the `/docs` folder:
+
+- [Product Requirements Document](docs/prd.md)
+- [Feature Specifications](docs/features.md)
+- [Technical Stack](docs/tech-stack.md)
+- [User Flows](docs/user-flow.md)
+- [Implementation Guide](docs/implementation.md)
+- [Project Structure](docs/project-structure.md)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Built for the Siargao Island tourism community
+- Powered by Supabase and Vercel
+- UI components from Shadcn/UI
+
+## 📧 Contact
+
+For support or inquiries, please contact [your-email@example.com](mailto:your-email@example.com)
+
+---
+
+Built with ❤️ for Siargao Island
