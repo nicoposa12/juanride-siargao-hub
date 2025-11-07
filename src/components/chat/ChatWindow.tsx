@@ -5,20 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { Send } from 'lucide-react'
+import { Send, Loader2 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 import Message from './Message'
-
-interface ChatMessage {
-  id: string
-  content: string
-  sender_id: string
-  created_at: string
-  sender: {
-    full_name: string
-  }
-}
+import {
+  getBookingMessages,
+  sendMessage,
+  subscribeToBookingMessages,
+  unsubscribeChannel,
+  type Message as MessageType,
+} from '@/lib/supabase/realtime'
 
 interface ChatWindowProps {
   bookingId: string
@@ -32,15 +29,24 @@ export default function ChatWindow({
   recipientName,
 }: ChatWindowProps) {
   const { user } = useAuth()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const { toast } = useToast()
+  const [messages, setMessages] = useState<MessageType[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const channelRef = useRef<any>(null)
 
   useEffect(() => {
     if (bookingId) {
       fetchMessages()
-      subscribeToMessages()
+      setupRealtimeSubscription()
+    }
+
+    return () => {
+      if (channelRef.current) {
+        unsubscribeChannel(channelRef.current)
+      }
     }
   }, [bookingId])
 
@@ -49,67 +55,34 @@ export default function ChatWindow({
   }, [messages])
 
   const fetchMessages = async () => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          id,
-          content,
-          sender_id,
-          created_at,
-          sender:users!messages_sender_id_fkey (
-            full_name
-          )
-        `)
-        .eq('booking_id', bookingId)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-      setMessages(data || [])
+      const data = await getBookingMessages(bookingId)
+      setMessages(data)
     } catch (error) {
       console.error('Error fetching messages:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to load messages',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const subscribeToMessages = () => {
-    const channel = supabase
-      .channel(`messages:${bookingId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `booking_id=eq.${bookingId}`,
-        },
-        async (payload) => {
-          // Fetch the new message with sender info
-          const { data } = await supabase
-            .from('messages')
-            .select(`
-              id,
-              content,
-              sender_id,
-              created_at,
-              sender:users!messages_sender_id_fkey (
-                full_name
-              )
-            `)
-            .eq('id', payload.new.id)
-            .single()
-
-          if (data) {
-            setMessages((prev) => [...prev, data])
-          }
+  const setupRealtimeSubscription = () => {
+    const channel = subscribeToBookingMessages(bookingId, (message) => {
+      setMessages((prev) => {
+        // Avoid duplicates
+        if (prev.some((m) => m.id === message.id)) {
+          return prev
         }
-      )
-      .subscribe()
+        return [...prev, message]
+      })
+    })
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    channelRef.current = channel
   }
 
   const scrollToBottom = () => {
@@ -123,19 +96,19 @@ export default function ChatWindow({
 
     if (!newMessage.trim() || !user) return
 
+    setSending(true)
     try {
-      const { error } = await supabase.from('messages').insert({
-        booking_id: bookingId,
-        sender_id: user.id,
-        receiver_id: recipientId,
-        content: newMessage.trim(),
-      })
-
-      if (error) throw error
-
+      await sendMessage(bookingId, user.id, recipientId, newMessage.trim())
       setNewMessage('')
     } catch (error) {
       console.error('Error sending message:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to send message',
+        variant: 'destructive',
+      })
+    } finally {
+      setSending(false)
     }
   }
 
@@ -172,7 +145,7 @@ export default function ChatWindow({
                   content={message.content}
                   created_at={message.created_at}
                   is_current_user={message.sender_id === user?.id}
-                  sender_name={message.sender.full_name}
+                  sender_name={message.sender?.full_name || 'Unknown'}
                 />
               ))
             )}
@@ -187,9 +160,14 @@ export default function ChatWindow({
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
               className="flex-1"
+              disabled={sending}
             />
-            <Button type="submit" size="icon" disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
+            <Button type="submit" size="icon" disabled={!newMessage.trim() || sending}>
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </form>
         </div>

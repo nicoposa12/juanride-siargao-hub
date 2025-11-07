@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import ChatWindow from '@/components/chat/ChatWindow'
+import Navigation from '@/components/shared/Navigation'
 
 export default function ChatPage() {
   const params = useParams()
@@ -26,6 +27,8 @@ export default function ChatPage() {
   }, [user, authLoading])
 
   const fetchBookingDetails = async () => {
+    const supabase = createClient()
+    
     try {
       const { data: booking, error } = await supabase
         .from('bookings')
@@ -33,7 +36,8 @@ export default function ChatPage() {
           renter_id,
           vehicle:vehicles (
             owner_id,
-            name
+            make,
+            model
           )
         `)
         .eq('id', params.bookingId)
@@ -80,8 +84,9 @@ export default function ChatPage() {
   if (!user || !recipientId) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <Navigation />
+      <div className="container mx-auto px-4 max-w-4xl pt-24 pb-12">
         <Link href="/messages">
           <Button variant="ghost" className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" />

@@ -1,90 +1,47 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Star, Upload, X } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
-import { useAuth } from '@/hooks/use-auth'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Star, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 
 interface ReviewFormProps {
+  bookingId?: string
   vehicleId: string
-  bookingId: string
+  onCancel?: () => void
   onSuccess?: () => void
+  onReviewSubmitted?: () => void
 }
 
-export default function ReviewForm({ vehicleId, bookingId, onSuccess }: ReviewFormProps) {
-  const router = useRouter()
+export default function ReviewForm({ bookingId, vehicleId, onCancel, onSuccess, onReviewSubmitted }: ReviewFormProps) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [rating, setRating] = useState(0)
-  const [hoveredRating, setHoveredRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState('')
-  const [images, setImages] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length + images.length > 5) {
-      toast({
-        title: 'Too many images',
-        description: 'You can upload a maximum of 5 images',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const newImages = [...images, ...files]
-    setImages(newImages)
-
-    // Create previews
-    const newPreviews = files.map((file) => URL.createObjectURL(file))
-    setImagePreviews([...imagePreviews, ...newPreviews])
-  }
-
-  const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index)
-    const newPreviews = imagePreviews.filter((_, i) => i !== index)
-    setImages(newImages)
-    setImagePreviews(newPreviews)
-  }
-
-  const uploadImages = async (): Promise<string[]> => {
-    const uploadedUrls: string[] = []
-
-    for (const image of images) {
-      const fileExt = image.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const filePath = `review-images/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('review-images')
-        .upload(filePath, image)
-
-      if (uploadError) {
-        console.error('Error uploading image:', uploadError)
-        continue
-      }
-
-      const { data } = supabase.storage.from('review-images').getPublicUrl(filePath)
-      uploadedUrls.push(data.publicUrl)
-    }
-
-    return uploadedUrls
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!user) {
       toast({
-        title: 'Please log in',
-        description: 'You need to be logged in to submit a review',
+        title: 'Authentication Required',
+        description: 'Please log in to leave a review.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!bookingId) {
+      toast({
+        title: 'Booking Required',
+        description: 'You can only review vehicles after completing a rental.',
         variant: 'destructive',
       })
       return
@@ -92,8 +49,8 @@ export default function ReviewForm({ vehicleId, bookingId, onSuccess }: ReviewFo
 
     if (rating === 0) {
       toast({
-        title: 'Rating required',
-        description: 'Please select a rating',
+        title: 'Rating Required',
+        description: 'Please select a star rating.',
         variant: 'destructive',
       })
       return
@@ -101,8 +58,8 @@ export default function ReviewForm({ vehicleId, bookingId, onSuccess }: ReviewFo
 
     if (!comment.trim()) {
       toast({
-        title: 'Comment required',
-        description: 'Please write a review comment',
+        title: 'Comment Required',
+        description: 'Please write a review comment.',
         variant: 'destructive',
       })
       return
@@ -111,42 +68,74 @@ export default function ReviewForm({ vehicleId, bookingId, onSuccess }: ReviewFo
     setIsSubmitting(true)
 
     try {
-      // Upload images if any
-      const imageUrls = images.length > 0 ? await uploadImages() : []
+      const supabase = createClient()
+
+      // Check if user has already reviewed this vehicle
+      if (bookingId) {
+        const { data: existingReview } = await supabase
+          .from('reviews')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .eq('reviewer_id', user.id)
+          .single()
+
+        if (existingReview) {
+          toast({
+            title: 'Already Reviewed',
+            description: 'You have already submitted a review for this booking.',
+            variant: 'destructive',
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      // Get vehicle owner ID
+      const { data: vehicleData } = await supabase
+        .from('vehicles')
+        .select('owner_id')
+        .eq('id', vehicleId)
+        .single()
+
+      if (!vehicleData) {
+        throw new Error('Vehicle not found')
+      }
 
       // Create review
-      const { error } = await supabase.from('reviews').insert({
-        vehicle_id: vehicleId,
-        booking_id: bookingId,
-        renter_id: user.id,
-        rating,
-        comment: comment.trim(),
-        images: imageUrls,
-      })
+      const { error } = await supabase
+        .from('reviews')
+        .insert({
+          booking_id: bookingId,
+          reviewer_id: user.id,
+          vehicle_id: vehicleId,
+          owner_id: vehicleData.owner_id,
+          rating,
+          comment: comment.trim(),
+        })
 
       if (error) throw error
 
       toast({
-        title: 'Review submitted!',
-        description: 'Thank you for your feedback',
+        title: 'Review Submitted!',
+        description: 'Thank you for your feedback.',
       })
 
       // Reset form
       setRating(0)
       setComment('')
-      setImages([])
-      setImagePreviews([])
 
+      // Notify parent component
       if (onSuccess) {
         onSuccess()
-      } else {
-        router.push(`/vehicles/${vehicleId}`)
       }
-    } catch (error) {
+      if (onReviewSubmitted) {
+        onReviewSubmitted()
+      }
+    } catch (error: any) {
       console.error('Error submitting review:', error)
       toast({
-        title: 'Error',
-        description: 'Failed to submit review. Please try again.',
+        title: 'Submission Failed',
+        description: error.message || 'Failed to submit review. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -158,111 +147,96 @@ export default function ReviewForm({ vehicleId, bookingId, onSuccess }: ReviewFo
     <Card>
       <CardHeader>
         <CardTitle>Write a Review</CardTitle>
+        <CardDescription>
+          Share your experience with this vehicle rental
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Rating */}
-          <div className="space-y-2">
-            <Label>Rating *</Label>
+          {/* Star Rating */}
+          <div>
+            <Label className="mb-2 block">Rating *</Label>
             <div className="flex gap-2">
-              {Array.from({ length: 5 }).map((_, i) => (
+              {[1, 2, 3, 4, 5].map((star) => (
                 <button
-                  key={i}
+                  key={star}
                   type="button"
-                  onClick={() => setRating(i + 1)}
-                  onMouseEnter={() => setHoveredRating(i + 1)}
-                  onMouseLeave={() => setHoveredRating(0)}
-                  className="transition-transform hover:scale-110"
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
                 >
                   <Star
-                    className={`h-8 w-8 ${
-                      i < (hoveredRating || rating)
+                    className={`h-10 w-10 ${
+                      star <= (hoverRating || rating)
                         ? 'fill-yellow-400 text-yellow-400'
-                        : 'fill-muted text-muted'
+                        : 'text-gray-300'
                     }`}
                   />
                 </button>
               ))}
             </div>
+            {rating > 0 && (
+              <p className="text-sm text-muted-foreground mt-2">
+                {rating === 1 && 'Poor'}
+                {rating === 2 && 'Fair'}
+                {rating === 3 && 'Good'}
+                {rating === 4 && 'Very Good'}
+                {rating === 5 && 'Excellent'}
+              </p>
+            )}
           </div>
 
           {/* Comment */}
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="comment">Your Review *</Label>
             <Textarea
               id="comment"
+              placeholder="Tell us about your experience with this vehicle..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Share your experience with this vehicle..."
               rows={5}
-              required
+              className="mt-2"
+              maxLength={1000}
             />
-          </div>
-
-          {/* Image Upload */}
-          <div className="space-y-2">
-            <Label>Photos (Optional)</Label>
-            <div className="space-y-3">
-              {/* Preview Images */}
-              {imagePreviews.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={preview}
-                        alt={`Preview ${index + 1}`}
-                        className="h-24 w-24 object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Upload Button */}
-              {images.length < 5 && (
-                <div>
-                  <input
-                    type="file"
-                    id="image-upload"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <Label htmlFor="image-upload">
-                    <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors">
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload images (max 5)
-                      </p>
-                    </div>
-                  </Label>
-                </div>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {comment.length}/1000 characters
+            </p>
           </div>
 
           {/* Submit Button */}
-          <Button type="submit" disabled={isSubmitting} className="w-full" size="lg">
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Submitting...
-              </>
-            ) : (
-              'Submit Review'
+          <div className="flex gap-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
             )}
-          </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting || rating === 0 || !comment.trim()}
+              className={onCancel ? 'flex-1' : 'w-full'}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit Review'
+              )}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
   )
 }
 
+// Named export for compatibility with ReviewList
+export { ReviewForm }

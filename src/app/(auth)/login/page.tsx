@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const { signIn, signInWithGoogle, signOut, profile } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,13 +85,24 @@ export default function LoginPage() {
           description: `Logged in as ${userProfile.role}`,
         })
 
-        // Redirect based on role
-        const redirectPath = userProfile.role === 'owner' ? '/owner/dashboard' : '/vehicles'
+        // Check for redirect parameter first
+        const redirectParam = searchParams.get('redirect')
+        let redirectPath = redirectParam || '/vehicles' // Default to vehicles (renter)
+        
+        // Override with role-based redirect only if no redirect param
+        if (!redirectParam) {
+        if (userProfile.role === 'admin') {
+          redirectPath = '/admin/dashboard'
+        } else if (userProfile.role === 'owner') {
+          redirectPath = '/owner/dashboard'
+          }
+        }
+        
         console.log('🚀 Redirecting to:', redirectPath)
         
-        // Small delay to show toast, then redirect
+        // Use router.push instead of window.location to preserve client-side state
         setTimeout(() => {
-          window.location.href = redirectPath
+          router.push(redirectPath)
         }, 500)
       } else {
         console.error('❌ No user data returned')
@@ -122,6 +134,9 @@ export default function LoginPage() {
           description: error.message,
           variant: 'destructive',
         })
+      } else {
+        // Google login success will be handled by auth callback
+        // The redirect will be handled by middleware or auth callback
       }
     } catch (error) {
       toast({

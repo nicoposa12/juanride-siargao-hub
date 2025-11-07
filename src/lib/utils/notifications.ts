@@ -1,4 +1,4 @@
-import { supabase } from '../supabase/client'
+import { createClient } from '../supabase/client'
 
 export type NotificationType = 
   | 'booking_confirmed'
@@ -25,6 +25,8 @@ export async function createNotification({
   message,
   link,
 }: CreateNotificationParams) {
+  const supabase = createClient()
+  
   try {
     const { error } = await supabase.from('notifications').insert({
       user_id: userId,
@@ -32,7 +34,7 @@ export async function createNotification({
       title,
       message,
       link,
-      read: false,
+      is_read: false,
     })
 
     if (error) throw error

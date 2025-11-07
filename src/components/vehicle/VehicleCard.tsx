@@ -18,7 +18,7 @@ interface VehicleCardProps {
   vehicle: any
 }
 
-export default function VehicleCard({ vehicle }: VehicleCardProps) {
+export function VehicleCard({ vehicle }: VehicleCardProps) {
   const [isFavorite, setIsFavorite] = useState(false)
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
@@ -112,7 +112,7 @@ export default function VehicleCard({ vehicle }: VehicleCardProps) {
           </button>
 
           {/* Vehicle Type Badge */}
-          <Badge className="absolute top-3 left-3 bg-primary">
+          <Badge className="absolute top-3 left-3 bg-primary/90 backdrop-blur-sm">
             {vehicleType}
           </Badge>
         </div>

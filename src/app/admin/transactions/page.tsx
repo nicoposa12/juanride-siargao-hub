@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Search, Download, DollarSign, TrendingUp, AlertCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/format'
@@ -63,6 +63,8 @@ export default function AdminTransactionsPage() {
   }, [searchQuery, transactions])
 
   const fetchTransactions = async () => {
+    const supabase = createClient()
+    
     try {
       const { data, error } = await supabase
         .from('payments')
@@ -72,7 +74,8 @@ export default function AdminTransactionsPage() {
             start_date,
             end_date,
             vehicle:vehicles (
-              name
+              make,
+              model
             ),
             renter:users!bookings_renter_id_fkey (
               full_name
@@ -104,7 +107,7 @@ export default function AdminTransactionsPage() {
 
     const filtered = transactions.filter(t =>
       t.transaction_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.booking.vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${t.booking.vehicle.make} ${t.booking.vehicle.model}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.booking.renter.full_name.toLowerCase().includes(searchQuery.toLowerCase())
     )
     setFilteredTransactions(filtered)
@@ -126,7 +129,7 @@ export default function AdminTransactionsPage() {
     const rows = filteredTransactions.map(t => [
       format(parseISO(t.created_at), 'yyyy-MM-dd HH:mm:ss'),
       t.transaction_id,
-      t.booking.vehicle.name,
+      `${t.booking.vehicle.make} ${t.booking.vehicle.model}`,
       t.booking.renter.full_name,
       t.amount.toString(),
       t.payment_method,
@@ -277,7 +280,7 @@ export default function AdminTransactionsPage() {
                       <TableCell className="font-mono text-xs">
                         {transaction.transaction_id}
                       </TableCell>
-                      <TableCell>{transaction.booking.vehicle.name}</TableCell>
+                      <TableCell>{`${transaction.booking.vehicle.make} ${transaction.booking.vehicle.model}`}</TableCell>
                       <TableCell>{transaction.booking.renter.full_name}</TableCell>
                       <TableCell className="font-semibold">
                         {formatCurrency(transaction.amount)}

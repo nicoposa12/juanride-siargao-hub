@@ -2,71 +2,86 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { formatCurrency } from '@/lib/utils/format'
 
 interface PriceBreakdownProps {
-  dailyRate: number
-  numberOfDays: number
-  serviceFee?: number
-  discount?: number
+  pricePerDay: number
+  days: number
+  pricePerWeek?: number
+  pricePerMonth?: number
+  serviceFeePercentage?: number
 }
 
-export default function PriceBreakdown({
-  dailyRate,
-  numberOfDays,
-  serviceFee = 0,
-  discount = 0,
+export function PriceBreakdown({
+  pricePerDay,
+  days,
+  pricePerWeek,
+  pricePerMonth,
+  serviceFeePercentage = 0.05,
 }: PriceBreakdownProps) {
-  const subtotal = dailyRate * numberOfDays
-  const total = subtotal + serviceFee - discount
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-    }).format(amount)
+  // Calculate optimal pricing
+  let subtotal = 0
+  let breakdown: string[] = []
+  
+  if (pricePerMonth && days >= 28) {
+    const months = Math.floor(days / 28)
+    const remainingDays = days % 28
+    
+    if (months > 0) {
+      subtotal += months * pricePerMonth
+      breakdown.push(`${months} ${months === 1 ? 'month' : 'months'} × ${formatCurrency(pricePerMonth)}`)
+    }
+    if (remainingDays > 0) {
+      subtotal += remainingDays * pricePerDay
+      breakdown.push(`${remainingDays} ${remainingDays === 1 ? 'day' : 'days'} × ${formatCurrency(pricePerDay)}`)
+    }
+  } else if (pricePerWeek && days >= 7) {
+    const weeks = Math.floor(days / 7)
+    const remainingDays = days % 7
+    
+    if (weeks > 0) {
+      subtotal += weeks * pricePerWeek
+      breakdown.push(`${weeks} ${weeks === 1 ? 'week' : 'weeks'} × ${formatCurrency(pricePerWeek)}`)
+    }
+    if (remainingDays > 0) {
+      subtotal += remainingDays * pricePerDay
+      breakdown.push(`${remainingDays} ${remainingDays === 1 ? 'day' : 'days'} × ${formatCurrency(pricePerDay)}`)
+    }
+  } else {
+    subtotal = days * pricePerDay
+    breakdown.push(`${days} ${days === 1 ? 'day' : 'days'} × ${formatCurrency(pricePerDay)}`)
   }
-
+  
+  const serviceFee = subtotal * serviceFeePercentage
+  const total = subtotal + serviceFee
+  
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Price Breakdown</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
-              {formatCurrency(dailyRate)} × {numberOfDays} {numberOfDays === 1 ? 'day' : 'days'}
-            </span>
+      <CardContent className="space-y-3">
+        {breakdown.map((item, index) => (
+          <div key={index} className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{item}</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
-
-          {serviceFee > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Service fee</span>
-              <span>{formatCurrency(serviceFee)}</span>
-            </div>
-          )}
-
-          {discount > 0 && (
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Discount</span>
-              <span>-{formatCurrency(discount)}</span>
-            </div>
-          )}
+        ))}
+        
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            Service fee ({(serviceFeePercentage * 100).toFixed(0)}%)
+          </span>
+          <span>{formatCurrency(serviceFee)}</span>
         </div>
-
+        
         <Separator />
-
-        <div className="flex justify-between font-semibold">
+        
+        <div className="flex items-center justify-between font-semibold text-lg">
           <span>Total</span>
-          <span className="text-lg">{formatCurrency(total)}</span>
-        </div>
-
-        <div className="text-xs text-muted-foreground">
-          You won't be charged yet. Final payment is due upon pickup.
+          <span className="text-primary">{formatCurrency(total)}</span>
         </div>
       </CardContent>
     </Card>
   )
 }
-

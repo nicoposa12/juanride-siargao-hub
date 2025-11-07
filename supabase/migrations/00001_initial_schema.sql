@@ -1,205 +1,264 @@
+-- JuanRide Database Schema
+-- Initial schema for vehicle rental platform
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create enum types
-CREATE TYPE user_role AS ENUM ('renter', 'owner', 'admin');
-CREATE TYPE vehicle_type AS ENUM ('scooter', 'motorcycle', 'car', 'van');
-CREATE TYPE vehicle_status AS ENUM ('available', 'rented', 'maintenance', 'inactive');
-CREATE TYPE booking_status AS ENUM ('pending', 'confirmed', 'active', 'completed', 'cancelled');
-CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'refunded');
-CREATE TYPE payment_method AS ENUM ('gcash', 'maya', 'card', 'bank_transfer');
-
--- Users table (extends Supabase auth.users)
-CREATE TABLE users (
+-- ============================================================================
+-- USERS TABLE
+-- ============================================================================
+-- Extends Supabase auth.users with profile information
+CREATE TABLE IF NOT EXISTS public.users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
     phone_number TEXT,
-    role user_role NOT NULL DEFAULT 'renter',
+    role TEXT NOT NULL CHECK (role IN ('renter', 'owner', 'admin')) DEFAULT 'renter',
     profile_image_url TEXT,
+    date_of_birth DATE,
+    address TEXT,
     is_verified BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Vehicles table
-CREATE TABLE vehicles (
+-- ============================================================================
+-- VEHICLES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.vehicles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    type vehicle_type NOT NULL,
+    owner_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('scooter', 'motorcycle', 'car', 'van')),
     make TEXT,
     model TEXT,
-    year INT,
+    year INTEGER CHECK (year >= 1900 AND year <= 2100),
     plate_number TEXT UNIQUE NOT NULL,
     description TEXT,
-    price_per_day NUMERIC(10, 2) NOT NULL,
-    price_per_week NUMERIC(10, 2),
-    price_per_month NUMERIC(10, 2),
-    status vehicle_status NOT NULL DEFAULT 'available',
+    price_per_day DECIMAL(10, 2) NOT NULL CHECK (price_per_day > 0),
+    price_per_week DECIMAL(10, 2) CHECK (price_per_week > 0),
+    price_per_month DECIMAL(10, 2) CHECK (price_per_month > 0),
+    status TEXT NOT NULL CHECK (status IN ('available', 'rented', 'maintenance', 'inactive')) DEFAULT 'available',
     location TEXT,
     image_urls TEXT[] DEFAULT '{}',
     features JSONB DEFAULT '{}',
     rental_terms TEXT,
+    transmission TEXT CHECK (transmission IN ('manual', 'automatic')),
+    fuel_type TEXT CHECK (fuel_type IN ('gasoline', 'diesel', 'electric', 'hybrid')),
     is_approved BOOLEAN DEFAULT FALSE,
     admin_notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Bookings table
-CREATE TABLE bookings (
+-- ============================================================================
+-- BOOKINGS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.bookings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    renter_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE NOT NULL,
+    renter_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE RESTRICT,
+    owner_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    total_price NUMERIC(10, 2) NOT NULL,
-    status booking_status NOT NULL DEFAULT 'pending',
+    total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'active', 'completed', 'cancelled')) DEFAULT 'pending',
     pickup_time TIME,
     return_time TIME,
+    pickup_location TEXT,
+    return_location TEXT,
     special_requests TEXT,
-    renter_notes TEXT,
-    owner_notes TEXT,
+    cancellation_reason TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT booking_dates_valid CHECK (end_date >= start_date)
+    CONSTRAINT valid_dates CHECK (end_date >= start_date)
 );
 
--- Payments table
-CREATE TABLE payments (
+-- ============================================================================
+-- PAYMENTS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE NOT NULL,
-    amount NUMERIC(10, 2) NOT NULL,
-    payment_method payment_method NOT NULL,
-    status payment_status NOT NULL DEFAULT 'pending',
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount >= 0),
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('gcash', 'maya', 'card', 'bank_transfer')),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'paid', 'failed', 'refunded')) DEFAULT 'pending',
     transaction_id TEXT,
-    gateway_response JSONB,
-    refund_amount NUMERIC(10, 2) DEFAULT 0,
-    refund_reason TEXT,
+    payment_gateway_response JSONB,
+    paid_at TIMESTAMPTZ,
+    refunded_at TIMESTAMPTZ,
+    refund_amount DECIMAL(10, 2),
+    platform_fee DECIMAL(10, 2) DEFAULT 0,
+    owner_payout DECIMAL(10, 2),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Reviews table
-CREATE TABLE reviews (
+-- ============================================================================
+-- REVIEWS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.reviews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE NOT NULL,
-    reviewer_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE NOT NULL,
-    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    cleanliness_rating INT CHECK (cleanliness_rating >= 1 AND cleanliness_rating <= 5),
-    condition_rating INT CHECK (condition_rating >= 1 AND condition_rating <= 5),
-    value_rating INT CHECK (value_rating >= 1 AND value_rating <= 5),
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+    reviewer_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+    owner_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
+    cleanliness_rating INTEGER CHECK (cleanliness_rating >= 1 AND cleanliness_rating <= 5),
+    condition_rating INTEGER CHECK (condition_rating >= 1 AND condition_rating <= 5),
+    value_rating INTEGER CHECK (value_rating >= 1 AND value_rating <= 5),
+    communication_rating INTEGER CHECK (communication_rating >= 1 AND communication_rating <= 5),
     image_urls TEXT[] DEFAULT '{}',
+    is_anonymous BOOLEAN DEFAULT FALSE,
     is_approved BOOLEAN DEFAULT TRUE,
-    is_flagged BOOLEAN DEFAULT FALSE,
     admin_notes TEXT,
     owner_response TEXT,
     owner_response_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(booking_id, reviewer_id)
+    UNIQUE (booking_id, reviewer_id)
 );
 
--- Maintenance logs table
-CREATE TABLE maintenance_logs (
+-- ============================================================================
+-- MESSAGES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE NOT NULL,
-    service_date DATE NOT NULL,
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    receiver_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    image_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- MAINTENANCE_LOGS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.maintenance_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
     service_type TEXT NOT NULL,
+    service_date DATE NOT NULL,
     description TEXT,
-    cost NUMERIC(10, 2),
+    cost DECIMAL(10, 2) CHECK (cost >= 0),
     service_provider TEXT,
     next_service_date DATE,
-    odometer_reading INT,
+    odometer_reading INTEGER,
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Messages table (for chat)
-CREATE TABLE messages (
+-- ============================================================================
+-- NOTIFICATIONS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE NOT NULL,
-    sender_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    content TEXT NOT NULL,
-    image_urls TEXT[] DEFAULT '{}',
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Favorites table (renters can save favorite vehicles)
-CREATE TABLE favorites (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, vehicle_id)
-);
-
--- Notifications table
-CREATE TABLE notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('booking', 'payment', 'message', 'review', 'system', 'maintenance')),
     title TEXT NOT NULL,
     message TEXT NOT NULL,
-    type TEXT NOT NULL,
-    related_id UUID,
+    link TEXT,
     is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    metadata JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create indexes for better performance
-CREATE INDEX idx_vehicles_owner ON vehicles(owner_id);
-CREATE INDEX idx_vehicles_status ON vehicles(status);
-CREATE INDEX idx_vehicles_type ON vehicles(type);
-CREATE INDEX idx_vehicles_approved ON vehicles(is_approved);
+-- ============================================================================
+-- BLOCKED_DATES TABLE
+-- ============================================================================
+-- For owners to block dates when vehicles are unavailable
+CREATE TABLE IF NOT EXISTS public.blocked_dates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT valid_blocked_dates CHECK (end_date >= start_date)
+);
 
-CREATE INDEX idx_bookings_renter ON bookings(renter_id);
-CREATE INDEX idx_bookings_vehicle ON bookings(vehicle_id);
-CREATE INDEX idx_bookings_status ON bookings(status);
-CREATE INDEX idx_bookings_dates ON bookings(start_date, end_date);
+-- ============================================================================
+-- FAVORITES TABLE
+-- ============================================================================
+-- For renters to save favorite vehicles
+CREATE TABLE IF NOT EXISTS public.favorites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, vehicle_id)
+);
 
-CREATE INDEX idx_payments_booking ON payments(booking_id);
-CREATE INDEX idx_payments_status ON payments(status);
+-- ============================================================================
+-- DISPUTES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.disputes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+    reported_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    reported_against UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('damage', 'late_return', 'payment', 'behavior', 'other')),
+    description TEXT NOT NULL,
+    evidence_urls TEXT[] DEFAULT '{}',
+    status TEXT NOT NULL CHECK (status IN ('open', 'investigating', 'resolved', 'closed')) DEFAULT 'open',
+    resolution TEXT,
+    resolved_by UUID REFERENCES public.users(id),
+    resolved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-CREATE INDEX idx_reviews_vehicle ON reviews(vehicle_id);
-CREATE INDEX idx_reviews_reviewer ON reviews(reviewer_id);
-CREATE INDEX idx_reviews_approved ON reviews(is_approved);
-
-CREATE INDEX idx_messages_booking ON messages(booking_id);
-CREATE INDEX idx_messages_sender ON messages(sender_id);
-
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_read ON notifications(is_read);
-
--- Create updated_at trigger function
+-- ============================================================================
+-- TRIGGERS FOR UPDATED_AT
+-- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Add updated_at triggers
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+-- Apply updated_at trigger to all tables with updated_at column
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles
+CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON public.vehicles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings
+CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON public.bookings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
+CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews
+CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON public.reviews
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_maintenance_logs_updated_at BEFORE UPDATE ON maintenance_logs
+CREATE TRIGGER update_maintenance_logs_updated_at BEFORE UPDATE ON public.maintenance_logs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_disputes_updated_at BEFORE UPDATE ON public.disputes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- COMMENTS
+-- ============================================================================
+COMMENT ON TABLE public.users IS 'Extended user profiles linked to Supabase auth';
+COMMENT ON TABLE public.vehicles IS 'Vehicle listings with specifications and pricing';
+COMMENT ON TABLE public.bookings IS 'Rental bookings connecting renters and vehicles';
+COMMENT ON TABLE public.payments IS 'Payment transactions for bookings';
+COMMENT ON TABLE public.reviews IS 'Reviews and ratings for vehicles and owners';
+COMMENT ON TABLE public.messages IS 'Real-time chat messages between users';
+COMMENT ON TABLE public.maintenance_logs IS 'Vehicle maintenance history and schedules';
+COMMENT ON TABLE public.notifications IS 'In-app notifications for users';
+COMMENT ON TABLE public.blocked_dates IS 'Date ranges when vehicles are unavailable';
+COMMENT ON TABLE public.favorites IS 'User-saved favorite vehicles';
+COMMENT ON TABLE public.disputes IS 'Dispute management between renters and owners';
 

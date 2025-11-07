@@ -1,0 +1,371 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { 
+  CheckCircle2, 
+  Calendar, 
+  MapPin, 
+  User, 
+  Phone, 
+  Mail,
+  MessageSquare,
+  Download,
+  Home,
+  Clock,
+  CreditCard,
+  AlertCircle,
+} from 'lucide-react'
+import { formatCurrency, formatDate, calculateDays } from '@/lib/utils/format'
+import { BOOKING_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import type { BookingWithDetails } from '@/lib/supabase/queries/bookings'
+
+interface BookingConfirmationProps {
+  booking: BookingWithDetails
+}
+
+export function BookingConfirmation({ booking }: BookingConfirmationProps) {
+  const router = useRouter()
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false)
+  
+  const vehicle = booking.vehicle
+  const owner = vehicle?.owner
+  const payment = Array.isArray(booking.payment) ? booking.payment[0] : booking.payment
+  
+  const rentalDays = calculateDays(booking.start_date, booking.end_date)
+  
+  const handleDownloadReceipt = async () => {
+    setDownloadingReceipt(true)
+    // TODO: Implement PDF receipt generation
+    setTimeout(() => {
+      setDownloadingReceipt(false)
+      alert('Receipt download functionality will be implemented with PDF generation')
+    }, 1000)
+  }
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'confirmed':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'active':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'completed':
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 border-red-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+  
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'paid':
+        return 'bg-green-100 text-green-800'
+      case 'failed':
+        return 'bg-red-100 text-red-800'
+      case 'refunded':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+  
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4 max-w-4xl">
+        {/* Success Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          </div>
+          <h1 className="text-3xl font-bold mb-2">Booking Confirmed!</h1>
+          <p className="text-muted-foreground">
+            Your booking request has been submitted successfully
+          </p>
+        </div>
+        
+        {/* Status Alert */}
+        {booking.status === 'pending' && (
+          <Alert className="mb-6 border-yellow-200 bg-yellow-50">
+            <Clock className="h-4 w-4 text-yellow-600" />
+            <AlertTitle className="text-yellow-800">Pending Confirmation</AlertTitle>
+            <AlertDescription className="text-yellow-700">
+              Your booking is pending confirmation from the vehicle owner. You'll receive a notification once it's confirmed.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {booking.status === 'confirmed' && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800">Confirmed</AlertTitle>
+            <AlertDescription className="text-green-700">
+              Your booking has been confirmed by the owner. Get ready for your trip!
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {payment && payment.status === 'pending' && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Payment Pending</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              Payment will be processed once the owner confirms your booking.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Booking Reference */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Booking Reference</CardTitle>
+                <CardDescription className="mt-1 font-mono text-base">
+                  #{booking.id.split('-')[0].toUpperCase()}
+                </CardDescription>
+              </div>
+              <Badge className={getStatusColor(booking.status)}>
+                {BOOKING_STATUS_LABELS[booking.status as keyof typeof BOOKING_STATUS_LABELS]}
+              </Badge>
+            </div>
+          </CardHeader>
+        </Card>
+        
+        {/* Vehicle & Booking Details */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Booking Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Vehicle Info */}
+            {vehicle && (
+              <div className="flex gap-4">
+                <div className="relative h-24 w-32 rounded-lg overflow-hidden flex-shrink-0">
+                  <Image
+                    src={vehicle.image_urls?.[0] || '/placeholder.svg'}
+                    alt={`${vehicle.make} ${vehicle.model}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">
+                    {vehicle.make} {vehicle.model}
+                  </h3>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    {vehicle.location}
+                  </p>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 mt-2"
+                    asChild
+                  >
+                    <Link href={`/vehicles/${vehicle.id}`}>
+                      View Vehicle Details
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <Separator />
+            
+            {/* Rental Period */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Check-in
+                </Label>
+                <p className="font-medium text-lg">{formatDate(booking.start_date)}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Check-out
+                </Label>
+                <p className="font-medium text-lg">{formatDate(booking.end_date)}</p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Total Duration</p>
+              <p className="font-semibold text-lg">
+                {rentalDays} {rentalDays === 1 ? 'day' : 'days'}
+              </p>
+            </div>
+            
+            {/* Locations */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-muted-foreground flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Pickup Location
+                </Label>
+                <p className="font-medium">{booking.pickup_location || 'To be confirmed'}</p>
+              </div>
+              {booking.return_location && (
+                <div>
+                  <Label className="text-muted-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Return Location
+                  </Label>
+                  <p className="font-medium">{booking.return_location}</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Special Requests */}
+            {booking.special_requests && (
+              <div>
+                <Label className="text-muted-foreground">Special Requests</Label>
+                <p className="text-sm bg-gray-50 p-3 rounded-lg mt-1">
+                  {booking.special_requests}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Payment Summary */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Payment Summary</span>
+              {payment && (
+                <Badge className={getPaymentStatusColor(payment.status)}>
+                  {PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS]}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Rental Amount</span>
+              <span className="font-medium">{formatCurrency(booking.total_price * 0.95)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Service Fee (5%)</span>
+              <span className="font-medium">{formatCurrency(booking.total_price * 0.05)}</span>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between text-lg font-semibold">
+              <span>Total Amount</span>
+              <span className="text-primary">{formatCurrency(booking.total_price)}</span>
+            </div>
+            {payment && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
+                <CreditCard className="h-4 w-4" />
+                <span className="capitalize">Payment Method: {payment.payment_method.replace('_', ' ')}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Owner Information */}
+        {owner && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Vehicle Owner</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold">{owner.full_name || 'Vehicle Owner'}</p>
+                  {owner.phone_number && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {owner.phone_number}
+                    </p>
+                  )}
+                </div>
+                <Button asChild>
+                  <Link href={`/messages?booking=${booking.id}`}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Message Owner
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Action Buttons */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleDownloadReceipt}
+            disabled={downloadingReceipt}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {downloadingReceipt ? 'Downloading...' : 'Download Receipt'}
+          </Button>
+          <Button
+            size="lg"
+            asChild
+          >
+            <Link href="/dashboard/bookings">
+              <Home className="mr-2 h-4 w-4" />
+              View My Bookings
+            </Link>
+          </Button>
+        </div>
+        
+        {/* Additional Info */}
+        <Card className="mt-6 border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <h4 className="font-semibold mb-2 flex items-center gap-2 text-blue-900">
+              <AlertCircle className="h-5 w-5" />
+              What's Next?
+            </h4>
+            <ul className="space-y-2 text-sm text-blue-800">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>You'll receive a notification once the owner confirms your booking</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>After confirmation, you can message the owner to coordinate pickup details</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>Payment will be processed according to the owner's payment terms</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>Don't forget to review your experience after your rental!</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function Label({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`text-sm font-medium ${className}`}>
+      {children}
+    </div>
+  )
+}
+

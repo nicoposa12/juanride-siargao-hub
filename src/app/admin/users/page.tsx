@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -15,311 +17,446 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Search,
+  UserCog,
+  Shield,
+  Ban,
+  CheckCircle,
+  Loader2,
+  Mail,
+  Phone,
+  Calendar,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { Search, MoreVertical, Eye, Ban, CheckCircle, AlertCircle } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
-
-interface User {
-  id: string
-  email: string
-  full_name: string
-  phone: string
-  role: string
-  profile_image_url: string | null
-  created_at: string
-  last_sign_in_at: string | null
-}
+import { createClient } from '@/lib/supabase/client'
+import { formatDate } from '@/lib/utils/format'
 
 export default function AdminUsersPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  
+  const [users, setUsers] = useState<any[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
-
+  const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [editDialog, setEditDialog] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  
+  const [editForm, setEditForm] = useState({
+    role: '',
+    is_active: true,
+    is_verified: false,
+  })
+  
   useEffect(() => {
-    if (!authLoading && (!user || user.user_metadata?.role !== 'admin')) {
-      router.push('/')
-    } else if (user) {
-      fetchUsers()
+    if (!authLoading) {
+      if (!user || (profile && profile.role !== 'admin')) {
+        router.push('/')
+        return
+      }
+      loadUsers()
     }
-  }, [user, authLoading])
-
+  }, [user, profile, authLoading, router])
+  
   useEffect(() => {
     filterUsers()
-  }, [searchQuery, roleFilter, users])
-
-  const fetchUsers = async () => {
+  }, [users, searchQuery, roleFilter, statusFilter])
+  
+  const loadUsers = async () => {
+    setLoading(true)
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })
-
+      
       if (error) throw error
+      
       setUsers(data || [])
-      setFilteredUsers(data || [])
     } catch (error) {
-      console.error('Error fetching users:', error)
+      console.error('Error loading users:', error)
       toast({
         title: 'Error',
-        description: 'Failed to load users',
+        description: 'Failed to load users.',
         variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
   }
-
+  
   const filterUsers = () => {
-    let filtered = users
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(u =>
-        u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.phone?.includes(searchQuery)
-      )
-    }
-
-    // Role filter
+    let filtered = [...users]
+    
+    // Filter by role
     if (roleFilter !== 'all') {
       filtered = filtered.filter(u => u.role === roleFilter)
     }
-
+    
+    // Filter by status
+    if (statusFilter === 'active') {
+      filtered = filtered.filter(u => u.is_active)
+    } else if (statusFilter === 'inactive') {
+      filtered = filtered.filter(u => !u.is_active)
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(u =>
+        u.full_name?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        u.phone_number?.toLowerCase().includes(query)
+      )
+    }
+    
     setFilteredUsers(filtered)
   }
-
-  const getRoleBadge = (role: string) => {
-    const variants: Record<string, any> = {
-      admin: { variant: 'destructive', label: 'Admin' },
-      owner: { variant: 'default', label: 'Owner' },
-      renter: { variant: 'secondary', label: 'Renter' },
+  
+  const handleEditUser = (user: any) => {
+    setSelectedUser(user)
+    setEditForm({
+      role: user.role,
+      is_active: user.is_active,
+      is_verified: user.is_verified,
+    })
+    setEditDialog(true)
+  }
+  
+  const handleSaveUser = async () => {
+    if (!selectedUser) return
+    
+    setProcessing(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('users')
+        .update({
+          role: editForm.role,
+          is_active: editForm.is_active,
+          is_verified: editForm.is_verified,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedUser.id)
+      
+      if (error) throw error
+      
+      toast({
+        title: 'User Updated',
+        description: 'User information has been updated successfully.',
+      })
+      
+      await loadUsers()
+      setEditDialog(false)
+      setSelectedUser(null)
+    } catch (error: any) {
+      console.error('Error updating user:', error)
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Failed to update user.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessing(false)
     }
-    const config = variants[role] || variants.renter
-    return <Badge variant={config.variant}>{config.label}</Badge>
   }
-
-  const getInitials = (name: string) => {
-    if (!name) return '??'
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+  
+  const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('users')
+        .update({
+          is_active: !currentStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+      
+      if (error) throw error
+      
+      toast({
+        title: 'Status Updated',
+        description: `User has been ${!currentStatus ? 'activated' : 'deactivated'}.`,
+      })
+      
+      await loadUsers()
+    } catch (error: any) {
+      console.error('Error toggling status:', error)
+      toast({
+        title: 'Action Failed',
+        description: error.message || 'Failed to update user status.',
+        variant: 'destructive',
+      })
+    }
   }
-
+  
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <Skeleton className="h-12 w-64 mb-8" />
+          <Skeleton className="h-96" />
+        </div>
       </div>
     )
   }
-
-  if (!user || user.user_metadata?.role !== 'admin') return null
-
-  const stats = {
-    total: users.length,
-    renters: users.filter(u => u.role === 'renter').length,
-    owners: users.filter(u => u.role === 'owner').length,
-    admins: users.filter(u => u.role === 'admin').length,
-  }
-
+  
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">User Management</h1>
-          <p className="text-muted-foreground">Manage all platform users</p>
+          <h1 className="text-3xl font-bold">User Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage user accounts and permissions
+          </p>
         </div>
-
-        {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Renters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.renters}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Owners</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.owners}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Admins</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.admins}</div>
-            </CardContent>
-          </Card>
-        </div>
-
+        
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, email, or phone..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+          <CardContent className="pt-6">
+            <div className="grid md:grid-cols-[1fr_200px_200px] gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={roleFilter === 'all' ? 'default' : 'outline'}
-                  onClick={() => setRoleFilter('all')}
-                  size="sm"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={roleFilter === 'renter' ? 'default' : 'outline'}
-                  onClick={() => setRoleFilter('renter')}
-                  size="sm"
-                >
-                  Renters
-                </Button>
-                <Button
-                  variant={roleFilter === 'owner' ? 'default' : 'outline'}
-                  onClick={() => setRoleFilter('owner')}
-                  size="sm"
-                >
-                  Owners
-                </Button>
-                <Button
-                  variant={roleFilter === 'admin' ? 'default' : 'outline'}
-                  onClick={() => setRoleFilter('admin')}
-                  size="sm"
-                >
-                  Admins
-                </Button>
-              </div>
+              
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="renter">Renters</SelectItem>
+                  <SelectItem value="owner">Owners</SelectItem>
+                  <SelectItem value="admin">Admins</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
-
+        
         {/* Users Table */}
         <Card>
           <CardContent className="p-0">
             {filteredUsers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-semibold mb-2">No users found</p>
+              <div className="text-center py-12">
+                <UserCog className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No Users Found</h3>
                 <p className="text-muted-foreground">
-                  {searchQuery ? 'Try a different search term' : 'No users match the selected filters'}
+                  {searchQuery ? 'Try adjusting your search criteria.' : 'No users match the selected filters.'}
                 </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>Last Sign In</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((usr) => (
-                    <TableRow key={usr.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            {usr.profile_image_url ? (
-                              <img
-                                src={usr.profile_image_url}
-                                alt={usr.full_name}
-                                className="h-10 w-10 rounded-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-sm font-medium">{getInitials(usr.full_name)}</span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-medium">{usr.full_name || 'N/A'}</div>
-                            <div className="text-xs text-muted-foreground">{usr.id.slice(0, 8)}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{usr.email}</TableCell>
-                      <TableCell>{usr.phone || 'N/A'}</TableCell>
-                      <TableCell>{getRoleBadge(usr.role)}</TableCell>
-                      <TableCell>
-                        {format(parseISO(usr.created_at), 'MMM dd, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        {usr.last_sign_in_at
-                          ? format(parseISO(usr.last_sign_in_at), 'MMM dd, yyyy')
-                          : 'Never'}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <Ban className="h-4 w-4 mr-2" />
-                              Suspend Account
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{user.full_name || 'No Name'}</p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {user.email}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {user.phone_number || 'Not provided'}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              user.role === 'admin'
+                                ? 'bg-purple-100 text-purple-800'
+                                : user.role === 'owner'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                            }
+                          >
+                            {user.role === 'admin' && <Shield className="h-3 w-3 mr-1" />}
+                            {user.role}
+                          </Badge>
+                          {user.is_verified && (
+                            <CheckCircle className="inline h-4 w-4 ml-2 text-green-600" title="Verified" />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={user.is_active ? 'default' : 'secondary'}
+                            className={user.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+                          >
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(user.created_at)}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditUser(user)}
+                            >
+                              <UserCog className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={user.is_active ? 'destructive' : 'default'}
+                              onClick={() => handleToggleStatus(user.id, user.is_active)}
+                            >
+                              {user.is_active ? (
+                                <Ban className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
-
-        <div className="mt-4 text-sm text-muted-foreground text-center">
-          Showing {filteredUsers.length} of {users.length} users
-        </div>
+        
+        {/* Edit User Dialog */}
+        <Dialog open={editDialog} onOpenChange={setEditDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update user role and permissions
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="user-info">User Information</Label>
+                <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                  <p className="font-medium">{selectedUser?.full_name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="role">Role</Label>
+                <Select value={editForm.role} onValueChange={(value) => setEditForm({ ...editForm, role: value })}>
+                  <SelectTrigger id="role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="renter">Renter</SelectItem>
+                    <SelectItem value="owner">Owner</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={editForm.is_active}
+                  onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="is_active" className="font-normal">
+                  Active Account
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_verified"
+                  checked={editForm.is_verified}
+                  onChange={(e) => setEditForm({ ...editForm, is_verified: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="is_verified" className="font-normal">
+                  Verified User
+                </Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditDialog(false)}
+                disabled={processing}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveUser} disabled={processing}>
+                {processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
 }
-

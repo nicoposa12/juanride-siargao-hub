@@ -1,111 +1,126 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Plus, Wrench, Calendar, DollarSign, Loader2, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Wrench, Calendar, DollarSign, AlertCircle } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils/format'
-import { format, parseISO } from 'date-fns'
+import { createClient } from '@/lib/supabase/client'
+import { formatCurrency, formatDate } from '@/lib/utils/format'
 
 interface MaintenanceLog {
   id: string
   vehicle_id: string
-  type: string
+  service_date: string
   description: string
   cost: number
-  scheduled_date: string
-  completed_date: string | null
-  status: string
-  notes: string
   created_at: string
   vehicle: {
-    name: string
-    license_plate: string
+    make: string
+    model: string
+    plate_number: string
   }
 }
 
-interface Vehicle {
-  id: string
-  name: string
-  license_plate: string
-}
-
-const MAINTENANCE_TYPES = [
-  'Oil Change',
-  'Tire Replacement',
-  'Brake Service',
-  'Battery Replacement',
-  'General Inspection',
-  'Repair',
-  'Other',
-]
-
 export default function OwnerMaintenancePage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const supabase = createClient()
+
+  const [logs, setLogs] = useState<MaintenanceLog[]>([])
+  const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     vehicle_id: '',
-    type: '',
+    service_date: '',
     description: '',
-    cost: 0,
-    scheduled_date: format(new Date(), 'yyyy-MM-dd'),
-    notes: '',
+    cost: '',
   })
 
   useEffect(() => {
-    if (!authLoading && (!user || user.user_metadata?.role !== 'owner')) {
-      router.push('/')
-    } else if (user) {
-      fetchData()
+    if (!authLoading) {
+      if (!user || (profile && profile.role !== 'owner')) {
+        router.push('/')
+        return
+      }
+      loadData()
     }
-  }, [user, authLoading])
+  }, [user, profile, authLoading, router])
 
-  const fetchData = async () => {
+  const loadData = async () => {
+    setLoading(true)
     try {
-      // Fetch vehicles
-      const { data: vehiclesData } = await supabase
+      // Load vehicles
+      const { data: vehiclesData, error: vehiclesError } = await supabase
         .from('vehicles')
-        .select('id, name, license_plate')
-        .eq('owner_id', user?.id)
+        .select('id, make, model, plate_number')
+        .eq('owner_id', user!.id)
+        .order('make')
 
+      if (vehiclesError) throw vehiclesError
       setVehicles(vehiclesData || [])
 
-      // Fetch maintenance logs
-      const { data: logsData } = await supabase
+      // Load maintenance logs
+      const { data: logsData, error: logsError } = await supabase
         .from('maintenance_logs')
         .select(`
-          *,
-          vehicle:vehicles!inner (
-            name,
-            license_plate,
-            owner_id
+          id,
+          vehicle_id,
+          service_date,
+          description,
+          cost,
+          created_at,
+          vehicle:vehicles (
+            make,
+            model,
+            plate_number
           )
         `)
-        .eq('vehicle.owner_id', user?.id)
-        .order('scheduled_date', { ascending: false })
+        .in('vehicle_id', vehiclesData?.map(v => v.id) || [])
+        .order('service_date', { ascending: false })
 
-      setMaintenanceLogs(logsData || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
+      if (logsError) throw logsError
+      setLogs(logsData as MaintenanceLog[] || [])
+    } catch (error: any) {
+      console.error('Error loading data:', error)
       toast({
         title: 'Error',
-        description: 'Failed to load maintenance data',
+        description: error.message || 'Failed to load maintenance data',
         variant: 'destructive',
       })
     } finally {
@@ -116,337 +131,342 @@ export default function OwnerMaintenancePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    try {
-      const { error } = await supabase.from('maintenance_logs').insert({
-        vehicle_id: formData.vehicle_id,
-        type: formData.type,
-        description: formData.description,
-        cost: formData.cost,
-        scheduled_date: formData.scheduled_date,
-        notes: formData.notes,
-        status: 'scheduled',
-      })
-
-      if (error) throw error
-
-      // Update vehicle availability during maintenance
-      await supabase
-        .from('vehicles')
-        .update({ is_available: false })
-        .eq('id', formData.vehicle_id)
-
+    if (!formData.vehicle_id || !formData.service_date || !formData.description) {
       toast({
-        title: 'Success',
-        description: 'Maintenance scheduled successfully',
-      })
-
-      setIsDialogOpen(false)
-      setFormData({
-        vehicle_id: '',
-        type: '',
-        description: '',
-        cost: 0,
-        scheduled_date: format(new Date(), 'yyyy-MM-dd'),
-        notes: '',
-      })
-      fetchData()
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to schedule maintenance',
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
         variant: 'destructive',
       })
+      return
     }
-  }
 
-  const handleComplete = async (logId: string, vehicleId: string) => {
+    setSubmitting(true)
     try {
       const { error } = await supabase
         .from('maintenance_logs')
-        .update({
-          status: 'completed',
-          completed_date: new Date().toISOString(),
+        .insert({
+          vehicle_id: formData.vehicle_id,
+          service_date: formData.service_date,
+          description: formData.description,
+          cost: formData.cost ? parseFloat(formData.cost) : 0,
         })
-        .eq('id', logId)
 
       if (error) throw error
 
-      // Make vehicle available again
-      await supabase
-        .from('vehicles')
-        .update({ is_available: true })
-        .eq('id', vehicleId)
-
       toast({
-        title: 'Success',
-        description: 'Maintenance marked as completed',
+        title: 'Maintenance Log Added',
+        description: 'The maintenance record has been saved successfully',
       })
 
-      fetchData()
-    } catch (error) {
+      setDialogOpen(false)
+      setFormData({ vehicle_id: '', service_date: '', description: '', cost: '' })
+      loadData()
+    } catch (error: any) {
+      console.error('Error adding log:', error)
       toast({
         title: 'Error',
-        description: 'Failed to update maintenance status',
+        description: error.message || 'Failed to add maintenance log',
         variant: 'destructive',
       })
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, any> = {
-      scheduled: { variant: 'secondary', label: 'Scheduled' },
-      in_progress: { variant: 'default', label: 'In Progress' },
-      completed: { variant: 'outline', label: 'Completed' },
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this maintenance log?')) {
+      return
     }
-    const config = variants[status] || variants.scheduled
-    return <Badge variant={config.variant}>{config.label}</Badge>
+
+    setDeleteId(id)
+    try {
+      const { error } = await supabase
+        .from('maintenance_logs')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      toast({
+        title: 'Maintenance Log Deleted',
+        description: 'The maintenance record has been removed',
+      })
+
+      loadData()
+    } catch (error: any) {
+      console.error('Error deleting log:', error)
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete maintenance log',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleteId(null)
+    }
   }
 
-  const totalCost = maintenanceLogs.reduce((sum, log) => sum + log.cost, 0)
-  const scheduledCount = maintenanceLogs.filter(log => log.status === 'scheduled').length
-  const completedCount = maintenanceLogs.filter(log => log.status === 'completed').length
+  const getTotalCost = () => {
+    return logs.reduce((sum, log) => sum + (log.cost || 0), 0)
+  }
+
+  const getTotalServices = () => {
+    return logs.length
+  }
+
+  const getRecentServices = () => {
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    return logs.filter(log => new Date(log.service_date) >= thirtyDaysAgo).length
+  }
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <Skeleton className="h-12 w-64 mb-8" />
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
+        </div>
       </div>
     )
   }
 
-  if (!user || user.user_metadata?.role !== 'owner') return null
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-6xl">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Maintenance Management</h1>
-            <p className="text-muted-foreground">Track and schedule vehicle maintenance</p>
+            <h1 className="text-3xl font-bold">Vehicle Maintenance</h1>
+            <p className="text-muted-foreground mt-2">
+              Track service history and maintenance costs
+            </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Schedule Maintenance
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Schedule Maintenance</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="vehicle">Vehicle *</Label>
-                  <Select 
-                    value={formData.vehicle_id} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select vehicle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vehicles.map(vehicle => (
-                        <SelectItem key={vehicle.id} value={vehicle.id}>
-                          {vehicle.name} - {vehicle.license_plate}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="type">Maintenance Type *</Label>
-                  <Select 
-                    value={formData.type} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MAINTENANCE_TYPES.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Describe the maintenance work needed"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cost">Cost (₱)</Label>
-                  <Input
-                    id="cost"
-                    type="number"
-                    min="0"
-                    step="50"
-                    value={formData.cost}
-                    onChange={(e) => setFormData(prev => ({ ...prev, cost: parseFloat(e.target.value) }))}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="scheduled_date">Scheduled Date *</Label>
-                  <Input
-                    id="scheduled_date"
-                    type="date"
-                    value={formData.scheduled_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Additional notes or reminders"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Schedule</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Maintenance Record
+          </Button>
         </div>
 
         {/* Stats */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Maintenance Cost</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+                Total Services
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalCost)}</div>
-              <p className="text-xs text-muted-foreground mt-1">All time</p>
+              <div className="text-2xl font-bold">{getTotalServices()}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                All-time maintenance records
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Recent Services
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{scheduledCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">Upcoming maintenance</p>
+              <div className="text-2xl font-bold">{getRecentServices()}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Last 30 days
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <Wrench className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                Total Cost
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{completedCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total completed</p>
+              <div className="text-2xl font-bold">{formatCurrency(getTotalCost())}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                All-time maintenance expenses
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Maintenance Logs */}
+        {/* Maintenance Logs Table */}
         <Card>
           <CardHeader>
             <CardTitle>Maintenance History</CardTitle>
+            <CardDescription>
+              View and manage all maintenance records for your vehicles
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {maintenanceLogs.length === 0 ? (
+            {logs.length === 0 ? (
               <div className="text-center py-12">
-                <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-semibold mb-2">No maintenance records</p>
-                <p className="text-muted-foreground mb-6">
-                  Schedule maintenance to keep your vehicles in top condition
+                <Wrench className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No Maintenance Records</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start tracking your vehicle maintenance by adding a record
                 </p>
-                <Button onClick={() => setIsDialogOpen(true)}>
+                <Button onClick={() => setDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Schedule Maintenance
+                  Add First Record
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {maintenanceLogs.map(log => (
-                  <div key={log.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h4 className="font-semibold text-lg">{log.vehicle.name}</h4>
-                        <p className="text-sm text-muted-foreground">{log.vehicle.license_plate}</p>
-                      </div>
-                      {getStatusBadge(log.status)}
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4 mb-3">
-                      <div>
-                        <div className="text-sm text-muted-foreground">Type</div>
-                        <div className="font-medium">{log.type}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Scheduled Date</div>
-                        <div className="font-medium">
-                          {format(parseISO(log.scheduled_date), 'MMM dd, yyyy')}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Cost</div>
-                        <div className="font-medium">{formatCurrency(log.cost)}</div>
-                      </div>
-                      {log.completed_date && (
-                        <div>
-                          <div className="text-sm text-muted-foreground">Completed Date</div>
-                          <div className="font-medium">
-                            {format(parseISO(log.completed_date), 'MMM dd, yyyy')}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead>Service Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Cost</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {logs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">
+                              {log.vehicle.make} {log.vehicle.model}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {log.vehicle.plate_number}
+                            </p>
                           </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mb-3">
-                      <div className="text-sm text-muted-foreground mb-1">Description</div>
-                      <p className="text-sm">{log.description}</p>
-                    </div>
-
-                    {log.notes && (
-                      <div className="mb-3">
-                        <div className="text-sm text-muted-foreground mb-1">Notes</div>
-                        <p className="text-sm">{log.notes}</p>
-                      </div>
-                    )}
-
-                    {log.status === 'scheduled' && (
-                      <Button 
-                        onClick={() => handleComplete(log.id, log.vehicle_id)}
-                        size="sm"
-                        className="mt-2"
-                      >
-                        Mark as Completed
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                        </TableCell>
+                        <TableCell>{formatDate(log.service_date)}</TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {log.description}
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">
+                            {formatCurrency(log.cost || 0)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(log.id)}
+                            disabled={deleteId === log.id}
+                          >
+                            {deleteId === log.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Add Maintenance Dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Maintenance Record</DialogTitle>
+              <DialogDescription>
+                Record a new maintenance or service for your vehicle
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="vehicle">Vehicle *</Label>
+                <Select
+                  value={formData.vehicle_id}
+                  onValueChange={(value) => setFormData({ ...formData, vehicle_id: value })}
+                >
+                  <SelectTrigger id="vehicle">
+                    <SelectValue placeholder="Select a vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.make} {vehicle.model} ({vehicle.plate_number})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="service_date">Service Date *</Label>
+                <Input
+                  id="service_date"
+                  type="date"
+                  value={formData.service_date}
+                  onChange={(e) => setFormData({ ...formData, service_date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  placeholder="e.g., Oil change, tire rotation, brake pad replacement..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cost">Cost (₱)</Label>
+                <Input
+                  id="cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDialogOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Add Record'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
 }
-

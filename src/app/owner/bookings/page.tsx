@@ -1,355 +1,477 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent } from '@/components/ui/card'
+import Image from 'next/image'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Calendar,
+  MapPin,
+  User,
+  Phone,
+  Mail,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Car,
+  MessageSquare,
+  Search,
+  Filter,
+  Loader2,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { Calendar, MapPin, Clock, AlertCircle, Eye, MessageCircle } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils/format'
-import { format, parseISO } from 'date-fns'
+import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { BOOKING_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import { 
+  getOwnerBookings, 
+  confirmBooking, 
+  activateBooking,
+  completeBooking,
+  cancelBooking,
+  type BookingWithDetails,
+} from '@/lib/supabase/queries/bookings'
 
-interface Booking {
-  id: string
-  start_date: string
-  end_date: string
-  total_price: number
-  status: string
-  created_at: string
-  pickup_confirmed: boolean
-  return_confirmed: boolean
-  vehicle: {
-    id: string
-    name: string
-    type: string
-    image_url: string
-    license_plate: string
-  }
-  renter: {
-    id: string
-    full_name: string
-    email: string
-    phone: string
-  }
-}
-
-export default function OwnerBookingsPage() {
+function BookingsContent() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const searchParams = useSearchParams()
+  const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const [bookings, setBookings] = useState<Booking[]>([])
+  
+  const [bookings, setBookings] = useState<BookingWithDetails[]>([])
+  const [filteredBookings, setFilteredBookings] = useState<BookingWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
-
+  const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null)
+  const [actionDialog, setActionDialog] = useState<{
+    open: boolean
+    action: 'confirm' | 'activate' | 'complete' | 'cancel' | null
+    processing: boolean
+  }>({ open: false, action: null, processing: false })
+  
   useEffect(() => {
-    if (!authLoading && (!user || user.user_metadata?.role !== 'owner')) {
-      router.push('/')
-    } else if (user) {
-      fetchBookings()
+    if (!authLoading) {
+      if (!user || (profile && profile.role !== 'owner' && profile.role !== 'admin')) {
+        router.push('/')
+        return
+      }
+      loadBookings()
     }
-  }, [user, authLoading])
-
-  const fetchBookings = async () => {
+  }, [user, profile, authLoading, router])
+  
+  useEffect(() => {
+    // Check if there's a specific booking to view
+    const bookingId = searchParams.get('id')
+    if (bookingId && bookings.length > 0) {
+      const booking = bookings.find(b => b.id === bookingId)
+      if (booking) {
+        setSelectedBooking(booking)
+      }
+    }
+  }, [searchParams, bookings])
+  
+  useEffect(() => {
+    filterBookings()
+  }, [bookings, activeTab, searchQuery])
+  
+  const loadBookings = async () => {
+    if (!user) return
+    
+    setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          start_date,
-          end_date,
-          total_price,
-          status,
-          created_at,
-          pickup_confirmed,
-          return_confirmed,
-          vehicle:vehicles!inner (
-            id,
-            name,
-            type,
-            image_url,
-            license_plate,
-            owner_id
-          ),
-          renter:users!bookings_renter_id_fkey (
-            id,
-            full_name,
-            email,
-            phone
-          )
-        `)
-        .eq('vehicle.owner_id', user?.id)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setBookings(data || [])
+      const data = await getOwnerBookings(user.id)
+      setBookings(data)
     } catch (error) {
-      console.error('Error fetching bookings:', error)
+      console.error('Error loading bookings:', error)
       toast({
         title: 'Error',
-        description: 'Failed to load bookings',
+        description: 'Failed to load bookings.',
         variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
   }
-
-  const filterBookings = (status: string) => {
-    if (status === 'all') return bookings
-    return bookings.filter(booking => booking.status === status)
+  
+  const filterBookings = () => {
+    let filtered = [...bookings]
+    
+    // Filter by status tab
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(b => b.status === activeTab)
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(b =>
+        b.renter?.full_name?.toLowerCase().includes(query) ||
+        b.vehicle?.make?.toLowerCase().includes(query) ||
+        b.vehicle?.model?.toLowerCase().includes(query) ||
+        b.vehicle?.plate_number?.toLowerCase().includes(query)
+      )
+    }
+    
+    setFilteredBookings(filtered)
   }
-
-  const handlePickupConfirmation = async (bookingId: string) => {
+  
+  const handleAction = async () => {
+    if (!selectedBooking || !actionDialog.action) return
+    
+    setActionDialog(prev => ({ ...prev, processing: true }))
+    
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          pickup_confirmed: true,
-          status: 'active'
+      let result
+      
+      switch (actionDialog.action) {
+        case 'confirm':
+          result = await confirmBooking(selectedBooking.id)
+          break
+        case 'activate':
+          result = await activateBooking(selectedBooking.id)
+          break
+        case 'complete':
+          result = await completeBooking(selectedBooking.id)
+          break
+        case 'cancel':
+          result = await cancelBooking(selectedBooking.id)
+          break
+      }
+      
+      if (result?.success) {
+        toast({
+          title: 'Success',
+          description: `Booking ${actionDialog.action}ed successfully.`,
         })
-        .eq('id', bookingId)
-
-      if (error) throw error
-
+        await loadBookings()
+        setActionDialog({ open: false, action: null, processing: false })
+        setSelectedBooking(null)
+      } else {
+        throw new Error(result?.error?.message || 'Action failed')
+      }
+    } catch (error: any) {
+      console.error('Error performing action:', error)
       toast({
-        title: 'Success',
-        description: 'Pickup confirmed',
-      })
-
-      fetchBookings()
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to confirm pickup',
+        title: 'Action Failed',
+        description: error.message || `Failed to ${actionDialog.action} booking.`,
         variant: 'destructive',
       })
+    } finally {
+      setActionDialog(prev => ({ ...prev, processing: false }))
     }
   }
-
-  const handleReturnConfirmation = async (bookingId: string) => {
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          return_confirmed: true,
-          status: 'completed'
-        })
-        .eq('id', bookingId)
-
-      if (error) throw error
-
-      toast({
-        title: 'Success',
-        description: 'Return confirmed',
-      })
-
-      fetchBookings()
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to confirm return',
-        variant: 'destructive',
-      })
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'confirmed':
+        return 'bg-green-100 text-green-800'
+      case 'active':
+        return 'bg-blue-100 text-blue-800'
+      case 'completed':
+        return 'bg-gray-100 text-gray-800'
+      case 'cancelled':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, any> = {
-      pending: { variant: 'secondary', label: 'Pending' },
-      confirmed: { variant: 'default', label: 'Confirmed' },
-      active: { variant: 'default', label: 'Active' },
-      completed: { variant: 'outline', label: 'Completed' },
-      cancelled: { variant: 'destructive', label: 'Cancelled' },
-    }
-    const config = variants[status] || variants.pending
-    return <Badge variant={config.variant}>{config.label}</Badge>
-  }
-
-  const calculateDuration = (start: string, end: string) => {
-    const days = Math.ceil(
-      (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)
-    )
-    return `${days} ${days === 1 ? 'day' : 'days'}`
-  }
-
+  
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <Skeleton className="h-12 w-64 mb-8" />
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
-
-  if (!user || user.user_metadata?.role !== 'owner') return null
-
+  
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-6xl">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Booking Management</h1>
-          <p className="text-muted-foreground">Track and manage all bookings for your vehicles</p>
+          <h1 className="text-3xl font-bold">Manage Bookings</h1>
+          <p className="text-muted-foreground mt-2">
+            View and manage booking requests for your vehicles
+          </p>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All Bookings</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
+        
+        {/* Search & Filter */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by renter name, vehicle, or plate number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="all">
+              All ({bookings.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending ({bookings.filter(b => b.status === 'pending').length})
+            </TabsTrigger>
+            <TabsTrigger value="confirmed">
+              Confirmed ({bookings.filter(b => b.status === 'confirmed').length})
+            </TabsTrigger>
+            <TabsTrigger value="active">
+              Active ({bookings.filter(b => b.status === 'active').length})
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed ({bookings.filter(b => b.status === 'completed').length})
+            </TabsTrigger>
           </TabsList>
-
-          <TabsContent value={activeTab}>
-            {filterBookings(activeTab).length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-lg font-semibold mb-2">No bookings found</p>
-                  <p className="text-muted-foreground">
-                    {activeTab === 'all' 
-                      ? 'You have no bookings yet' 
-                      : `No ${activeTab} bookings`}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {filterBookings(activeTab).map(booking => (
-                  <Card key={booking.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row gap-6">
-                        {/* Vehicle Image */}
-                        <div className="w-full md:w-48 h-32 flex-shrink-0">
-                          <img
-                            src={booking.vehicle.image_url || '/placeholder.svg'}
-                            alt={booking.vehicle.name}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
+          
+          {/* Bookings List */}
+          {filteredBookings.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No Bookings Found</h3>
+                <p className="text-muted-foreground">
+                  {searchQuery ? 'Try adjusting your search criteria.' : 'No bookings match the selected filter.'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredBookings.map((booking) => (
+                <Card key={booking.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="grid md:grid-cols-[200px_1fr] gap-6">
+                    {/* Vehicle Image */}
+                    <div className="relative aspect-video md:aspect-square">
+                      <Image
+                        src={booking.vehicle?.image_urls?.[0] || '/placeholder.svg'}
+                        alt={`${booking.vehicle?.make} ${booking.vehicle?.model}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    
+                    {/* Booking Details */}
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-xl font-semibold">
+                              {booking.vehicle?.make} {booking.vehicle?.model}
+                            </h3>
+                            <Badge className={getStatusColor(booking.status)}>
+                              {BOOKING_STATUS_LABELS[booking.status as keyof typeof BOOKING_STATUS_LABELS]}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Plate: {booking.vehicle?.plate_number}
+                          </p>
                         </div>
-
-                        {/* Booking Details */}
-                        <div className="flex-1 space-y-4">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="text-xl font-semibold">{booking.vehicle.name}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {booking.vehicle.license_plate}
-                              </p>
-                            </div>
-                            {getStatusBadge(booking.status)}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedBooking(booking)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                      
+                      <Separator className="my-4" />
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-muted-foreground">Renter</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{booking.renter?.full_name || 'Unknown'}</span>
                           </div>
-
-                          {/* Renter Info */}
-                          <div className="bg-muted/50 rounded-lg p-3">
-                            <div className="text-sm font-medium mb-1">Renter</div>
-                            <div className="text-sm">
-                              <div className="font-semibold">{booking.renter.full_name}</div>
-                              <div className="text-muted-foreground">{booking.renter.email}</div>
-                              <div className="text-muted-foreground">{booking.renter.phone}</div>
-                            </div>
-                          </div>
-
-                          {/* Booking Timeline */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <div className="text-muted-foreground">Pick-up</div>
-                                <div className="font-medium">
-                                  {format(parseISO(booking.start_date), 'MMM dd, yyyy')}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <div className="text-muted-foreground">Return</div>
-                                <div className="font-medium">
-                                  {format(parseISO(booking.end_date), 'MMM dd, yyyy')}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <div className="text-muted-foreground">Duration</div>
-                                <div className="font-medium">
-                                  {calculateDuration(booking.start_date, booking.end_date)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center justify-between pt-4 border-t">
-                            <div>
-                              <div className="text-sm text-muted-foreground">Total Amount</div>
-                              <div className="text-2xl font-bold">
-                                {formatCurrency(booking.total_price)}
-                              </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                              {booking.status === 'confirmed' && !booking.pickup_confirmed && (
-                                <Button 
-                                  onClick={() => handlePickupConfirmation(booking.id)}
-                                  size="sm"
-                                >
-                                  Confirm Pickup
-                                </Button>
-                              )}
-
-                              {booking.status === 'active' && !booking.return_confirmed && (
-                                <Button 
-                                  onClick={() => handleReturnConfirmation(booking.id)}
-                                  size="sm"
-                                  variant="secondary"
-                                >
-                                  Confirm Return
-                                </Button>
-                              )}
-
-                              <Link href={`/messages/${booking.id}`}>
-                                <Button variant="outline" size="sm">
-                                  <MessageCircle className="h-4 w-4 mr-2" />
-                                  Chat
-                                </Button>
-                              </Link>
-
-                              <Link href={`/owner/bookings/${booking.id}`}>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-
-                          {/* Status Indicators */}
-                          {booking.status === 'confirmed' && (
-                            <div className="flex gap-2">
-                              <Badge variant={booking.pickup_confirmed ? 'default' : 'secondary'}>
-                                {booking.pickup_confirmed ? 'Picked Up' : 'Awaiting Pickup'}
-                              </Badge>
+                          {booking.renter?.phone_number && (
+                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {booking.renter.phone_number}
                             </div>
                           )}
                         </div>
+                        
+                        <div>
+                          <Label className="text-muted-foreground">Rental Period</Label>
+                          <div className="flex items-center gap-2 mt-1 text-sm">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span>{formatDate(booking.start_date)} → {formatDate(booking.end_date)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            {booking.pickup_location || 'Not specified'}
+                          </div>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+                      
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                        <div>
+                          <span className="text-sm text-muted-foreground">Your Earnings:</span>
+                          <p className="text-xl font-bold text-primary">
+                            {formatCurrency(booking.total_price * 0.95)}
+                          </p>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          {booking.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedBooking(booking)
+                                  setActionDialog({ open: true, action: 'cancel', processing: false })
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Decline
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedBooking(booking)
+                                  setActionDialog({ open: true, action: 'confirm', processing: false })
+                                }}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Confirm
+                              </Button>
+                            </>
+                          )}
+                          
+                          {booking.status === 'confirmed' && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBooking(booking)
+                                setActionDialog({ open: true, action: 'activate', processing: false })
+                              }}
+                            >
+                              <Car className="h-4 w-4 mr-2" />
+                              Mark as Picked Up
+                            </Button>
+                          )}
+                          
+                          {booking.status === 'active' && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBooking(booking)
+                                setActionDialog({ open: true, action: 'complete', processing: false })
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Mark as Returned
+                            </Button>
+                          )}
+                          
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/messages?booking=${booking.id}`}>
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Message
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </Tabs>
+        
+        {/* Action Confirmation Dialog */}
+        <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog({ ...actionDialog, open })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {actionDialog.action === 'confirm' && 'Confirm Booking'}
+                {actionDialog.action === 'activate' && 'Mark as Picked Up'}
+                {actionDialog.action === 'complete' && 'Mark as Completed'}
+                {actionDialog.action === 'cancel' && 'Cancel Booking'}
+              </DialogTitle>
+              <DialogDescription>
+                {actionDialog.action === 'confirm' && 'Are you sure you want to confirm this booking? The renter will be notified.'}
+                {actionDialog.action === 'activate' && 'Confirm that the renter has picked up the vehicle?'}
+                {actionDialog.action === 'complete' && 'Confirm that the vehicle has been returned in good condition?'}
+                {actionDialog.action === 'cancel' && 'Are you sure you want to decline this booking? This action cannot be undone.'}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setActionDialog({ open: false, action: null, processing: false })}
+                disabled={actionDialog.processing}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAction}
+                disabled={actionDialog.processing}
+                variant={actionDialog.action === 'cancel' ? 'destructive' : 'default'}
+              >
+                {actionDialog.processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Confirm'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
 }
 
+export default function OwnerBookingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <BookingsContent />
+    </Suspense>
+  )
+}

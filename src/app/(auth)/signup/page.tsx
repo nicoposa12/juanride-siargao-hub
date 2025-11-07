@@ -18,7 +18,7 @@ export default function SignUpPage() {
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<'renter' | 'owner'>('renter')
   const [loading, setLoading] = useState(false)
-  const { signUp, signInWithGoogle } = useAuth()
+  const { signUp, signIn, signInWithGoogle } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
 
@@ -47,10 +47,29 @@ export default function SignUpPage() {
         })
       } else {
         toast({
-          title: 'Account Created!',
-          description: 'Please check your email to verify your account.',
+          title: 'Welcome to JuanRide! 🎉',
+          description: 'Your account has been created successfully.',
         })
-        router.push('/login')
+        
+        // Auto-login after successful signup
+        // Since email confirmation is disabled, user can login immediately
+        const { error: loginError } = await signIn(email, password)
+        
+        if (loginError) {
+          // If auto-login fails, redirect to login page
+          toast({
+            title: 'Account Created!',
+            description: 'Please login with your credentials.',
+          })
+          router.push('/login')
+        } else {
+          // Successfully logged in, redirect based on role
+          if (role === 'owner') {
+            router.push('/owner/dashboard')
+          } else {
+            router.push('/vehicles')
+          }
+        }
       }
     } catch (error) {
       toast({

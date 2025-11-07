@@ -4,14 +4,27 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
-import { supabase } from '@/lib/supabase/client'
-import { CreditCard, Wallet, Building2, ArrowLeft } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import PriceBreakdown from '@/components/booking/PriceBreakdown'
+import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector'
+import CardPaymentForm, { CardDetails } from '@/components/payment/CardPaymentForm'
+import {
+  createPaymentIntent,
+  createPaymentMethod,
+  attachPaymentIntent,
+  createPaymentSource,
+  createPayment,
+  createPaymentRecord,
+  updatePaymentRecord,
+  toCentavos,
+  PaymentMethodType,
+} from '@/lib/payment/paymongo'
 
 interface BookingData {
   id: string
@@ -31,8 +44,11 @@ export default function CheckoutPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { user, profile } = useAuth()
+  const supabase = createClient()
   const [booking, setBooking] = useState<BookingData | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState('gcash')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType | null>(null)
+  const [cardDetails, setCardDetails] = useState<CardDetails | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -77,41 +93,221 @@ export default function CheckoutPage() {
   }
 
   const handlePayment = async () => {
+    if (!selectedPaymentMethod) {
+      toast({
+        title: 'Payment Method Required',
+        description: 'Please select a payment method to continue.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!booking || !user || !profile) {
+      toast({
+        title: 'Error',
+        description: 'Missing required information. Please try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Validate card details for card payments
+    if (selectedPaymentMethod === 'card' && (!cardDetails || !cardDetails.isValid)) {
+      toast({
+        title: 'Invalid Card Details',
+        description: 'Please check your card information and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsProcessing(true)
 
     try {
-      // Simulate payment processing (test mode)
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const totalAmount = booking.total_price + (booking.total_price * 0.05) // Include service fee
+      const amountInCentavos = toCentavos(totalAmount)
+      
+      // Create payment record in database
+      const paymentRecord = await createPaymentRecord(
+        booking.id,
+        totalAmount,
+        selectedPaymentMethod
+      )
 
-      // Update booking status
-      const { error } = await supabase
+      // Handle different payment methods
+      if (selectedPaymentMethod === 'card') {
+        // Card payment flow
+        await handleCardPayment(amountInCentavos, paymentRecord.id)
+      } else {
+        // E-wallet payment flow (GCash, Maya, GrabPay)
+        await handleEWalletPayment(amountInCentavos, selectedPaymentMethod, paymentRecord.id)
+      }
+
+    } catch (error: any) {
+      console.error('Payment error:', error)
+      toast({
+        title: 'Payment Failed',
+        description: error.message || 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      })
+      setIsProcessing(false)
+    }
+  }
+
+  const handleCardPayment = async (amount: number, paymentRecordId: string) => {
+    try {
+      if (!cardDetails || !profile || !booking) return
+
+      // Step 1: Create payment intent
+      const paymentIntent = await createPaymentIntent({
+        amount,
+        description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
+        paymentMethod: 'card',
+        metadata: {
+          bookingId: booking.id,
+          userId: user!.id,
+          vehicleId: booking.vehicle_id,
+        },
+      })
+
+      // Step 2: Create payment method (tokenize card)
+      const paymentMethodData = await createPaymentMethod({
+        cardNumber: cardDetails.cardNumber,
+        expMonth: parseInt(cardDetails.expMonth),
+        expYear: parseInt(cardDetails.expYear),
+        cvc: cardDetails.cvc,
+        billingDetails: {
+          name: profile.full_name || 'Unknown',
+          email: profile.email,
+          phone: profile.phone_number || undefined,
+        },
+      })
+
+      // Step 3: Attach payment method to intent
+      const attachedIntent = await attachPaymentIntent(
+        paymentIntent.id,
+        paymentMethodData.id
+      )
+
+      // Check if payment requires additional authentication (3D Secure)
+      if (attachedIntent.attributes.status === 'awaiting_payment_method') {
+        throw new Error('Payment authentication required. Please try again.')
+      }
+
+      // Step 4: Update payment record and booking
+      await updatePaymentRecord(booking.id, 'paid', paymentIntent.id)
+      await supabase
         .from('bookings')
         .update({ status: 'confirmed' })
-        .eq('id', params.bookingId)
+        .eq('id', booking.id)
 
-      if (error) throw error
+      // Step 5: Send notifications
+      try {
+        // Send booking confirmation email
+        await fetch('/api/notifications/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'booking_confirmation',
+            data: {
+              userEmail: profile.email,
+              userName: profile.full_name || 'Valued Customer',
+              bookingId: booking.id,
+              vehicleName: booking.vehicles?.name || 'Vehicle',
+              startDate: new Date(booking.start_date).toLocaleDateString(),
+              endDate: new Date(booking.end_date).toLocaleDateString(),
+              totalPrice: totalAmount,
+              location: booking.vehicles?.location || 'Siargao',
+            },
+          }),
+        })
 
-      // Create payment record
-      await supabase.from('payments').insert({
-        booking_id: params.bookingId,
-        amount: booking?.total_price,
-        payment_method: paymentMethod,
-        status: 'completed',
-        transaction_id: `TEST_${Date.now()}`,
-      })
+        // Send payment confirmation email
+        await fetch('/api/notifications/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'payment_confirmation',
+            data: {
+              userEmail: profile.email,
+              userName: profile.full_name || 'Valued Customer',
+              bookingId: booking.id,
+              amount: totalAmount,
+              paymentMethod: selectedPaymentMethod === 'card' ? 'Credit/Debit Card' : 
+                           selectedPaymentMethod === 'gcash' ? 'GCash' : 'Maya',
+              vehicleName: booking.vehicles?.name || 'Vehicle',
+            },
+          }),
+        })
+
+        console.log('✅ Notification emails sent successfully')
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send notification emails:', emailError)
+        // Don't fail the booking for email issues
+      }
 
       toast({
         title: 'Payment Successful!',
         description: 'Your booking has been confirmed.',
       })
 
-      router.push(`/booking-confirmation/${params.bookingId}`)
+      router.push(`/booking-confirmation/${booking.id}`)
     } catch (error) {
-      toast({
-        title: 'Payment Failed',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
+      await updatePaymentRecord(booking!.id, 'failed')
+      throw error
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleEWalletPayment = async (
+    amount: number,
+    method: PaymentMethodType,
+    paymentRecordId: string
+  ) => {
+    try {
+      if (!booking || !profile) return
+
+      // Create payment source
+      const source = await createPaymentSource({
+        type: method === 'paymaya' ? 'gcash' : method, // PayMongo doesn't have 'paymaya' type, use gcash
+        amount,
+        redirect: {
+          success: `${window.location.origin}/payment/success?bookingId=${booking.id}`,
+          failed: `${window.location.origin}/payment/failed?bookingId=${booking.id}`,
+        },
+        billing: {
+          name: profile.full_name || 'Unknown',
+          email: profile.email,
+          phone: profile.phone_number || '',
+        },
       })
+
+      // Create payment with source
+      const payment = await createPayment(
+        source.id,
+        `JuanRide Booking #${booking.id.slice(0, 8)}`,
+        {
+          bookingId: booking.id,
+          userId: user!.id,
+          vehicleId: booking.vehicle_id,
+        }
+      )
+
+      // Update payment record with transaction ID
+      await updatePaymentRecord(booking.id, 'pending', payment.id)
+
+      // Redirect to payment gateway
+      if (source.attributes.redirect?.checkout_url) {
+        window.location.href = source.attributes.redirect.checkout_url
+      } else {
+        throw new Error('Payment redirect URL not available')
+      }
+    } catch (error) {
+      if (booking) {
+        await updatePaymentRecord(booking.id, 'failed')
+      }
+      throw error
     } finally {
       setIsProcessing(false)
     }
@@ -156,11 +352,14 @@ export default function CheckoutPage() {
                 <div>
                   <h3 className="font-semibold mb-3">Booking Summary</h3>
                   <div className="flex gap-4">
-                    <img
-                      src={booking.vehicle.image_url || '/placeholder.svg'}
-                      alt={booking.vehicle.name}
-                      className="w-24 h-24 object-cover rounded-lg"
-                    />
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                      <Image
+                        src={booking.vehicle.image_url || '/placeholder.svg'}
+                        alt={booking.vehicle.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <div>
                       <div className="font-semibold">{booking.vehicle.name}</div>
                       <div className="text-sm text-muted-foreground">
@@ -178,50 +377,22 @@ export default function CheckoutPage() {
 
                 {/* Payment Method */}
                 <div>
-                  <h3 className="font-semibold mb-4">Select Payment Method</h3>
-                  <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-muted/50">
-                        <RadioGroupItem value="gcash" id="gcash" />
-                        <Label htmlFor="gcash" className="flex items-center gap-2 cursor-pointer flex-1">
-                          <Wallet className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <div className="font-medium">GCash</div>
-                            <div className="text-xs text-muted-foreground">Pay with GCash e-wallet</div>
-                          </div>
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-muted/50">
-                        <RadioGroupItem value="card" id="card" />
-                        <Label htmlFor="card" className="flex items-center gap-2 cursor-pointer flex-1">
-                          <CreditCard className="h-5 w-5 text-purple-600" />
-                          <div>
-                            <div className="font-medium">Credit/Debit Card</div>
-                            <div className="text-xs text-muted-foreground">Visa, Mastercard, or JCB</div>
-                          </div>
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-muted/50">
-                        <RadioGroupItem value="bank" id="bank" />
-                        <Label htmlFor="bank" className="flex items-center gap-2 cursor-pointer flex-1">
-                          <Building2 className="h-5 w-5 text-green-600" />
-                          <div>
-                            <div className="font-medium">Bank Transfer</div>
-                            <div className="text-xs text-muted-foreground">Direct bank transfer</div>
-                          </div>
-                        </Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
+                  <PaymentMethodSelector
+                    selectedMethod={selectedPaymentMethod}
+                    onSelectMethod={setSelectedPaymentMethod}
+                  />
                 </div>
 
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900 rounded-lg p-4">
-                  <div className="text-sm">
-                    <strong>Test Mode:</strong> This is a test payment. No real charges will be made.
-                  </div>
-                </div>
+                <Separator />
+
+                {/* Card Payment Form */}
+                {selectedPaymentMethod === 'card' && profile && (
+                  <CardPaymentForm
+                    onCardDetailsChange={setCardDetails}
+                    billingName={profile.full_name || ''}
+                    billingEmail={profile.email}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -236,14 +407,14 @@ export default function CheckoutPage() {
 
             <Button
               onClick={handlePayment}
-              disabled={isProcessing}
+              disabled={isProcessing || !selectedPaymentMethod || (selectedPaymentMethod === 'card' && (!cardDetails || !cardDetails.isValid))}
               className="w-full"
               size="lg"
             >
               {isProcessing ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processing...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Payment...
                 </>
               ) : (
                 `Pay ₱${(booking.total_price + serviceFee).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
 
 interface Notification {
@@ -20,7 +20,7 @@ interface Notification {
   title: string
   message: string
   type: string
-  read: boolean
+  is_read: boolean
   created_at: string
   link: string | null
 }
@@ -41,6 +41,8 @@ export default function NotificationBell() {
   const fetchNotifications = async () => {
     if (!user) return
 
+    const supabase = createClient()
+
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -52,7 +54,7 @@ export default function NotificationBell() {
       if (error) throw error
 
       setNotifications(data || [])
-      setUnreadCount(data?.filter(n => !n.read).length || 0)
+      setUnreadCount(data?.filter(n => !n.is_read).length || 0)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
@@ -61,6 +63,8 @@ export default function NotificationBell() {
   const subscribeToNotifications = () => {
     if (!user) return
 
+    const supabase = createClient()
+    
     const channel = supabase
       .channel(`notifications:${user.id}`)
       .on(
@@ -84,14 +88,16 @@ export default function NotificationBell() {
   }
 
   const markAsRead = async (notificationId: string) => {
+    const supabase = createClient()
+    
     try {
       await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('id', notificationId)
 
       setNotifications(prev =>
-        prev.map(n => (n.id === notificationId ? { ...n, read: true } : n))
+        prev.map(n => (n.id === notificationId ? { ...n, is_read: true } : n))
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (error) {
@@ -100,14 +106,16 @@ export default function NotificationBell() {
   }
 
   const markAllAsRead = async () => {
+    const supabase = createClient()
+    
     try {
       await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('user_id', user?.id)
-        .eq('read', false)
+        .eq('is_read', false)
 
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
       setUnreadCount(0)
     } catch (error) {
       console.error('Error marking all as read:', error)
@@ -157,7 +165,7 @@ export default function NotificationBell() {
                 <div
                   key={notification.id}
                   className={`p-4 hover:bg-muted/50 transition-colors ${
-                    !notification.read ? 'bg-primary/5' : ''
+                    !notification.is_read ? 'bg-primary/5' : ''
                   }`}
                 >
                   {notification.link ? (
@@ -190,7 +198,7 @@ function NotificationContent({ notification }: { notification: Notification }) {
     <>
       <div className="flex items-start justify-between gap-2 mb-1">
         <p className="font-medium text-sm">{notification.title}</p>
-        {!notification.read && (
+        {!notification.is_read && (
           <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
         )}
       </div>

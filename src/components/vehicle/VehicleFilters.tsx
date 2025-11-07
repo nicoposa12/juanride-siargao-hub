@@ -1,197 +1,159 @@
 'use client'
 
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Search } from 'lucide-react'
-import { format } from 'date-fns'
-import { cn } from '@/lib/utils/cn'
-import { VEHICLE_TYPES, SIARGAO_LOCATIONS } from '@/lib/constants'
-import type { VehicleFilters as Filters } from '@/types/vehicle.types'
+import { Badge } from '@/components/ui/badge'
+import { Bike, Car, Truck, X } from 'lucide-react'
+
+const VEHICLE_TYPES = [
+  { value: 'scooter', label: 'Scooter', icon: Bike },
+  { value: 'motorcycle', label: 'Motorcycle', icon: Bike },
+  { value: 'car', label: 'Car', icon: Car },
+  { value: 'van', label: 'Van', icon: Truck },
+]
 
 interface VehicleFiltersProps {
-  onFilterChange: (filters: Filters) => void
+  initialFilters?: {
+    type?: string
+    minPrice?: string
+    maxPrice?: string
+  }
 }
 
-export default function VehicleFilters({ onFilterChange }: VehicleFiltersProps) {
-  const [type, setType] = useState<string>('')
-  const [location, setLocation] = useState<string>('')
-  const [minPrice, setMinPrice] = useState<string>('')
-  const [maxPrice, setMaxPrice] = useState<string>('')
-  const [startDate, setStartDate] = useState<Date>()
-  const [endDate, setEndDate] = useState<Date>()
-  const [searchQuery, setSearchQuery] = useState<string>('')
-
-  const applyFilters = () => {
-    const filters: Filters = {}
+export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  const selectedTypes = initialFilters.type ? initialFilters.type.split(',') : []
+  const minPrice = initialFilters.minPrice ? parseInt(initialFilters.minPrice) : 0
+  const maxPrice = initialFilters.maxPrice ? parseInt(initialFilters.maxPrice) : 5000
+  
+  const handleTypeToggle = (type: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    const currentTypes = params.get('type')?.split(',').filter(Boolean) || []
     
-    if (type) filters.type = type as any
-    if (location) filters.location = location
-    if (minPrice) filters.minPrice = parseFloat(minPrice)
-    if (maxPrice) filters.maxPrice = parseFloat(maxPrice)
-    if (startDate) filters.startDate = format(startDate, 'yyyy-MM-dd')
-    if (endDate) filters.endDate = format(endDate, 'yyyy-MM-dd')
-    if (searchQuery) filters.searchQuery = searchQuery
-
-    onFilterChange(filters)
+    let newTypes: string[]
+    if (currentTypes.includes(type)) {
+      newTypes = currentTypes.filter(t => t !== type)
+    } else {
+      newTypes = [...currentTypes, type]
+    }
+    
+    if (newTypes.length > 0) {
+      params.set('type', newTypes.join(','))
+    } else {
+      params.delete('type')
+    }
+    
+    params.delete('page')
+    router.push(`/vehicles?${params.toString()}`)
   }
-
+  
+  const handlePriceChange = (values: number[]) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('minPrice', values[0].toString())
+    params.set('maxPrice', values[1].toString())
+    params.delete('page')
+    router.push(`/vehicles?${params.toString()}`)
+  }
+  
   const clearFilters = () => {
-    setType('')
-    setLocation('')
-    setMinPrice('')
-    setMaxPrice('')
-    setStartDate(undefined)
-    setEndDate(undefined)
-    setSearchQuery('')
-    onFilterChange({})
+    const params = new URLSearchParams(searchParams.toString())
+    // Keep search, location, and date params
+    const search = params.get('search')
+    const location = params.get('location')
+    const startDate = params.get('startDate')
+    const endDate = params.get('endDate')
+    
+    const newParams = new URLSearchParams()
+    if (search) newParams.set('search', search)
+    if (location) newParams.set('location', location)
+    if (startDate) newParams.set('startDate', startDate)
+    if (endDate) newParams.set('endDate', endDate)
+    
+    router.push(`/vehicles?${newParams.toString()}`)
   }
-
+  
+  const activeFilterCount = selectedTypes.length + (minPrice > 0 || maxPrice < 5000 ? 1 : 0)
+  
   return (
-    <Card className="sticky top-24">
+    <Card>
       <CardHeader>
-        <CardTitle>Filter Vehicles</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Filters</CardTitle>
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary">{activeFilterCount}</Badge>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search */}
-        <div className="space-y-2">
-          <Label htmlFor="search">Search</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="search"
-              placeholder="Search by make, model..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
+      <CardContent className="space-y-6">
         {/* Vehicle Type */}
-        <div className="space-y-2">
-          <Label>Vehicle Type</Label>
-          <Select value={type} onValueChange={setType}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value={VEHICLE_TYPES.SCOOTER}>Scooter</SelectItem>
-              <SelectItem value={VEHICLE_TYPES.MOTORCYCLE}>Motorcycle</SelectItem>
-              <SelectItem value={VEHICLE_TYPES.CAR}>Car</SelectItem>
-              <SelectItem value={VEHICLE_TYPES.VAN}>Van</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Location */}
-        <div className="space-y-2">
-          <Label>Location</Label>
-          <Select value={location} onValueChange={setLocation}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Locations" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
-              {SIARGAO_LOCATIONS.map((loc) => (
-                <SelectItem key={loc} value={loc}>
-                  {loc}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Date Range */}
-        <div className="space-y-2">
-          <Label>Rental Dates</Label>
-          <div className="grid gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'justify-start text-left font-normal',
-                    !startDate && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, 'PPP') : 'Start Date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
-                  initialFocus
-                  disabled={(date) => date < new Date()}
-                />
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'justify-start text-left font-normal',
-                    !endDate && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, 'PPP') : 'End Date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={setEndDate}
-                  initialFocus
-                  disabled={(date) => date < (startDate || new Date())}
-                />
-              </PopoverContent>
-            </Popover>
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Vehicle Type</Label>
+          <div className="space-y-2">
+            {VEHICLE_TYPES.map((type) => {
+              const Icon = type.icon
+              const isChecked = selectedTypes.includes(type.value)
+              
+              return (
+                <div key={type.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={type.value}
+                    checked={isChecked}
+                    onCheckedChange={() => handleTypeToggle(type.value)}
+                  />
+                  <label
+                    htmlFor={type.value}
+                    className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {type.label}
+                  </label>
+                </div>
+              )
+            })}
           </div>
         </div>
-
+        
         {/* Price Range */}
-        <div className="space-y-2">
-          <Label>Price Range (per day)</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="number"
-              placeholder="Min"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Max"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Price per Day</Label>
+            <span className="text-sm text-muted-foreground">
+              ₱{minPrice} - ₱{maxPrice}
+            </span>
+          </div>
+          <Slider
+            min={0}
+            max={5000}
+            step={100}
+            value={[minPrice, maxPrice]}
+            onValueCommit={handlePriceChange}
+            className="w-full"
+          />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>₱0</span>
+            <span>₱5,000+</span>
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-2 pt-4">
-          <Button onClick={applyFilters} className="w-full">
-            Apply Filters
+        
+        {/* Clear Filters */}
+        {activeFilterCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearFilters}
+            className="w-full"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Clear Filters
           </Button>
-          <Button onClick={clearFilters} variant="outline" className="w-full">
-            Clear All
-          </Button>
-        </div>
+        )}
       </CardContent>
     </Card>
   )
 }
-

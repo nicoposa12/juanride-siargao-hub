@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Car, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -36,54 +37,47 @@ const Navigation = () => {
   };
 
   const navLinks = [
-    { name: "Home", href: "#home" },
-    { name: "About", href: "#about" },
-    { name: "Features", href: "#features" },
-    { name: "How It Works", href: "#how-it-works" },
-    { name: "Contact", href: "#contact" },
+    { name: "Home", href: "/" },
+    { name: "My Rentals", href: "/dashboard/bookings" },
+    { name: "Reviews", href: "/dashboard/reviews" },
+    { name: "Support", href: "/support" },
+    { name: "Profile", href: "/dashboard/profile" },
   ];
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-smooth ${
-        isScrolled ? "bg-background/95 backdrop-blur-md shadow-soft" : "bg-transparent"
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-smooth bg-white shadow-sm`}
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <a href="#home" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <div className="bg-primary rounded-lg p-2 group-hover:bg-primary-glow transition-smooth">
               <Car className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <span className="text-2xl font-bold text-primary">
               JuanRide
             </span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className="text-foreground hover:text-primary transition-smooth font-medium"
-              >
-                {link.name}
-              </a>
-            ))}
+          <div className="hidden md:flex items-center gap-6">
             {user && profile ? (
               <>
-                <Button 
-                  onClick={handleDashboard}
-                  className="gradient-hero text-primary-foreground hover:shadow-hover transition-smooth"
-                >
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  {profile.role === 'owner' ? 'Dashboard' : 'Browse Vehicles'}
-                </Button>
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    className="text-foreground hover:text-primary transition-smooth font-medium"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+                <NotificationCenter />
                 <Button 
                   onClick={handleSignOut}
                   variant="outline"
+                  size="sm"
                   className="border-primary/20 hover:bg-primary/10"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -92,16 +86,23 @@ const Navigation = () => {
               </>
             ) : (
               <>
+                <Link href="/" className="text-foreground hover:text-primary transition-smooth font-medium">
+                  Home
+                </Link>
+                <Link href="/vehicles" className="text-foreground hover:text-primary transition-smooth font-medium">
+                  Browse Vehicles
+                </Link>
                 <Link href="/login">
                   <Button 
                     variant="outline"
+                    size="sm"
                     className="border-primary/20 hover:bg-primary/10"
                   >
                     Sign In
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button className="gradient-hero text-primary-foreground hover:shadow-hover transition-smooth">
+                  <Button size="sm" className="gradient-hero text-primary-foreground hover:shadow-hover transition-smooth">
                     Get Started
                   </Button>
                 </Link>
@@ -134,6 +135,9 @@ const Navigation = () => {
               ))}
               {user && profile ? (
                 <>
+                  <div className="flex justify-center">
+                    <NotificationCenter />
+                  </div>
                   <Button 
                     onClick={() => {
                       handleDashboard();

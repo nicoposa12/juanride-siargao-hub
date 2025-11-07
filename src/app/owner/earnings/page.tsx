@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { DollarSign, TrendingUp, Calendar, Car } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/format'
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns'
@@ -56,6 +56,8 @@ export default function OwnerEarningsPage() {
   }, [user, authLoading])
 
   const fetchEarningsData = async () => {
+    const supabase = createClient()
+    
     try {
       // Fetch all bookings
       const { data: allBookings } = await supabase
@@ -69,7 +71,8 @@ export default function OwnerEarningsPage() {
           created_at,
           vehicle:vehicles!inner (
             id,
-            name,
+            make,
+            model,
             owner_id
           ),
           renter:users!bookings_renter_id_fkey (
@@ -110,7 +113,7 @@ export default function OwnerEarningsPage() {
         start_date: b.start_date,
         end_date: b.end_date,
         created_at: b.created_at,
-        vehicle_name: b.vehicle.name,
+        vehicle_name: `${b.vehicle.make} ${b.vehicle.model}`,
         renter_name: b.renter.full_name,
       }))
       setTransactions(transactionList.slice(0, 10))
@@ -121,7 +124,7 @@ export default function OwnerEarningsPage() {
         const vehicleId = booking.vehicle.id
         const existing = vehicleEarningsMap.get(vehicleId) || {
           vehicle_id: vehicleId,
-          vehicle_name: booking.vehicle.name,
+          vehicle_name: `${booking.vehicle.make} ${booking.vehicle.model}`,
           total_earnings: 0,
           bookings_count: 0,
         }

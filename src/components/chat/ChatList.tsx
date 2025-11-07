@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatDistanceToNow } from 'date-fns'
 import { MessageCircle } from 'lucide-react'
@@ -39,26 +39,54 @@ export default function ChatList() {
   const fetchConversations = async () => {
     if (!user) return
 
+    const supabase = createClient()
+
     try {
-      // Get all bookings where user is involved
-      const { data: bookings, error: bookingsError } = await supabase
+      // Get bookings where user is renter
+      const { data: renterBookings, error: renterError } = await supabase
         .from('bookings')
         .select(`
           id,
           renter_id,
           vehicle:vehicles (
             id,
-            name,
+            make,
+            model,
             owner_id
           )
         `)
-        .or(`renter_id.eq.${user.id},vehicle.owner_id.eq.${user.id}`)
+        .eq('renter_id', user.id)
 
-      if (bookingsError) throw bookingsError
+      if (renterError) throw renterError
+
+      // Get bookings where user is owner
+      const { data: ownerBookings, error: ownerError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          renter_id,
+          vehicle:vehicles!inner (
+            id,
+            make,
+            model,
+            owner_id
+          )
+        `)
+        .eq('vehicle.owner_id', user.id)
+
+      if (ownerError) throw ownerError
+
+      // Combine both sets of bookings
+      const bookings = [...(renterBookings || []), ...(ownerBookings || [])]
+      
+      // Remove duplicates if any
+      const uniqueBookings = bookings.filter((booking, index, self) => 
+        index === self.findIndex(b => b.id === booking.id)
+      )
 
       // For each booking, get the last message and unread count
       const conversationsData = await Promise.all(
-        (bookings || []).map(async (booking) => {
+        uniqueBookings.map(async (booking) => {
           const isRenter = booking.renter_id === user.id
           const otherUserId = isRenter
             ? booking.vehicle.owner_id
@@ -86,14 +114,14 @@ export default function ChatList() {
             .select('*', { count: 'exact', head: true })
             .eq('booking_id', booking.id)
             .eq('receiver_id', user.id)
-            .eq('read', false)
+            .eq('is_read', false)
 
           return {
             booking_id: booking.id,
             other_user: otherUser,
             last_message: lastMessage,
             unread_count: unreadCount || 0,
-            vehicle_name: booking.vehicle.name,
+            vehicle_name: `${booking.vehicle.make} ${booking.vehicle.model}`,
           }
         })
       )

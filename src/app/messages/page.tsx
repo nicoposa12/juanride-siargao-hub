@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import ChatList from '@/components/chat/ChatList'
+import Navigation from '@/components/shared/Navigation'
 
 export default function MessagesPage() {
   const router = useRouter()
@@ -29,8 +30,9 @@ export default function MessagesPage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <Navigation />
+      <div className="container mx-auto px-4 max-w-4xl pt-24 pb-12">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Messages</h1>
           <p className="text-muted-foreground">

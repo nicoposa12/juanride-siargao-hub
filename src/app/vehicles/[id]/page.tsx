@@ -1,67 +1,60 @@
-import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import Navigation from '@/components/shared/Navigation'
-import Footer from '@/components/shared/Footer'
-import VehicleDetails from '@/components/vehicle/VehicleDetails'
+import { Suspense } from 'react'
+import { VehicleDetails } from '@/components/vehicle/VehicleDetails'
 import { Skeleton } from '@/components/ui/skeleton'
-import { createServerClient } from '@/lib/supabase/server'
+import { getVehicleById } from '@/lib/supabase/queries/vehicles'
+import Navigation from '@/components/shared/Navigation'
 
-export default async function VehicleDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
-  const supabase = createServerClient()
+interface VehiclePageProps {
+  params: {
+    id: string
+  }
+}
 
-  const { data: vehicle, error } = await supabase
-    .from('vehicles')
-    .select(`
-      *,
-      owner:users!owner_id (
-        id,
-        full_name,
-        profile_image_url,
-        phone_number,
-        email
-      )
-    `)
-    .eq('id', params.id)
-    .eq('is_approved', true)
-    .single()
+export async function generateMetadata({ params }: VehiclePageProps) {
+  try {
+    const vehicle = await getVehicleById(params.id)
+    
+    return {
+      title: `${vehicle.make} ${vehicle.model} | JuanRide`,
+      description: vehicle.description || `Rent this ${vehicle.type} in ${vehicle.location}`,
+    }
+  } catch {
+    return {
+      title: 'Vehicle Not Found | JuanRide',
+    }
+  }
+}
 
-  if (error || !vehicle) {
+export default async function VehiclePage({ params }: VehiclePageProps) {
+  let vehicle
+  
+  try {
+    vehicle = await getVehicleById(params.id)
+  } catch (error) {
     notFound()
   }
-
+  
+  if (!vehicle) {
+    notFound()
+  }
+  
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
-      <main className="flex-1 mt-20">
-        <Suspense fallback={<VehicleDetailsSkeleton />}>
-          <VehicleDetails vehicle={vehicle} />
-        </Suspense>
-      </main>
-
-      <Footer />
+      <Suspense
+        fallback={
+          <div className="container mx-auto px-4 py-8">
+            <Skeleton className="h-96 w-full mb-6" />
+            <div className="grid lg:grid-cols-3 gap-6">
+              <Skeleton className="h-64 lg:col-span-2" />
+              <Skeleton className="h-64" />
+            </div>
+          </div>
+        }
+      >
+        <VehicleDetails vehicle={vehicle} />
+      </Suspense>
     </div>
   )
 }
-
-function VehicleDetailsSkeleton() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-48 w-full" />
-        </div>
-        <div>
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </div>
-    </div>
-  )
-}
-

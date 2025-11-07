@@ -18,5 +18,9 @@
   "..\\node_modules\\@supabase\\storage-js\\dist\\module\\lib\\vectors\\helpers.js -> @supabase/node-fetch": {
     "id": "..\\node_modules\\@supabase\\storage-js\\dist\\module\\lib\\vectors\\helpers.js -> @supabase/node-fetch",
     "files": []
+  },
+  "hooks\\use-vehicles.ts -> @/lib/supabase/queries/vehicles": {
+    "id": "hooks\\use-vehicles.ts -> @/lib/supabase/queries/vehicles",
+    "files": []
   }
 }

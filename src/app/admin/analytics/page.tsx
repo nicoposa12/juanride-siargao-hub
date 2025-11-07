@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { 
   Users, 
   Car, 
@@ -39,6 +39,8 @@ export default function AdminAnalyticsPage() {
 
   const fetchAnalytics = async () => {
     try {
+      const supabase = createClient()
+      
       // Fetch users
       const { data: users } = await supabase
         .from('users')

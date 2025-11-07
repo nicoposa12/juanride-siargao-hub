@@ -1,4 +1,4 @@
-// File: C:\Users\basco\Desktop\CAPSTONE PROJECT\juanride-siargao-hub\src\app\(auth)\layout.tsx
+// File: C:\Users\Engr. John Rome\Desktop\capstone\JUAN-RIDE\juanride-siargao-hub\src\app\(auth)\layout.tsx
 import * as entry from '../../../../src/app/(auth)/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
