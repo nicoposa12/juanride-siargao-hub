@@ -1,11 +1,11 @@
-import Navigation from "@/components/Navigation";
-import Hero from "@/components/Hero";
-import About from "@/components/About";
-import Features from "@/components/Features";
-import HowItWorks from "@/components/HowItWorks";
-import Testimonials from "@/components/Testimonials";
-import Contact from "@/components/Contact";
-import Footer from "@/components/Footer";
+import Navigation from "@/components/shared/Navigation";
+import Hero from "@/components/shared/Hero";
+import About from "@/components/shared/About";
+import Features from "@/components/shared/Features";
+import HowItWorks from "@/components/shared/HowItWorks";
+import Testimonials from "@/components/shared/Testimonials";
+import Contact from "@/components/shared/Contact";
+import Footer from "@/components/shared/Footer";
 
 const Index = () => {
   return (

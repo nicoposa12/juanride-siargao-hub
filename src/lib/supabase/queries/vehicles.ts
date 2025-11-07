@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import type { VehicleFilters as UiVehicleFilters } from '@/types/vehicle.types'
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row']
+type VehicleInsert = Database['public']['Tables']['vehicles']['Insert']
+type VehicleUpdate = Database['public']['Tables']['vehicles']['Update']
 type VehicleWithOwner = Vehicle & {
   owner: {
     id: string
@@ -10,7 +13,7 @@ type VehicleWithOwner = Vehicle & {
   } | null
 }
 
-export interface VehicleFilters {
+export interface VehicleQueryFilters {
   type?: string[]
   minPrice?: number
   maxPrice?: number
@@ -30,7 +33,7 @@ export interface VehicleSearchResult {
  * Search vehicles with filters and availability checking
  */
 export async function searchVehicles(
-  filters: VehicleFilters = {},
+  filters: VehicleQueryFilters = {},
   page: number = 1,
   limit: number = 12
 ): Promise<VehicleSearchResult> {
@@ -104,6 +107,110 @@ export async function searchVehicles(
     total: count || 0,
     hasMore: (count || 0) > offset + limit
   }
+}
+
+/**
+ * Normalize UI filters into the supabase query format
+ */
+function normalizeVehicleFilters(filters?: UiVehicleFilters): VehicleQueryFilters {
+  const normalized: VehicleQueryFilters = {}
+
+  if (!filters) {
+    return normalized
+  }
+
+  if (filters.type) {
+    normalized.type = Array.isArray(filters.type) ? filters.type : [filters.type]
+  }
+  if (typeof filters.minPrice === 'number') {
+    normalized.minPrice = filters.minPrice
+  }
+  if (typeof filters.maxPrice === 'number') {
+    normalized.maxPrice = filters.maxPrice
+  }
+  if (filters.location) {
+    normalized.location = filters.location
+  }
+  if (filters.startDate) {
+    normalized.startDate = filters.startDate
+  }
+  if (filters.endDate) {
+    normalized.endDate = filters.endDate
+  }
+  if (filters.searchQuery) {
+    normalized.searchQuery = filters.searchQuery
+  }
+
+  return normalized
+}
+
+/**
+ * Simple vehicle fetcher used by legacy hooks
+ */
+export async function getVehicles(filters?: UiVehicleFilters) {
+  const normalizedFilters = normalizeVehicleFilters(filters)
+  const result = await searchVehicles(normalizedFilters, 1, 50)
+  return result.vehicles
+}
+
+/**
+ * Create a vehicle listing
+ */
+export async function createVehicle(payload: VehicleInsert) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('vehicles')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating vehicle:', error)
+    throw error
+  }
+
+  return data
+}
+
+/**
+ * Update a vehicle listing
+ */
+export async function updateVehicle(id: string, updates: VehicleUpdate) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('vehicles')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error updating vehicle:', error)
+    throw error
+  }
+
+  return data
+}
+
+/**
+ * Delete a vehicle listing
+ */
+export async function deleteVehicle(id: string) {
+  const supabase = createClient()
+
+  const { error } = await supabase.from('vehicles').delete().eq('id', id)
+
+  if (error) {
+    console.error('Error deleting vehicle:', error)
+    throw error
+  }
+
+  return true
 }
 
 /**

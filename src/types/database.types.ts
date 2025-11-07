@@ -127,7 +127,9 @@ export interface Database {
           end_date: string
           total_price: number
           status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+          pickup_location: string | null
           pickup_time: string | null
+          return_location: string | null
           return_time: string | null
           special_requests: string | null
           renter_notes: string | null
@@ -143,7 +145,9 @@ export interface Database {
           end_date: string
           total_price: number
           status?: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+          pickup_location?: string | null
           pickup_time?: string | null
+          return_location?: string | null
           return_time?: string | null
           special_requests?: string | null
           renter_notes?: string | null
@@ -159,7 +163,9 @@ export interface Database {
           end_date?: string
           total_price?: number
           status?: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+          pickup_location?: string | null
           pickup_time?: string | null
+          return_location?: string | null
           return_time?: string | null
           special_requests?: string | null
           renter_notes?: string | null

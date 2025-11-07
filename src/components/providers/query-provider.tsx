@@ -35,11 +35,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             // Don't refetch on window focus by default
             refetchOnWindowFocus: false,
             
-            // Only refetch on mount if data is stale
-            refetchOnMount: 'stale',
+            // Refetch on mount when data became stale
+            refetchOnMount: true,
             
-            // Don't refetch on reconnect unless data is stale
-            refetchOnReconnect: 'stale',
+            // Refetch on reconnect when queries are stale
+            refetchOnReconnect: true,
           },
           mutations: {
             // Retry mutations on network errors

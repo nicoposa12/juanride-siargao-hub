@@ -12,7 +12,7 @@ import { updatePaymentRecord } from '@/lib/payment/paymongo'
 export default function PaymentSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const bookingId = searchParams.get('bookingId')
+  const bookingId = searchParams?.get('bookingId')
   const [processing, setProcessing] = useState(true)
   const [error, setError] = useState(false)
 

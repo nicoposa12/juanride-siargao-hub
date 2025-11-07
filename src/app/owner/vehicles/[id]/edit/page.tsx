@@ -10,25 +10,27 @@ import { useToast } from '@/hooks/use-toast'
 import { Loader2 } from 'lucide-react'
 
 export default function EditVehiclePage() {
-  const params = useParams()
+  const params = useParams() as { id?: string }
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
   const [vehicle, setVehicle] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   
-  const vehicleId = params.id as string
-  
+  const vehicleId = params.id
+
   useEffect(() => {
     if (!authLoading) {
       if (!user || (profile && profile.role !== 'owner' && profile.role !== 'admin')) {
         router.push('/')
         return
       }
-      loadVehicle()
+      if (vehicleId) {
+        loadVehicle()
+      }
     }
   }, [user, profile, authLoading, router, vehicleId])
-  
+
   const loadVehicle = async () => {
     if (!user || !vehicleId) return
     

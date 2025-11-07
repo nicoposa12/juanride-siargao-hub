@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle } from '@/lib/supabase/queries/vehicles'
+import { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, type VehicleQueryFilters } from '@/lib/supabase/queries/vehicles'
 import type { VehicleFilters } from '@/types/vehicle.types'
 import { useToast } from './use-toast'
 
@@ -15,11 +15,22 @@ export function useVehicles(filters?: VehicleFilters) {
 
 // New hook for paginated vehicle search
 export function useVehicleSearch(filters?: VehicleFilters, page: number = 1, limit: number = 12) {
+  const normalizedFilters: VehicleQueryFilters | undefined = filters
+    ? {
+        ...filters,
+        type: Array.isArray(filters.type)
+          ? filters.type
+          : filters.type
+          ? [filters.type]
+          : undefined,
+      }
+    : undefined
+
   return useQuery({
     queryKey: ['vehicles', 'search', filters, page, limit],
     queryFn: async () => {
       const { searchVehicles } = await import('@/lib/supabase/queries/vehicles')
-      return searchVehicles(filters, page, limit)
+      return searchVehicles(normalizedFilters, page, limit)
     },
     staleTime: 2 * 60 * 1000, // 2 minutes for vehicle listings
   })

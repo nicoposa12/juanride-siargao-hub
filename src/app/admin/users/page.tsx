@@ -329,7 +329,10 @@ export default function AdminUsersPage() {
                             {user.role}
                           </Badge>
                           {user.is_verified && (
-                            <CheckCircle className="inline h-4 w-4 ml-2 text-green-600" title="Verified" />
+                            <span className="inline-flex items-center ml-2" title="Verified">
+                              <CheckCircle className="h-4 w-4 text-green-600" aria-hidden="true" />
+                              <span className="sr-only">Verified</span>
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>

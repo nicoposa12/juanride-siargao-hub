@@ -33,7 +33,8 @@ interface Transaction {
     start_date: string
     end_date: string
     vehicle: {
-      name: string
+      make: string
+      model: string
     }
     renter: {
       full_name: string

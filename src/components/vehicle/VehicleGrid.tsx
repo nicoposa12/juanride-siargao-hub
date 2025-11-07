@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useVehicleSearch } from '@/hooks/use-vehicles'
-import type { VehicleFilters } from '@/types/vehicle.types'
+import type { VehicleFilters, VehicleType } from '@/types/vehicle.types'
 
 interface VehicleGridProps {
   filters: {
@@ -32,7 +32,7 @@ export function VehicleGrid({ filters }: VehicleGridProps) {
     const convertedFilters: VehicleFilters = {}
     
     if (filters.type) {
-      convertedFilters.type = filters.type.split(',')
+      convertedFilters.type = filters.type.split(',') as VehicleType[]
     }
     if (filters.minPrice) {
       convertedFilters.minPrice = parseInt(filters.minPrice)

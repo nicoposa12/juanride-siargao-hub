@@ -120,6 +120,13 @@ export async function getRenterBookings(renterId: string): Promise<BookingWithDe
 }
 
 /**
+ * Backwards-compatible wrapper for renter bookings
+ */
+export async function getUserBookings(userId: string): Promise<BookingWithDetails[]> {
+  return getRenterBookings(userId)
+}
+
+/**
  * Get all bookings for vehicles owned by an owner
  */
 export async function getOwnerBookings(ownerId: string): Promise<BookingWithDetails[]> {

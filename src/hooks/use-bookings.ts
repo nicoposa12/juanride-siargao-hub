@@ -6,9 +6,10 @@ import {
   getBookingById, 
   createBooking, 
   updateBookingStatus,
-  cancelBooking 
+  cancelBooking,
+  type CreateBookingData,
 } from '@/lib/supabase/queries/bookings'
-import type { BookingRequest } from '@/types/booking.types'
+import type { BookingStatus } from '@/types/booking.types'
 import { useToast } from './use-toast'
 import { useAuth } from './use-auth'
 
@@ -36,8 +37,8 @@ export function useCreateBooking() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: (bookingData: BookingRequest) => 
-      createBooking(bookingData, user!.id),
+    mutationFn: (bookingData: CreateBookingData) => 
+      createBooking(user!.id, bookingData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
       toast({
@@ -83,7 +84,7 @@ export function useUpdateBookingStatus() {
   const { toast } = useToast()
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
+    mutationFn: ({ id, status }: { id: string; status: BookingStatus }) =>
       updateBookingStatus(id, status),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] })

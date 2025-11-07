@@ -79,8 +79,9 @@ export default function AdminAnalyticsPage() {
       }, []) || []
 
       // Top vehicles
-      const vehicleBookings = bookings?.reduce((acc: any, b) => {
-        const vehicleName = b.vehicles?.name || 'Unknown'
+      const vehicleBookings = bookings?.reduce((acc: any, b: any) => {
+        const vehicleRelation = Array.isArray(b.vehicles) ? b.vehicles[0] : b.vehicles
+        const vehicleName = vehicleRelation?.name || 'Unknown'
         if (!acc[vehicleName]) {
           acc[vehicleName] = { bookings: 0, revenue: 0 }
         }

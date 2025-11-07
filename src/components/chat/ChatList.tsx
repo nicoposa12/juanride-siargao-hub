@@ -85,12 +85,19 @@ export default function ChatList() {
       )
 
       // For each booking, get the last message and unread count
-      const conversationsData = await Promise.all(
+      const conversationsResults = await Promise.all(
         uniqueBookings.map(async (booking) => {
           const isRenter = booking.renter_id === user.id
+          const vehicleInfo = Array.isArray(booking.vehicle)
+            ? booking.vehicle[0]
+            : booking.vehicle
           const otherUserId = isRenter
-            ? booking.vehicle.owner_id
+            ? vehicleInfo?.owner_id
             : booking.renter_id
+
+          if (!otherUserId || !vehicleInfo) {
+            return null
+          }
 
           // Get other user details
           const { data: otherUser } = await supabase
@@ -121,9 +128,13 @@ export default function ChatList() {
             other_user: otherUser,
             last_message: lastMessage,
             unread_count: unreadCount || 0,
-            vehicle_name: `${booking.vehicle.make} ${booking.vehicle.model}`,
+            vehicle_name: `${vehicleInfo.make} ${vehicleInfo.model}`,
           }
         })
+      )
+
+      const conversationsData = conversationsResults.filter(
+        (conversation): conversation is Conversation => conversation !== null
       )
 
       // Sort by last message time

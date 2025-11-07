@@ -85,3 +85,5 @@ export function PriceBreakdown({
     </Card>
   )
 }
+
+export default PriceBreakdown

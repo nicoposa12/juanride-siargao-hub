@@ -12,7 +12,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import PriceBreakdown from '@/components/booking/PriceBreakdown'
-import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector'
+import PaymentMethodSelector, { PaymentMethodType } from '@/components/payment/PaymentMethodSelector'
 import CardPaymentForm, { CardDetails } from '@/components/payment/CardPaymentForm'
 import {
   createPaymentIntent,
@@ -23,7 +23,6 @@ import {
   createPaymentRecord,
   updatePaymentRecord,
   toCentavos,
-  PaymentMethodType,
 } from '@/lib/payment/paymongo'
 
 interface BookingData {
@@ -37,12 +36,14 @@ interface BookingData {
     name: string
     daily_rate: number
     image_url: string
+    location?: string | null
   }
 }
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const params = useParams()
+  const params = useParams() as { bookingId?: string }
+  const bookingId = params.bookingId
   const { toast } = useToast()
   const { user, profile } = useAuth()
   const supabase = createClient()
@@ -53,10 +54,13 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchBookingData()
-  }, [params.bookingId])
+    if (!bookingId) {
+      return
+    }
+    fetchBookingData(bookingId)
+  }, [bookingId])
 
-  const fetchBookingData = async () => {
+  const fetchBookingData = async (id: string) => {
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -65,10 +69,11 @@ export default function CheckoutPage() {
           vehicle:vehicles (
             name,
             daily_rate,
-            image_url
+            image_url,
+            location
           )
         `)
-        .eq('id', params.bookingId)
+        .eq('id', id)
         .single()
 
       if (error) throw error
@@ -140,7 +145,11 @@ export default function CheckoutPage() {
         await handleCardPayment(amountInCentavos, paymentRecord.id)
       } else {
         // E-wallet payment flow (GCash, Maya, GrabPay)
-        await handleEWalletPayment(amountInCentavos, selectedPaymentMethod, paymentRecord.id)
+        await handleEWalletPayment(
+          amountInCentavos,
+          selectedPaymentMethod as Exclude<PaymentMethodType, 'card'>,
+          paymentRecord.id
+        )
       }
 
     } catch (error: any) {
@@ -157,6 +166,7 @@ export default function CheckoutPage() {
   const handleCardPayment = async (amount: number, paymentRecordId: string) => {
     try {
       if (!cardDetails || !profile || !booking) return
+      const totalAmount = amount / 100
 
       // Step 1: Create payment intent
       const paymentIntent = await createPaymentIntent({
@@ -213,11 +223,11 @@ export default function CheckoutPage() {
               userEmail: profile.email,
               userName: profile.full_name || 'Valued Customer',
               bookingId: booking.id,
-              vehicleName: booking.vehicles?.name || 'Vehicle',
+              vehicleName: booking.vehicle?.name || 'Vehicle',
               startDate: new Date(booking.start_date).toLocaleDateString(),
               endDate: new Date(booking.end_date).toLocaleDateString(),
               totalPrice: totalAmount,
-              location: booking.vehicles?.location || 'Siargao',
+              location: booking.vehicle?.location || 'Siargao',
             },
           }),
         })
@@ -235,7 +245,7 @@ export default function CheckoutPage() {
               amount: totalAmount,
               paymentMethod: selectedPaymentMethod === 'card' ? 'Credit/Debit Card' : 
                            selectedPaymentMethod === 'gcash' ? 'GCash' : 'Maya',
-              vehicleName: booking.vehicles?.name || 'Vehicle',
+              vehicleName: booking.vehicle?.name || 'Vehicle',
             },
           }),
         })
@@ -262,7 +272,7 @@ export default function CheckoutPage() {
 
   const handleEWalletPayment = async (
     amount: number,
-    method: PaymentMethodType,
+    method: Exclude<PaymentMethodType, 'card'>,
     paymentRecordId: string
   ) => {
     try {
@@ -400,9 +410,9 @@ export default function CheckoutPage() {
           {/* Summary Sidebar */}
           <div className="space-y-6">
             <PriceBreakdown
-              dailyRate={booking.vehicle.daily_rate}
-              numberOfDays={numberOfDays}
-              serviceFee={serviceFee}
+              pricePerDay={booking.vehicle.daily_rate}
+              days={numberOfDays}
+              serviceFeePercentage={0.05}
             />
 
             <Button

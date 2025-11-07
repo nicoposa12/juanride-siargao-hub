@@ -30,7 +30,7 @@ const Hero = () => {
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <img
-          src={heroImage}
+          src={heroImage.src}
           alt="Siargao Island scenic view"
           className="w-full h-full object-cover"
         />

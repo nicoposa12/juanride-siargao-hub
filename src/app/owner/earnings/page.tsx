@@ -106,25 +106,33 @@ export default function OwnerEarningsPage() {
       })
 
       // Transaction history
-      const transactionList: Transaction[] = completedBookings.map(b => ({
-        id: b.id,
-        booking_id: b.id,
-        total_price: b.total_price,
-        start_date: b.start_date,
-        end_date: b.end_date,
-        created_at: b.created_at,
-        vehicle_name: `${b.vehicle.make} ${b.vehicle.model}`,
-        renter_name: b.renter.full_name,
-      }))
+      const transactionList: Transaction[] = completedBookings.map(b => {
+        const vehicleInfo = Array.isArray(b.vehicle) ? b.vehicle[0] : b.vehicle
+        const renterInfo = Array.isArray(b.renter) ? b.renter[0] : b.renter
+        return {
+          id: b.id,
+          booking_id: b.id,
+          total_price: b.total_price,
+          start_date: b.start_date,
+          end_date: b.end_date,
+          created_at: b.created_at,
+          vehicle_name: `${vehicleInfo?.make || ''} ${vehicleInfo?.model || ''}`.trim(),
+          renter_name: renterInfo?.full_name || 'Customer',
+        }
+      })
       setTransactions(transactionList.slice(0, 10))
 
       // Calculate earnings by vehicle
       const vehicleEarningsMap = new Map<string, VehicleEarnings>()
       completedBookings.forEach(booking => {
-        const vehicleId = booking.vehicle.id
+        const vehicleInfo = Array.isArray(booking.vehicle) ? booking.vehicle[0] : booking.vehicle
+        if (!vehicleInfo?.id) {
+          return
+        }
+        const vehicleId = vehicleInfo.id
         const existing = vehicleEarningsMap.get(vehicleId) || {
           vehicle_id: vehicleId,
-          vehicle_name: `${booking.vehicle.make} ${booking.vehicle.model}`,
+          vehicle_name: `${vehicleInfo.make || ''} ${vehicleInfo.model || ''}`.trim(),
           total_earnings: 0,
           bookings_count: 0,
         }

@@ -115,7 +115,18 @@ export default function OwnerMaintenancePage() {
         .order('service_date', { ascending: false })
 
       if (logsError) throw logsError
-      setLogs(logsData as MaintenanceLog[] || [])
+      const normalizedLogs: MaintenanceLog[] = (logsData || []).map((log: any) => {
+        const vehicleInfo = Array.isArray(log.vehicle) ? log.vehicle[0] : log.vehicle
+        return {
+          ...log,
+          vehicle: {
+            make: vehicleInfo?.make || '',
+            model: vehicleInfo?.model || '',
+            plate_number: vehicleInfo?.plate_number || '',
+          },
+        }
+      })
+      setLogs(normalizedLogs)
     } catch (error: any) {
       console.error('Error loading data:', error)
       toast({

@@ -49,7 +49,22 @@ export function useReviews(vehicleId: string) {
 
       if (fetchError) throw fetchError
 
-      const reviewsData = data as Review[]
+      const reviewsData: Review[] = (data || []).map((review: any) => {
+        const reviewerInfo = Array.isArray(review.reviewer)
+          ? review.reviewer[0]
+          : review.reviewer
+        return {
+          ...review,
+          reviewer: reviewerInfo
+            ? {
+                id: reviewerInfo.id,
+                full_name: reviewerInfo.full_name,
+                email: reviewerInfo.email,
+                profile_image_url: reviewerInfo.profile_image_url,
+              }
+            : null,
+        }
+      })
       setReviews(reviewsData)
       setTotalReviews(reviewsData.length)
 
