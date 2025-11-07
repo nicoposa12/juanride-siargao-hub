@@ -52,6 +52,7 @@ import {
 function BookingsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const bookingIdParam = searchParams?.get('id')
   const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
   
@@ -79,14 +80,13 @@ function BookingsContent() {
   
   useEffect(() => {
     // Check if there's a specific booking to view
-    const bookingId = searchParams.get('id')
-    if (bookingId && bookings.length > 0) {
-      const booking = bookings.find(b => b.id === bookingId)
+    if (bookingIdParam && bookings.length > 0) {
+      const booking = bookings.find(b => b.id === bookingIdParam)
       if (booking) {
         setSelectedBooking(booking)
       }
     }
-  }, [searchParams, bookings])
+  }, [bookingIdParam, bookings])
   
   useEffect(() => {
     filterBookings()

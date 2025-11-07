@@ -30,7 +30,7 @@ export interface VehicleWithDetails extends VehicleWithOwner {
 }
 
 export interface VehicleFilters {
-  type?: VehicleType
+  type?: VehicleType | VehicleType[]
   minPrice?: number
   maxPrice?: number
   location?: string

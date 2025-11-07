@@ -33,7 +33,7 @@ export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
   const maxPrice = initialFilters.maxPrice ? parseInt(initialFilters.maxPrice) : 5000
   
   const handleTypeToggle = (type: string) => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || '')
     const currentTypes = params.get('type')?.split(',').filter(Boolean) || []
     
     let newTypes: string[]
@@ -54,7 +54,7 @@ export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
   }
   
   const handlePriceChange = (values: number[]) => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || '')
     params.set('minPrice', values[0].toString())
     params.set('maxPrice', values[1].toString())
     params.delete('page')
@@ -62,7 +62,7 @@ export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
   }
   
   const clearFilters = () => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || '')
     // Keep search, location, and date params
     const search = params.get('search')
     const location = params.get('location')

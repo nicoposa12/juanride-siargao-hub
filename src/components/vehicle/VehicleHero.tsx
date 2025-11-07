@@ -19,7 +19,7 @@ export function VehicleHero({ initialSearch = '', onFiltersToggle }: VehicleHero
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || '')
     
     if (searchQuery.trim()) {
       params.set('search', searchQuery.trim())

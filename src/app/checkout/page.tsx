@@ -26,9 +26,9 @@ function CheckoutContent() {
   const { user } = useAuth()
   const { toast } = useToast()
   
-  const vehicleId = searchParams.get('vehicle')
-  const startDate = searchParams.get('start')
-  const endDate = searchParams.get('end')
+  const vehicleId = searchParams?.get('vehicle')
+  const startDate = searchParams?.get('start')
+  const endDate = searchParams?.get('end')
   
   const [vehicle, setVehicle] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -140,7 +140,7 @@ function CheckoutContent() {
         total_price: pricing.total,
         pickup_location: pickupLocation,
         return_location: returnLocation || pickupLocation,
-        special_requests: specialRequests || null,
+        special_requests: specialRequests || undefined,
       })
       
       if (bookingError || !booking) {

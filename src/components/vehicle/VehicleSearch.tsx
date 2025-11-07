@@ -33,7 +33,7 @@ export function VehicleSearch({ initialFilters = {} }: VehicleSearchProps) {
   )
 
   const handleSearch = () => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || '')
     
     if (searchQuery) {
       params.set('search', searchQuery)

@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resendApiKey = process.env.RESEND_API_KEY
+const resend = resendApiKey ? new Resend(resendApiKey) : null
 
 export interface EmailData {
   to: string
@@ -15,6 +15,11 @@ export class EmailService {
   private static readonly FROM_NAME = 'JuanRide Siargao'
 
   static async sendEmail({ to, subject, html, from }: EmailData) {
+    if (!resend) {
+      console.warn('Resend API key is not configured. Skipping email send.')
+      return { success: false, error: 'Email service is not configured.' }
+    }
+
     try {
       const { data, error } = await resend.emails.send({
         from: from || `${this.FROM_NAME} <${this.FROM_ADDRESS}>`,

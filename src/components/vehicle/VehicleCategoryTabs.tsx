@@ -27,7 +27,7 @@ export function VehicleCategoryTabs({
   const searchParams = useSearchParams()
 
   const handleCategorySelect = (categoryValue: string) => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || '')
     
     if (categoryValue) {
       params.set('type', categoryValue)

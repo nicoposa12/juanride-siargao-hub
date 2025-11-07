@@ -86,8 +86,8 @@ export default function LoginPage() {
         })
 
         // Check for redirect parameter first
-        const redirectParam = searchParams.get('redirect')
-        let redirectPath = redirectParam || '/vehicles' // Default to vehicles (renter)
+        const redirectParam = searchParams?.get('redirect') ?? null
+        let redirectPath = redirectParam ?? '/vehicles' // Default to vehicles (renter)
         
         // Override with role-based redirect only if no redirect param
         if (!redirectParam) {

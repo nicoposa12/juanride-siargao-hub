@@ -142,6 +142,21 @@ export async function getBookingMessages(bookingId: string) {
     throw error
   }
 
-  return data as Message[]
-}
+  const normalizedMessages: Message[] = (data || []).map((message: any) => {
+    const senderInfo = Array.isArray(message.sender)
+      ? message.sender[0]
+      : message.sender
+    return {
+      ...message,
+      sender: senderInfo
+        ? {
+            id: senderInfo.id,
+            full_name: senderInfo.full_name,
+            email: senderInfo.email,
+          }
+        : undefined,
+    }
+  })
 
+  return normalizedMessages
+}

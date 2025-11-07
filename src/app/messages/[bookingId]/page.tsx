@@ -11,7 +11,8 @@ import ChatWindow from '@/components/chat/ChatWindow'
 import Navigation from '@/components/shared/Navigation'
 
 export default function ChatPage() {
-  const params = useParams()
+  const params = useParams() as { bookingId?: string }
+  const bookingId = params.bookingId
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const [recipientId, setRecipientId] = useState<string>('')
@@ -21,12 +22,12 @@ export default function ChatPage() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login')
-    } else if (user) {
-      fetchBookingDetails()
+    } else if (user && bookingId) {
+      fetchBookingDetails(bookingId)
     }
-  }, [user, authLoading])
+  }, [user, authLoading, bookingId])
 
-  const fetchBookingDetails = async () => {
+  const fetchBookingDetails = async (id: string) => {
     const supabase = createClient()
     
     try {
@@ -40,16 +41,23 @@ export default function ChatPage() {
             model
           )
         `)
-        .eq('id', params.bookingId)
+        .eq('id', id)
         .single()
 
       if (error) throw error
 
       // Determine who the other user is
       const isRenter = booking.renter_id === user?.id
+      const vehicleInfo = Array.isArray(booking.vehicle)
+        ? booking.vehicle[0]
+        : booking.vehicle
       const otherUserId = isRenter
-        ? booking.vehicle.owner_id
+        ? vehicleInfo?.owner_id
         : booking.renter_id
+
+      if (!otherUserId) {
+        throw new Error('Unable to determine chat participant')
+      }
 
       // Fetch other user's details
       const { data: otherUser } = await supabase
@@ -81,7 +89,7 @@ export default function ChatPage() {
     )
   }
 
-  if (!user || !recipientId) return null
+  if (!user || !recipientId || !bookingId) return null
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -95,7 +103,7 @@ export default function ChatPage() {
         </Link>
 
         <ChatWindow
-          bookingId={params.bookingId as string}
+          bookingId={bookingId as string}
           recipientId={recipientId}
           recipientName={recipientName}
         />

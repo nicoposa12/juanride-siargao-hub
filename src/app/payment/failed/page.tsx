@@ -12,7 +12,7 @@ import { updatePaymentRecord } from '@/lib/payment/paymongo'
 export default function PaymentFailedPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const bookingId = searchParams.get('bookingId')
+  const bookingId = searchParams?.get('bookingId')
 
   useEffect(() => {
     if (!bookingId) return

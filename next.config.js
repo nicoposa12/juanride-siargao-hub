@@ -1,4 +1,19 @@
 /** @type {import('next').NextConfig} */
+if (typeof process !== 'undefined') {
+  process.noDeprecation = true
+}
+
+if (typeof process !== 'undefined' && process.emitWarning) {
+  const originalEmitWarning = process.emitWarning.bind(process)
+  process.emitWarning = (warning, ...args) => {
+    const message = typeof warning === 'string' ? warning : warning?.message
+    if (message && message.includes('punycode')) {
+      return
+    }
+    return originalEmitWarning(warning, ...args)
+  }
+}
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -13,7 +28,6 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   experimental: {
-    serverActions: true,
     optimizePackageImports: ['@/components/ui', 'lucide-react'],
   },
   compress: true,
