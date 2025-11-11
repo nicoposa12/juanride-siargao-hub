@@ -18,8 +18,9 @@ import { format, subDays, parseISO } from 'date-fns'
 
 export default function AdminAnalyticsPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
   const [analytics, setAnalytics] = useState({
     userGrowth: [] as { date: string; count: number }[],
     vehiclesByType: [] as { type: string; count: number }[],
@@ -30,12 +31,37 @@ export default function AdminAnalyticsPage() {
   })
 
   useEffect(() => {
-    if (!authLoading && (!user || user.user_metadata?.role !== 'admin')) {
-      router.push('/')
-    } else if (user) {
-      fetchAnalytics()
+    // Don't redirect while still loading
+    if (authLoading) {
+      return
     }
-  }, [user, authLoading])
+    
+    // Give auth context time to stabilize on first check
+    if (!hasCheckedAuth) {
+      setHasCheckedAuth(true)
+      return
+    }
+    
+    // Check if user is authenticated
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    
+    // Wait for profile to load
+    if (!profile) {
+      return
+    }
+    
+    // Check if user is admin
+    if (profile.role !== 'admin') {
+      router.push('/unauthorized')
+      return
+    }
+    
+    // All checks passed - load analytics
+    fetchAnalytics()
+  }, [user, profile, authLoading, router, hasCheckedAuth])
 
   const fetchAnalytics = async () => {
     try {
@@ -130,8 +156,6 @@ export default function AdminAnalyticsPage() {
       </div>
     )
   }
-
-  if (!user || user.user_metadata?.role !== 'admin') return null
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
