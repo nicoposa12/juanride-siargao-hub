@@ -107,7 +107,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cachedProfile = profileCache.get(userId)
     if (cachedProfile) {
       console.log('✅ Profile loaded from cache:', cachedProfile.email, 'Role:', cachedProfile.role)
-      setProfile(cachedProfile)
+      
+      // Only set profile if it's different to prevent unnecessary re-renders
+      setProfile(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(cachedProfile)) {
+          console.log('⏭️  Profile unchanged, skipping state update')
+          return prev
+        }
+        return cachedProfile
+      })
       return cachedProfile
     }
     
@@ -161,7 +169,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Cache the profile
       profileCache.set(userId, data)
-      setProfile(data)
+      
+      // Only set profile if it's different to prevent unnecessary re-renders
+      setProfile(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(data)) {
+          console.log('⏭️  Profile unchanged, skipping state update')
+          return prev
+        }
+        return data
+      })
       return data
     } catch (error: any) {
       console.error('💥 Fatal error loading profile:', error)
@@ -242,7 +258,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔔 Auth state changed:', event, session?.user?.email || 'No user')
-        setUser(session?.user ?? null)
+        
+        // CRITICAL FIX: Ignore TOKEN_REFRESHED events to prevent unnecessary re-renders
+        // These happen automatically when switching tabs and should not trigger state updates
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('⏭️  Ignoring TOKEN_REFRESHED event - no state update needed')
+          return
+        }
+        
+        // Only update state for meaningful auth events
+        const meaningfulEvents = ['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED', 'INITIAL_SESSION']
+        if (!meaningfulEvents.includes(event)) {
+          console.log('⏭️  Ignoring event:', event)
+          return
+        }
+        
+        // Prevent unnecessary re-renders by comparing user objects
+        setUser(prev => {
+          const newUser = session?.user ?? null
+          if (!prev && !newUser) return prev
+          if (prev?.id === newUser?.id) {
+            console.log('⏭️  User unchanged, skipping state update')
+            return prev
+          }
+          return newUser
+        })
         
         if (session?.user) {
           console.log('✅ Session user found, loading profile for:', session.user.id)
