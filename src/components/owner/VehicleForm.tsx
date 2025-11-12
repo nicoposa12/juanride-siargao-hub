@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,29 +23,54 @@ interface VehicleFormProps {
   isEditing?: boolean
 }
 
+// Form state cache key
+const FORM_CACHE_KEY = 'vehicle_form_draft'
+
 export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps) {
   const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   const [submitting, setSubmitting] = useState(false)
+  const [isFormLoaded, setIsFormLoaded] = useState(false)
+  const [showDraftNotice, setShowDraftNotice] = useState(false)
   
-  // Form state
-  const [type, setType] = useState(initialData?.type || '')
-  const [make, setMake] = useState(initialData?.make || '')
-  const [model, setModel] = useState(initialData?.model || '')
-  const [year, setYear] = useState(initialData?.year?.toString() || '')
-  const [plateNumber, setPlateNumber] = useState(initialData?.plate_number || '')
-  const [description, setDescription] = useState(initialData?.description || '')
-  const [location, setLocation] = useState(initialData?.location || '')
-  const [pricePerDay, setPricePerDay] = useState(initialData?.price_per_day?.toString() || '')
-  const [pricePerWeek, setPricePerWeek] = useState(initialData?.price_per_week?.toString() || '')
-  const [pricePerMonth, setPricePerMonth] = useState(initialData?.price_per_month?.toString() || '')
-  const [rentalTerms, setRentalTerms] = useState(initialData?.rental_terms || '')
-  const [imageUrls, setImageUrls] = useState<string[]>(initialData?.image_urls || [])
+  // Load saved draft from sessionStorage (only for new vehicles, not when editing)
+  const loadSavedDraft = useCallback(() => {
+    if (isEditing || typeof window === 'undefined') return null
+    
+    try {
+      const saved = sessionStorage.getItem(FORM_CACHE_KEY)
+      if (saved) {
+        const draft = JSON.parse(saved)
+        console.log('📝 Restored form draft from cache')
+        setShowDraftNotice(true)
+        return draft
+      }
+    } catch (err) {
+      console.error('Failed to load form draft:', err)
+    }
+    return null
+  }, [isEditing])
+  
+  const savedDraft = !isFormLoaded ? loadSavedDraft() : null
+  
+  // Form state - use saved draft if available and not editing
+  const [type, setType] = useState(savedDraft?.type || initialData?.type || '')
+  const [make, setMake] = useState(savedDraft?.make || initialData?.make || '')
+  const [model, setModel] = useState(savedDraft?.model || initialData?.model || '')
+  const [year, setYear] = useState(savedDraft?.year || initialData?.year?.toString() || '')
+  const [plateNumber, setPlateNumber] = useState(savedDraft?.plateNumber || initialData?.plate_number || '')
+  const [description, setDescription] = useState(savedDraft?.description || initialData?.description || '')
+  const [location, setLocation] = useState(savedDraft?.location || initialData?.location || '')
+  const [pricePerDay, setPricePerDay] = useState(savedDraft?.pricePerDay || initialData?.price_per_day?.toString() || '')
+  const [pricePerWeek, setPricePerWeek] = useState(savedDraft?.pricePerWeek || initialData?.price_per_week?.toString() || '')
+  const [pricePerMonth, setPricePerMonth] = useState(savedDraft?.pricePerMonth || initialData?.price_per_month?.toString() || '')
+  const [rentalTerms, setRentalTerms] = useState(savedDraft?.rentalTerms || initialData?.rental_terms || '')
+  const [imageUrls, setImageUrls] = useState<string[]>(savedDraft?.imageUrls || initialData?.image_urls || [])
   
   // Features
   const [features, setFeatures] = useState<Record<string, boolean>>(
-    initialData?.features || {
+    savedDraft?.features || initialData?.features || {
       helmet_included: false,
       phone_holder: false,
       storage_box: false,
@@ -54,6 +79,83 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
       usb_charging: false,
     }
   )
+  
+  // Mark form as loaded
+  useEffect(() => {
+    setIsFormLoaded(true)
+  }, [])
+  
+  // Auto-save form state to sessionStorage (only for new vehicles)
+  useEffect(() => {
+    if (isEditing || !isFormLoaded) return
+    
+    const formState = {
+      type,
+      make,
+      model,
+      year,
+      plateNumber,
+      description,
+      location,
+      pricePerDay,
+      pricePerWeek,
+      pricePerMonth,
+      rentalTerms,
+      imageUrls,
+      features,
+      savedAt: Date.now(),
+    }
+    
+    try {
+      sessionStorage.setItem(FORM_CACHE_KEY, JSON.stringify(formState))
+    } catch (err) {
+      console.error('Failed to save form draft:', err)
+    }
+  }, [
+    type, make, model, year, plateNumber, description, location,
+    pricePerDay, pricePerWeek, pricePerMonth, rentalTerms, imageUrls,
+    features, isEditing, isFormLoaded
+  ])
+  
+  // Clear draft on successful submission
+  const clearFormDraft = useCallback(() => {
+    try {
+      sessionStorage.removeItem(FORM_CACHE_KEY)
+      setShowDraftNotice(false)
+      console.log('🧹 Cleared form draft')
+    } catch (err) {
+      console.error('Failed to clear form draft:', err)
+    }
+  }, [])
+  
+  const handleClearDraft = () => {
+    clearFormDraft()
+    // Reset all form fields
+    setType('')
+    setMake('')
+    setModel('')
+    setYear('')
+    setPlateNumber('')
+    setDescription('')
+    setLocation('')
+    setPricePerDay('')
+    setPricePerWeek('')
+    setPricePerMonth('')
+    setRentalTerms('')
+    setImageUrls([])
+    setFeatures({
+      helmet_included: false,
+      phone_holder: false,
+      storage_box: false,
+      gps_enabled: false,
+      bluetooth: false,
+      usb_charging: false,
+    })
+    toast({
+      title: 'Draft Cleared',
+      description: 'Your form draft has been cleared.',
+    })
+  }
   
   const handleFeatureToggle = (feature: string) => {
     setFeatures(prev => ({ ...prev, [feature]: !prev[feature] }))
@@ -137,6 +239,9 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
         
         if (error) throw error
         
+        // Clear the draft after successful submission
+        clearFormDraft()
+        
         toast({
           title: 'Vehicle Added',
           description: 'Your vehicle has been submitted for approval.',
@@ -184,6 +289,27 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Your vehicle listing will be reviewed by our admin team before it becomes visible to renters.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Draft Restored Notice */}
+      {showDraftNotice && !isEditing && (
+        <Alert className="border-blue-500 bg-blue-50">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-blue-900">
+              Draft restored - Your form data has been recovered from a previous session.
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleClearDraft}
+              className="ml-4 text-blue-600 hover:text-blue-800"
+            >
+              Clear Draft
+            </Button>
           </AlertDescription>
         </Alert>
       )}
