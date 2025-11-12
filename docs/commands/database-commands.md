@@ -3,6 +3,8 @@
 ## Overview
 This guide covers all database-related commands for managing your Supabase PostgreSQL database, including migrations, seeding, type generation, and direct SQL execution.
 
+> 🎯 **For Laravel Developers:** Check out [`LARAVEL_STYLE_DB_COMMANDS.md`](./LARAVEL_STYLE_DB_COMMANDS.md) for familiar Laravel-style commands like `npm run migrate`, `npm run db:seed`, `npm run migrate:fresh`, etc.
+
 ---
 
 ## Type Generation

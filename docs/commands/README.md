@@ -4,6 +4,23 @@ Complete command reference documentation for developing, deploying, and maintain
 
 ---
 
+## 🎯 For Laravel Developers
+
+### **[→ Laravel-Style Database Commands](./LARAVEL_STYLE_DB_COMMANDS.md)** ⭐ NEW!
+
+Familiar Laravel-style commands for database operations:
+- `npm run migrate` - Run migrations
+- `npm run migrate:status` - Check migration status  
+- `npm run migrate:fresh` - Fresh migration (drops all tables)
+- `npm run migrate:rollback` - Rollback last migration
+- `npm run db:seed` - Seed database with test data
+- `npm run db:types` - Generate TypeScript types
+- `npm run db:reset` - Full reset: fresh + migrate + seed
+
+**Perfect for developers coming from Laravel/PHP background!**
+
+---
+
 ## 📚 Available Command Guides
 
 ### 🗄️ [Database Commands](./database-commands.md)

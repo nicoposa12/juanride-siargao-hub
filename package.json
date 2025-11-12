@@ -9,7 +9,14 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "supabase:gen-types": "supabase gen types typescript --project-id YOUR_PROJECT_ID > src/types/database.types.ts"
+    "supabase:gen-types": "supabase gen types typescript --project-id YOUR_PROJECT_ID > src/types/database.types.ts",
+    "migrate": "node supabase/database/scripts/migrate.js",
+    "migrate:status": "node supabase/database/scripts/migrate-status.js",
+    "migrate:fresh": "node supabase/database/scripts/migrate-fresh.js",
+    "migrate:rollback": "node supabase/database/scripts/migrate-rollback.js",
+    "db:seed": "node supabase/database/scripts/seed.js",
+    "db:types": "npm run supabase:gen-types",
+    "db:reset": "npm run migrate:fresh && npm run migrate && npm run db:seed"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
