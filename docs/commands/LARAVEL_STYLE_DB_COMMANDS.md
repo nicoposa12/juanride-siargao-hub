@@ -365,6 +365,11 @@ npm run db:seed
 
 ## 🔧 Configuration
 
+### Required Dependencies
+```bash
+npm install dotenv  # Already included in package.json
+```
+
 ### Required Environment Variables
 Create `.env.local` in project root:
 

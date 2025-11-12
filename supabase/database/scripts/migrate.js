@@ -2,26 +2,35 @@
 
 /**
  * Laravel-style migration runner for Supabase
- * Applies all pending migrations to the database
+ * Uses direct PostgreSQL connection for automatic execution
  */
 
 const fs = require('fs');
 const path = require('path');
-const { createClient } = require('@supabase/supabase-js');
+const { Client } = require('pg');
+
+// Load environment variables from .env.local
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '..', '.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const dbPassword = process.env.SUPABASE_DB_PASSWORD || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Error: Missing Supabase credentials');
-  console.error('Make sure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in .env.local');
+if (!supabaseUrl) {
+  console.error('❌ Error: Missing NEXT_PUBLIC_SUPABASE_URL in .env.local');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Extract project ref from URL
+const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+
+if (!projectRef) {
+  console.error('❌ Error: Could not extract project reference from SUPABASE_URL');
+  process.exit(1);
+}
 
 async function runMigrations() {
-  console.log('🚀 Starting migrations...\n');
+  console.log('🚀 Laravel-style Migration Runner\n');
+  console.log('════════════════════════════════════════════════════════════════════════════════\n');
 
   const migrationsDir = path.join(__dirname, '..', 'migrations');
   const files = fs.readdirSync(migrationsDir)
@@ -29,47 +38,101 @@ async function runMigrations() {
     .sort();
 
   if (files.length === 0) {
-    console.log('ℹ️  No migration files found');
+    console.log('ℹ️  No migration files found\n');
     return;
   }
 
-  console.log(`📁 Found ${files.length} migration file(s):\n`);
+  console.log(`📁 Found ${files.length} migration file(s) to apply:\n`);
 
-  for (const file of files) {
-    const filePath = path.join(migrationsDir, file);
-    const sql = fs.readFileSync(filePath, 'utf8');
+  files.forEach((file, index) => {
+    console.log(`   ${(index + 1).toString().padStart(2, '00')}. ${file}`);
+  });
 
-    console.log(`⏳ Running: ${file}`);
+  console.log('\n════════════════════════════════════════════════════════════════════════════════\n');
 
-    try {
-      const { error } = await supabase.rpc('exec_sql', { sql_query: sql }).catch(() => {
-        // If rpc doesn't exist, fall back to raw query
-        return supabase.from('_migrations').select('*').limit(0);
-      });
-
-      // Try alternative method using REST API
-      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseServiceKey,
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({ query: sql })
-      }).catch(() => null);
-
-      console.log(`✅ Migrated: ${file}`);
-    } catch (error) {
-      console.error(`❌ Failed: ${file}`);
-      console.error(`   Error: ${error.message}`);
-      console.error('\n⚠️  Please run this migration manually in Supabase Dashboard → SQL Editor');
-      console.error(`   File: ${filePath}\n`);
-    }
+  // Check if we have database password for direct connection
+  if (!dbPassword) {
+    console.log('⚠️  No database password found. Using manual mode.\n');
+    showManualInstructions();
+    return;
   }
 
-  console.log('\n✨ Migration process completed!');
-  console.log('\n💡 Note: If any migrations failed, please run them manually in Supabase Dashboard.');
-  console.log('   Then run: npm run db:types\n');
+  // Connect to database
+  console.log('⏳ Attempting automatic migration via direct database connection...\n');
+
+  // Use the direct connection format from Supabase (for ORMs/migrations)
+  // Port 5432 for direct connection (not 6543 which is session pooler)
+  const connectionString = `postgresql://postgres.${projectRef}:${encodeURIComponent(dbPassword)}@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`;
+
+  const client = new Client({ connectionString });
+
+  try {
+    await client.connect();
+    console.log('✅ Connected to database\n');
+    console.log('⏳ Applying migrations...\n');
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const file of files) {
+      // Skip temp files
+      if (file.startsWith('.temp')) {
+        continue;
+      }
+
+      const filePath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
+
+      console.log(`⏳ Running: ${file}`);
+
+      try {
+        await client.query(sql);
+        console.log(`✅ Migrated: ${file}\n`);
+        successCount++;
+      } catch (error) {
+        console.error(`❌ Failed: ${file}`);
+        console.error(`   Error: ${error.message}\n`);
+        failCount++;
+      }
+    }
+
+    await client.end();
+
+    console.log('════════════════════════════════════════════════════════════════════════════════\n');
+    console.log('✨ Migration Summary:');
+    console.log(`   ✅ Successful: ${successCount}`);
+    console.log(`   ❌ Failed: ${failCount}`);
+    console.log(`   📊 Total: ${files.length - 1}\n`); // Exclude temp files
+
+    if (successCount > 0) {
+      console.log('💡 Next step: Run `npm run db:types` to update TypeScript types\n');
+    }
+
+    if (failCount > 0) {
+      console.log('⚠️  Some migrations failed. Check errors above.\n');
+      process.exit(1);
+    }
+  } catch (error) {
+    console.log(`❌ Automatic migration failed: ${error.message}\n`);
+    console.log('Falling back to manual mode...\n');
+    showManualInstructions();
+  }
 }
 
-runMigrations().catch(console.error);
+function showManualInstructions() {
+  console.log('════════════════════════════════════════════════════════════════════════════════\n');
+  console.log('📋 MANUAL MIGRATION INSTRUCTIONS:\n');
+  console.log('1. Open Supabase Dashboard → SQL Editor');
+  console.log(`   URL: https://app.supabase.com/project/${projectRef}/sql\n`);
+  console.log('2. For each migration file, copy SQL and click "Run"\n');
+  console.log('3. After all migrations, run: npm run db:types\n');
+  console.log('════════════════════════════════════════════════════════════════════════════════\n');
+  console.log('💡 TIP: To enable automatic migrations, add to .env.local:');
+  console.log('   SUPABASE_DB_PASSWORD=your-database-password');
+  console.log('   Get it from: Supabase Dashboard → Settings → Database → Connection String\n');
+}
+
+runMigrations().catch(error => {
+  console.error('\n❌ Migration runner error:', error.message);
+  process.exit(1);
+});
