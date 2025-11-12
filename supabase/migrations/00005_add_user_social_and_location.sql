@@ -1,0 +1,3 @@
+-- Migration: No changes needed
+-- Created: 2025-11-12
+-- This migration is kept for tracking purposes but makes no schema changes
