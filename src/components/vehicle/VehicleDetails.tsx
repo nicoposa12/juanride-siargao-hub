@@ -299,8 +299,8 @@ export function VehicleDetails({ vehicle }: VehicleDetailsProps) {
                       )}
                     </div>
                     <Button variant="outline" asChild>
-                      <Link href={`/messages?owner=${vehicle.owner_id}&vehicle=${vehicle.id}`}>
-                        Contact Owner
+                      <Link href={`/profile/${vehicle.owner_id}`}>
+                        View Profile
                       </Link>
                     </Button>
                   </div>
