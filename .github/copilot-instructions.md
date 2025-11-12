@@ -11,15 +11,49 @@ JuanRide is a vehicle rental marketplace for Siargao Island, Philippines. Built 
 
 ```typescript
 // ✅ Client components
-import { createClient } from '@/lib/supabase/client'
-const supabase = createClient()
+import { supabase } from '@/supabase/config/supabaseClient'
 
 // ✅ Server components
-import { createServerClient } from '@/lib/supabase/server'
-const supabase = createServerClient()
+import { createServerClient } from '@/supabase/config/supabaseClient'
+
+// ✅ Admin operations (server-side only, bypasses RLS)
+import { supabaseAdmin } from '@/supabase/config/supabaseAdmin'
 ```
 
-**Never** instantiate Supabase directly with `createClientComponentClient()` - always use our wrapper functions.
+**Never** instantiate Supabase directly - always use our centralized client exports.
+
+### Database Operations Pattern
+
+**Queries (Read operations):**
+```typescript
+// Option 1: Direct import
+import { searchVehicles, getVehicleById } from '@/supabase/lib/queries/vehicles'
+
+// Option 2: Namespace import
+import { VehicleQueries } from '@/supabase'
+const vehicles = await VehicleQueries.searchVehicles(filters)
+```
+
+**Mutations (Write operations):**
+```typescript
+// Option 1: Direct import
+import { createVehicle, updateVehicle } from '@/supabase/lib/mutations/vehicles'
+
+// Option 2: Namespace import
+import { VehicleMutations } from '@/supabase'
+await VehicleMutations.createVehicle(data)
+```
+
+**Utilities:**
+```typescript
+// Storage operations
+import { StorageUtils } from '@/supabase'
+const url = await StorageUtils.uploadVehicleImage(file, vehicleId)
+
+// Real-time subscriptions
+import { RealtimeUtils } from '@/supabase'
+const channel = RealtimeUtils.subscribeToBookingMessages(bookingId, callback)
+```
 
 ### Authentication & Role-Based Access
 
@@ -64,10 +98,21 @@ npm run type-check   # TypeScript validation
 ```bash
 # Generate types after schema changes
 npm run supabase:gen-types
-# This updates src/types/database.types.ts
+# This updates supabase/types/database.types.ts
 ```
 
-**Schema migrations** live in `supabase/migrations/` - numbered SQL files. When modifying schema, create new migration files rather than editing existing ones.
+**Schema migrations** live in `supabase/database/migrations/` - numbered SQL files. When modifying schema, create new migration files rather than editing existing ones.
+
+**Database organization:**
+- `/config` - Client setup and configuration
+- `/database` - Migrations, seeds, and SQL
+- `/types` - TypeScript type definitions
+- `/lib` - All database operations organized by domain
+  - `/queries` - Read operations (SELECT)
+  - `/mutations` - Write operations (INSERT/UPDATE/DELETE)
+  - `storage.ts` - File uploads/downloads
+  - `realtime.ts` - Real-time subscriptions
+  - `utils.ts` - Helper functions
 
 ## Code Conventions
 
@@ -91,6 +136,7 @@ const form = useForm({ resolver: zodResolver(schema) })
 ### State Management
 - **Server state:** TanStack Query (`useQuery`, `useMutation`) - see `src/hooks/use-vehicles.ts`, `use-bookings.ts`
 - **Client state:** React Context for auth (`src/contexts/auth-context.tsx`)
+- **Database operations:** Organized in `/supabase/lib/` (queries & mutations)
 - **No Redux** - use React Query for API data, Context for global UI state
 
 ### Constants Pattern
@@ -176,18 +222,27 @@ Images stored in Supabase Storage buckets:
 
 ## Quick File Locations
 
+- **Supabase setup:** `/supabase/` (new organized structure)
+  - **Clients:** `/supabase/config/` (supabaseClient.ts, supabaseAdmin.ts)
+  - **Queries:** `/supabase/lib/queries/` (vehicles, bookings, reviews)
+  - **Mutations:** `/supabase/lib/mutations/` (vehicles, bookings, reviews, users)
+  - **Types:** `/supabase/types/` (database.types.ts - auto-generated)
+  - **Utilities:** `/supabase/lib/` (storage, realtime, utils)
 - **Auth context:** `src/contexts/auth-context.tsx`
 - **Auth hook:** `src/hooks/use-auth.ts`
-- **Supabase clients:** `src/lib/supabase/{client,server}.ts`
-- **Type definitions:** `src/types/` (especially `database.types.ts` - auto-generated)
-- **Migrations:** `supabase/migrations/`
+- **Old Supabase (deprecated):** `src/lib/supabase/` (being phased out)
+- **Migrations:** `supabase/database/migrations/`
+- **Seeds:** `supabase/database/seeds/`
 - **Constants:** `src/lib/constants.ts`
+- **Type definitions:** `src/types/` (domain-specific types)
 - **Utilities:** `src/lib/utils/` (formatting, validation, etc.)
 
 ## When Making Changes
 
-1. **Schema changes:** Create new migration in `supabase/migrations/`, then run `npm run supabase:gen-types`
-2. **New features:** Check `docs/IMPLEMENTATION_STATUS.md` for context on what's done vs planned
-3. **Components:** Follow atomic structure - use existing UI components from `src/components/ui/`
-4. **API routes:** Follow Next.js App Router patterns in `src/app/api/`
-5. **Type safety:** Leverage TypeScript strictly - no `any` types without justification
+1. **Schema changes:** Create new migration in `supabase/database/migrations/`, then run `npm run supabase:gen-types`
+2. **New database operations:** Add to appropriate file in `/supabase/lib/queries/` or `/supabase/lib/mutations/`
+3. **New features:** Check `docs/IMPLEMENTATION_STATUS.md` for context on what's done vs planned
+4. **Components:** Follow atomic structure - use existing UI components from `src/components/ui/`
+5. **API routes:** Follow Next.js App Router patterns in `src/app/api/`
+6. **Type safety:** Leverage TypeScript strictly - no `any` types without justification
+7. **Imports:** Use new Supabase structure at `@/supabase/*` for all new code
