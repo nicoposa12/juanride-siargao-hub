@@ -19,6 +19,7 @@ import {
   Shield,
   Loader2,
   User,
+  Phone,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -271,6 +272,35 @@ export default function OwnerProfilePage() {
                   
                   <Separator />
                   
+                  {/* Contact Information */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                      <Phone className="h-5 w-5 text-primary" />
+                      Contact Information
+                    </h3>
+                    <div className="space-y-2">
+                      {owner.phone_number && (
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                          <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <a 
+                              href={`tel:${owner.phone_number}`}
+                              className="text-sm font-medium hover:text-primary transition-colors"
+                            >
+                              {owner.phone_number}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      {!owner.phone_number && (
+                        <p className="text-sm text-muted-foreground">No contact information available</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
                   {/* Verification Info */}
                   <div className="space-y-3">
                     <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -391,7 +421,24 @@ export default function OwnerProfilePage() {
                       <MessageCircle className="h-4 w-4" />
                       Send Message
                     </Button>
-                    <p className="text-xs text-muted-foreground text-center">
+                    
+                    {/* Quick Contact Options */}
+                    <div className="space-y-2">
+                      {owner.phone_number && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full gap-2 justify-start" 
+                          asChild
+                        >
+                          <a href={`tel:${owner.phone_number}`}>
+                            <Phone className="h-4 w-4" />
+                            Call
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground text-center pt-2 border-t">
                       Get in touch with {owner.full_name?.split(' ')[0] || 'the owner'} to ask questions about their vehicles
                     </p>
                   </CardContent>
