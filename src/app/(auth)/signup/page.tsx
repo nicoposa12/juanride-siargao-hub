@@ -48,28 +48,14 @@ export default function SignUpPage() {
       } else {
         toast({
           title: 'Welcome to JuanRide! 🎉',
-          description: 'Your account has been created successfully.',
+          description: 'Your account has been created successfully. Please sign in to continue.',
         })
         
-        // Auto-login after successful signup
-        // Since email confirmation is disabled, user can login immediately
-        const { error: loginError } = await signIn(email, password)
-        
-        if (loginError) {
-          // If auto-login fails, redirect to login page
-          toast({
-            title: 'Account Created!',
-            description: 'Please login with your credentials.',
-          })
+        // Redirect to login page instead of auto-login
+        // This ensures proper authentication flow and prevents confusion
+        setTimeout(() => {
           router.push('/login')
-        } else {
-          // Successfully logged in, redirect based on role
-          if (role === 'owner') {
-            router.push('/owner/dashboard')
-          } else {
-            router.push('/vehicles')
-          }
-        }
+        }, 1500) // Brief delay to show success message
       }
     } catch (error) {
       toast({

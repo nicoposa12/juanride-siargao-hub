@@ -152,7 +152,14 @@ export default function OwnerDashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Owner Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Welcome back, {profile?.full_name || 'Owner'}! Here's an overview of your rental business.
+            {(() => {
+              const isNewOwner = profile?.created_at ? 
+                new Date(profile.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000) :
+                false
+              return isNewOwner ?
+                `Welcome to JuanRide, ${profile?.full_name || 'Owner'}! Start by adding your first vehicle to begin earning.` :
+                `Welcome back, ${profile?.full_name || 'Owner'}! Here's an overview of your rental business.`
+            })()}
           </p>
         </div>
         

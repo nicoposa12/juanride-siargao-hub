@@ -79,10 +79,16 @@ export default function LoginPage() {
 
         console.log('✅ Profile loaded:', userProfile.email, '- Role:', userProfile.role)
 
-        // Profile loaded successfully
+        // Profile loaded successfully - check if this is a new user
+        const isNewUser = userProfile.created_at ? 
+          new Date(userProfile.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000) : // Within last 24 hours
+          false
+        
         toast({
-          title: 'Welcome back!',
-          description: `Logged in as ${userProfile.role}`,
+          title: isNewUser ? 'Welcome to JuanRide! 🎉' : 'Welcome back!',
+          description: isNewUser ? 
+            `Your ${userProfile.role} account is ready to go!` :
+            `Logged in as ${userProfile.role}`,
         })
 
         // Check for redirect parameter first
@@ -175,15 +181,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -212,6 +210,15 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="text-center mt-4">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

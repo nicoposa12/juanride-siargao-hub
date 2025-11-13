@@ -41,6 +41,7 @@ import {
   Mail,
   Phone,
   Calendar,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -67,6 +68,8 @@ export default function AdminUsersPage() {
     is_active: true,
     is_verified: false,
   })
+  const [deleteDialog, setDeleteDialog] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<any>(null)
   
   useEffect(() => {
     if (!authLoading) {
@@ -147,20 +150,56 @@ export default function AdminUsersPage() {
   const handleSaveUser = async () => {
     if (!selectedUser) return
     
+    // Validate role change
+    if (editForm.role && !['renter', 'owner', 'admin'].includes(editForm.role)) {
+      toast({
+        title: 'Invalid Role',
+        description: 'Please select a valid role.',
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    // Prevent removing admin role from yourself
+    if (selectedUser.id === profile?.id && selectedUser.role === 'admin' && editForm.role !== 'admin') {
+      toast({
+        title: 'Cannot Change Own Role',
+        description: 'You cannot remove admin privileges from your own account.',
+        variant: 'destructive',
+      })
+      return
+    }
+    
     setProcessing(true)
     try {
       const supabase = createClient()
+      
+      // Build update object only with changed fields
+      const updateData: any = {
+        updated_at: new Date().toISOString(),
+      }
+      
+      if (editForm.role !== selectedUser.role) {
+        updateData.role = editForm.role
+      }
+      if (editForm.is_active !== selectedUser.is_active) {
+        updateData.is_active = editForm.is_active
+      }
+      if (editForm.is_verified !== selectedUser.is_verified) {
+        updateData.is_verified = editForm.is_verified
+      }
+      
       const { error } = await supabase
         .from('users')
-        .update({
-          role: editForm.role,
-          is_active: editForm.is_active,
-          is_verified: editForm.is_verified,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', selectedUser.id)
       
       if (error) throw error
+      
+      // Log role change for admin tracking
+      if (updateData.role) {
+        console.log(`Admin ${profile?.email} changed user ${selectedUser.email} role from ${selectedUser.role} to ${updateData.role}`)
+      }
       
       toast({
         title: 'User Updated',
@@ -208,6 +247,73 @@ export default function AdminUsersPage() {
         description: error.message || 'Failed to update user status.',
         variant: 'destructive',
       })
+    }
+  }
+
+  const handleDeleteUser = (user: any) => {
+    // Prevent deleting yourself
+    if (user.id === profile?.id) {
+      toast({
+        title: 'Cannot Delete',
+        description: 'You cannot delete your own account.',
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    // Prevent deleting other admins unless you're a super admin
+    if (user.role === 'admin') {
+      toast({
+        title: 'Cannot Delete',
+        description: 'Admin accounts cannot be deleted for security reasons.',
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    setUserToDelete(user)
+    setDeleteDialog(true)
+  }
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return
+    
+    setProcessing(true)
+    try {
+      // Call the admin API to delete user
+      const response = await fetch('/api/admin/users/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userToDelete.id
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user')
+      }
+      
+      toast({
+        title: 'User Deleted',
+        description: 'User account has been permanently deleted.',
+      })
+      
+      await loadUsers()
+      setDeleteDialog(false)
+      setUserToDelete(null)
+    } catch (error: any) {
+      console.error('Error deleting user:', error)
+      toast({
+        title: 'Delete Failed',
+        description: error.message || 'Failed to delete user account.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessing(false)
     }
   }
   
@@ -369,6 +475,14 @@ export default function AdminUsersPage() {
                                 <CheckCircle className="h-4 w-4" />
                               )}
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={user.role === 'admin' || user.id === profile?.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -454,6 +568,68 @@ export default function AdminUsersPage() {
                   </>
                 ) : (
                   'Save Changes'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete User Confirmation Dialog */}
+        <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm User Deletion</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the user account and remove all associated data.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {userToDelete && (
+              <div className="py-4">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <Trash2 className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-red-800">
+                        Delete User: {userToDelete.full_name}
+                      </h3>
+                      <p className="text-sm text-red-700 mt-1">
+                        Email: {userToDelete.email} | Role: {userToDelete.role}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mt-4">
+                  Are you absolutely sure you want to delete this user? All their bookings, reviews, and associated data will be permanently removed.
+                </p>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialog(false)}
+                disabled={processing}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteUser}
+                disabled={processing}
+              >
+                {processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete User
+                  </>
                 )}
               </Button>
             </DialogFooter>

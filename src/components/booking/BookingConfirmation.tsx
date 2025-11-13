@@ -85,15 +85,57 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        {/* Success Header */}
+        {/* Status / Success Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
-          </div>
-          <h1 className="text-3xl font-bold mb-2">Booking Confirmed!</h1>
-          <p className="text-muted-foreground">
-            Your booking request has been submitted successfully
-          </p>
+          {booking.status === 'pending' && (
+            <>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+                <Clock className="h-8 w-8 text-yellow-600" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2">Booking Request Submitted!</h1>
+              <p className="text-muted-foreground">Your booking request has been sent and is awaiting owner confirmation.</p>
+            </>
+          )}
+          
+          {booking.status === 'confirmed' && (
+            <>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2">Booking Confirmed!</h1>
+              <p className="text-muted-foreground">Your booking has been confirmed by the owner.</p>
+            </>
+          )}
+          
+          {booking.status === 'active' && (
+            <>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                <CheckCircle2 className="h-8 w-8 text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2">Vehicle Picked Up!</h1>
+              <p className="text-muted-foreground">Your rental is currently active. Enjoy your ride!</p>
+            </>
+          )}
+          
+          {booking.status === 'completed' && (
+            <>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2">Rental Completed!</h1>
+              <p className="text-muted-foreground">Your rental has been completed successfully. Thank you for using JuanRide!</p>
+            </>
+          )}
+          
+          {booking.status === 'cancelled' && (
+            <>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                <AlertCircle className="h-8 w-8 text-red-600" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2">Booking Cancelled</h1>
+              <p className="text-muted-foreground">This booking has been cancelled.</p>
+            </>
+          )}
         </div>
         
         {/* Status Alert */}
@@ -113,6 +155,36 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
             <AlertTitle className="text-green-800">Confirmed</AlertTitle>
             <AlertDescription className="text-green-700">
               Your booking has been confirmed by the owner. Get ready for your trip!
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {booking.status === 'active' && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Active Rental</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              Your vehicle has been picked up and your rental is currently active. Drive safely!
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {booking.status === 'completed' && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800">Rental Completed</AlertTitle>
+            <AlertDescription className="text-green-700">
+              Your rental has been completed successfully. We hope you had a great experience!
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {booking.status === 'cancelled' && (
+          <Alert className="mb-6 border-red-200 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertTitle className="text-red-800">Booking Cancelled</AlertTitle>
+            <AlertDescription className="text-red-700">
+              This booking has been cancelled. If you have any questions, please contact support.
             </AlertDescription>
           </Alert>
         )}
