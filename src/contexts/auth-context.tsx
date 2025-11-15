@@ -17,7 +17,7 @@ interface AuthContextType {
   profile: UserProfile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>
-  signUp: (email: string, password: string, fullName: string, role: 'renter' | 'owner') => Promise<{ data: any; error: any }>
+  signUp: (email: string, password: string, fullName: string, phoneNumber: string, role: 'renter' | 'owner') => Promise<{ data: any; error: any }>
   signInWithGoogle: (nextPath?: string) => Promise<{ data: any; error: any }>
   signOut: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ data: any; error: any }>
@@ -379,7 +379,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'renter' | 'owner') => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    phoneNumber: string,
+    role: 'renter' | 'owner'
+  ) => {
     console.log('🚀 Starting signup process for:', email)
     
     // Sign up with Supabase Auth
@@ -389,6 +395,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: {
         data: {
           full_name: fullName,
+          phone_number: phoneNumber,
           role,
         },
       },
@@ -414,6 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: data.user.id,
         email: data.user.email!,
         full_name: fullName,
+        phone_number: phoneNumber,
         role,
         is_active: true,
         is_verified: false,

@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle2, AlertCircle, Wrench } from 'lucide-react'
-import type { VehicleStatus } from '@/lib/supabase\queries\vehicles'
+import type { VehicleStatus } from '@/lib/supabase/queries/vehicles'
 
 interface VehicleStatusBadgeProps {
   status: VehicleStatus

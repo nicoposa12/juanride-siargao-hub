@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, ShieldCheck, User as UserIcon } from 'lucide-react'
+import { Loader2, ShieldCheck, User as UserIcon, Phone } from 'lucide-react'
 
 const roleOptions: { value: 'renter' | 'owner'; label: string; description: string }[] = [
   {
@@ -34,6 +34,7 @@ export default function OnboardingPage() {
 
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<'renter' | 'owner'>('renter')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -46,17 +47,28 @@ export default function OnboardingPage() {
     return value
   }, [searchParams])
 
-  // Prefill fields when data becomes available
+  // Prefill fields when profile data becomes available
   useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name ?? '')
-      if (profile.role === 'owner' || profile.role === 'renter') {
-        setRole(profile.role)
-      }
-    } else if (user?.user_metadata?.full_name && !fullName) {
-      setFullName(user.user_metadata.full_name as string)
+    if (!profile) return
+
+    setFullName(profile.full_name ?? '')
+    setPhoneNumber(profile.phone_number ?? '')
+    if (profile.role === 'owner' || profile.role === 'renter') {
+      setRole(profile.role)
     }
-  }, [profile, user, fullName])
+  }, [profile])
+
+  // Fallback to auth metadata before profile loads
+  useEffect(() => {
+    if (profile) return
+
+    if (user?.user_metadata?.full_name) {
+      setFullName((prev) => prev || (user.user_metadata!.full_name as string))
+    }
+    if (user?.user_metadata?.phone_number) {
+      setPhoneNumber((prev) => prev || (user.user_metadata!.phone_number as string))
+    }
+  }, [profile, user])
 
   // Redirect logic for already onboarded users
   useEffect(() => {
@@ -90,11 +102,21 @@ export default function OnboardingPage() {
     }
 
     const trimmedName = fullName.trim()
+    const trimmedPhone = phoneNumber.trim()
 
     if (!trimmedName) {
       toast({
         title: 'Full name required',
         description: 'Please provide your full name to continue.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!trimmedPhone) {
+      toast({
+        title: 'Phone number required',
+        description: 'Please provide a phone number so we can reach you about bookings.',
         variant: 'destructive',
       })
       return
@@ -116,6 +138,7 @@ export default function OnboardingPage() {
         .from('users')
         .update({
           full_name: trimmedName,
+          phone_number: trimmedPhone,
           role,
           needs_onboarding: false,
           onboarding_completed_at: new Date().toISOString(),
@@ -126,11 +149,23 @@ export default function OnboardingPage() {
         throw updateError
       }
 
+      const authUpdates: {
+        password?: string
+        data?: Record<string, string>
+      } = {
+        data: {
+          full_name: trimmedName,
+          phone_number: trimmedPhone,
+        },
+      }
+
       if (password) {
-        const { error: passwordError } = await supabase.auth.updateUser({ password })
-        if (passwordError) {
-          throw passwordError
-        }
+        authUpdates.password = password
+      }
+
+      const { error: authError } = await supabase.auth.updateUser(authUpdates)
+      if (authError) {
+        throw authError
       }
 
       await refreshProfile()
@@ -186,6 +221,25 @@ export default function OnboardingPage() {
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="09XX XXX XXXX"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                We’ll use this to coordinate rentals and verify ownership details.
+              </p>
             </div>
 
             <div className="space-y-3">

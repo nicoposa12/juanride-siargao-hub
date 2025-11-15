@@ -10,12 +10,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { Mail, Lock, User, UserPlus } from 'lucide-react'
+import { Mail, Lock, User, UserPlus, Phone } from 'lucide-react'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [role, setRole] = useState<'renter' | 'owner'>('renter')
   const [loading, setLoading] = useState(false)
   const { signUp, signIn, signInWithGoogle } = useAuth()
@@ -37,7 +38,17 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
-      const { error } = await signUp(email, password, fullName, role)
+      if (!phoneNumber.trim()) {
+        toast({
+          title: 'Phone number required',
+          description: 'Please provide a valid phone number so we can contact you regarding bookings.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
+
+      const { error } = await signUp(email, password, fullName, phoneNumber.trim(), role)
 
       if (error) {
         toast({
@@ -129,6 +140,25 @@ export default function SignUpPage() {
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="09XX XXX XXXX"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used to coordinate bookings and verify owner accounts.
+              </p>
             </div>
 
             <div className="space-y-2">
