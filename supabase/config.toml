@@ -59,9 +59,9 @@ enable_confirmations = true
 
 # Configure one of the below external providers for auth
 [auth.external.google]
-enabled = false
-client_id = ""
-secret = ""
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
 
 [auth.external.facebook]
 enabled = false

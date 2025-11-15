@@ -428,3 +428,41 @@ export async function getSimilarVehicles(
 
   return vehicles || []
 }
+
+/**
+ * Update vehicle status (owner only)
+ */
+export async function updateVehicleStatus(
+  vehicleId: string, 
+  status: 'available' | 'unavailable' | 'maintenance'
+) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('vehicles')
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', vehicleId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error updating vehicle status:', error)
+    throw error
+  }
+
+  return data
+}
+
+/**
+ * Get vehicle status options for UI
+ */
+export const VEHICLE_STATUS_OPTIONS = [
+  { value: 'available', label: 'Available', description: 'Ready for bookings' },
+  { value: 'unavailable', label: 'Unavailable', description: 'Not available for bookings' },
+  { value: 'maintenance', label: 'Under Maintenance', description: 'Being serviced or repaired' },
+] as const
+
+export type VehicleStatus = typeof VEHICLE_STATUS_OPTIONS[number]['value']

@@ -18,10 +18,12 @@ export interface Database {
           email: string
           full_name: string | null
           phone_number: string | null
-          role: 'renter' | 'owner' | 'admin'
+          role: 'pending' | 'renter' | 'owner' | 'admin'
           profile_image_url: string | null
           is_verified: boolean
           is_active: boolean
+          needs_onboarding: boolean
+          onboarding_completed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -30,10 +32,12 @@ export interface Database {
           email: string
           full_name?: string | null
           phone_number?: string | null
-          role?: 'renter' | 'owner' | 'admin'
+          role?: 'pending' | 'renter' | 'owner' | 'admin'
           profile_image_url?: string | null
           is_verified?: boolean
           is_active?: boolean
+          needs_onboarding?: boolean
+          onboarding_completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -42,10 +46,12 @@ export interface Database {
           email?: string
           full_name?: string | null
           phone_number?: string | null
-          role?: 'renter' | 'owner' | 'admin'
+          role?: 'pending' | 'renter' | 'owner' | 'admin'
           profile_image_url?: string | null
           is_verified?: boolean
           is_active?: boolean
+          needs_onboarding?: boolean
+          onboarding_completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -407,7 +413,7 @@ export interface Database {
       [_ in never]: never
     }
     Enums: {
-      user_role: 'renter' | 'owner' | 'admin'
+      user_role: 'pending' | 'renter' | 'owner' | 'admin'
       vehicle_type: 'scooter' | 'motorcycle' | 'car' | 'van'
       vehicle_status: 'available' | 'rented' | 'maintenance' | 'inactive'
       booking_status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
