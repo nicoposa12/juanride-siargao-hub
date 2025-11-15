@@ -49,14 +49,10 @@ export default function RenterBookingsPage() {
   const [cancelling, setCancelling] = useState<string | null>(null)
   
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push('/login?redirect=/dashboard/bookings')
-        return
-      }
-      loadBookings()
-    }
-  }, [user, authLoading, router])
+    if (authLoading) return; // still resolving session
+    if (!user) return;       // middleware will already have redirected if unauthenticated
+    loadBookings();
+  }, [authLoading, user]);
   
   const loadBookings = async () => {
     if (!user) return

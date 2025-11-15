@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/hooks/use-auth'
 import { useNotifications } from '@/hooks/use-notifications'
 import { formatDistanceToNow } from 'date-fns'
+import { createClient } from '@/lib/supabase/client'
 
 interface Notification {
   id: string
@@ -17,7 +18,7 @@ interface Notification {
   message: string
   is_read: boolean
   created_at: string
-  action_url?: string
+  link?: string
   metadata?: Record<string, any>
 }
 
@@ -28,11 +29,42 @@ export function NotificationCenter() {
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
 
+  // Supabase client for realtime subscription
+  const supabase = createClient()
+
+  // Subscribe to realtime inserts on the notifications table for this user
+  const subscribeToNotifications = () => {
+    if (!profile) return
+
+    const channel = supabase
+      .channel(`notifications:${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        (payload) => {
+          setNotifications((prev) => [payload.new as Notification, ...prev])
+        }
+      )
+      .subscribe()
+
+    // Cleanup helper so we unsubscribe on unmount or profile change
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
+
   const unreadCount = notifications.filter(n => !n.is_read).length
 
   useEffect(() => {
     if (user && profile) {
       fetchNotifications()
+      const cleanup = subscribeToNotifications()
+      return cleanup
     }
   }, [user, profile])
 
@@ -168,9 +200,9 @@ export function NotificationCenter() {
                                 </Button>
                               )}
                             </div>
-                            {notification.action_url && (
+                            {notification.link && (
                               <a
-                                href={notification.action_url}
+                                href={notification.link}
                                 className="text-xs text-primary hover:underline mt-2 inline-block"
                                 onClick={() => {
                                   if (!notification.is_read) {

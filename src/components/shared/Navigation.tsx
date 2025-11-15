@@ -39,9 +39,10 @@ const Navigation = () => {
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "My Rentals", href: "/dashboard/bookings" },
+    { name: "Favorites", href: "/favorites" },
     { name: "Reviews", href: "/dashboard/reviews" },
     { name: "Support", href: "/support" },
-    { name: "Profile", href: "/dashboard/profile" },
+    { name: "Profile", href: "/profile" },
   ];
 
   return (

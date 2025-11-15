@@ -99,7 +99,7 @@ export const useNotifications = () => {
           type: notificationData.type,
           title: notificationData.title,
           message: notificationData.message,
-          action_url: notificationData.actionUrl,
+          link: notificationData.actionUrl,
           metadata: notificationData.metadata,
           is_read: false,
         })

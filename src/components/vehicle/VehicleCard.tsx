@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
@@ -16,17 +16,48 @@ import { cn } from '@/lib/utils/cn'
 
 interface VehicleCardProps {
   vehicle: any
+  onFavoriteChange?: () => void | Promise<void>
 }
 
-export function VehicleCard({ vehicle }: VehicleCardProps) {
+export function VehicleCard({ vehicle, onFavoriteChange }: VehicleCardProps) {
   const [isFavorite, setIsFavorite] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
   const supabase = createClient()
 
   const imageUrl = vehicle.image_urls?.[0] || '/placeholder.svg'
   const vehicleType = VEHICLE_TYPE_LABELS[vehicle.type as keyof typeof VEHICLE_TYPE_LABELS] || vehicle.type
+
+  // Load existing favorite status on mount
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (!user) {
+        setInitialLoading(false)
+        return
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('favorites')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('vehicle_id', vehicle.id)
+          .single()
+
+        if (!error && data) {
+          setIsFavorite(true)
+        }
+      } catch (error) {
+        // No favorite found, keep false
+      } finally {
+        setInitialLoading(false)
+      }
+    }
+
+    checkFavoriteStatus()
+  }, [user, vehicle.id, supabase])
 
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -55,19 +86,33 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         toast({
           title: 'Removed from favorites',
         })
+        
+        // Call callback if provided
+        if (onFavoriteChange) {
+          await onFavoriteChange()
+        }
       } else {
         // Add to favorites
-        await supabase
+        const { error } = await supabase
           .from('favorites')
           .insert({
             user_id: user.id,
             vehicle_id: vehicle.id,
           })
         
+        if (error) {
+          throw error
+        }
+        
         setIsFavorite(true)
         toast({
           title: 'Added to favorites',
         })
+        
+        // Call callback if provided
+        if (onFavoriteChange) {
+          await onFavoriteChange()
+        }
       }
     } catch (error) {
       console.error('Error toggling favorite:', error)
@@ -96,11 +141,12 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
           {/* Favorite Button */}
           <button
             onClick={toggleFavorite}
-            disabled={loading}
+            disabled={loading || initialLoading}
             className={cn(
               "absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm",
               "hover:bg-white transition-colors",
-              isFavorite && "text-red-500"
+              isFavorite && "text-red-500",
+              (loading || initialLoading) && "opacity-50 cursor-not-allowed"
             )}
           >
             <Heart

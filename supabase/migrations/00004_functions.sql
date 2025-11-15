@@ -192,7 +192,7 @@ BEGIN
             'booking',
             notification_title,
             notification_message,
-            '/owner/bookings/' || NEW.id
+            '/owner/bookings'
         );
         
         -- Notify renter
@@ -232,7 +232,7 @@ BEGIN
             INSERT INTO public.notifications (user_id, type, title, message, link)
             VALUES 
                 (NEW.renter_id, 'booking', notification_title, notification_message, '/dashboard/bookings/' || NEW.id),
-                (NEW.owner_id, 'booking', notification_title, notification_message, '/owner/bookings/' || NEW.id);
+                (NEW.owner_id, 'booking', notification_title, notification_message, '/owner/bookings');
         
         ELSIF NEW.status = 'completed' THEN
             -- Notify renter to leave a review

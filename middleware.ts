@@ -15,12 +15,12 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
   // Public routes that don't need authentication
-  const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/vehicles', '/checkout', '/booking-confirmation']
+  const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/auth/callback', '/vehicles', '/checkout', '/booking-confirmation']
   const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith('/vehicles/') || path.startsWith('/checkout') || path.startsWith('/booking-confirmation'))
 
-  // Protected renter routes (any authenticated user)
+  // Protected renter routes (any authenticated user) - but exclude booking-specific routes that have their own access control
   const renterRoutes = ['/dashboard', '/messages', '/profile']
-  const isRenterRoute = renterRoutes.some(route => path.startsWith(route))
+  const isRenterRoute = renterRoutes.some(route => path.startsWith(route)) && !path.startsWith('/dashboard/bookings/')
 
   // Owner-only routes
   const isOwnerRoute = path.startsWith('/owner')
@@ -28,8 +28,11 @@ export async function middleware(req: NextRequest) {
   // Admin-only routes
   const isAdminRoute = path.startsWith('/admin')
 
+  // Booking-specific routes that need authentication but have their own access control
+  const isBookingRoute = path.startsWith('/dashboard/bookings/')
+
   // Redirect to login if accessing protected route without session
-  if (!session && (isRenterRoute || isOwnerRoute || isAdminRoute)) {
+  if (!session && (isRenterRoute || isOwnerRoute || isAdminRoute || isBookingRoute)) {
     const redirectUrl = new URL('/login', req.url)
     redirectUrl.searchParams.set('redirect', path)
     return NextResponse.redirect(redirectUrl)
