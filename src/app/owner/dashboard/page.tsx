@@ -26,6 +26,8 @@ import { BOOKING_STATUS_LABELS } from '@/lib/constants'
 import { getOwnerBookings } from '@/lib/supabase/queries/bookings'
 import Image from 'next/image'
 import Navigation from '@/components/shared/Navigation'
+import { VehicleStatusSelector } from '@/components/vehicle/VehicleStatusSelector'
+import type { VehicleStatus } from '@/lib/supabase/queries/vehicles'
 
 export default function OwnerDashboardPage() {
   const router = useRouter()
@@ -40,6 +42,14 @@ export default function OwnerDashboardPage() {
   })
   const [recentBookings, setRecentBookings] = useState<any[]>([])
   const [vehicles, setVehicles] = useState<any[]>([])
+  
+  const handleVehicleStatusUpdate = (vehicleId: string, newStatus: VehicleStatus) => {
+    setVehicles(prev => prev.map(vehicle => 
+      vehicle.id === vehicleId 
+        ? { ...vehicle, status: newStatus }
+        : vehicle
+    ))
+  }
   
   useEffect(() => {
     if (!authLoading) {
@@ -355,6 +365,11 @@ export default function OwnerDashboardPage() {
                         ) : (
                           <AlertCircle className="h-5 w-5 text-yellow-600" />
                         )}
+                        <VehicleStatusSelector 
+                          vehicleId={vehicle.id}
+                          currentStatus={vehicle.status}
+                          onStatusUpdate={(newStatus) => handleVehicleStatusUpdate(vehicle.id, newStatus)}
+                        />
                         <Button variant="ghost" size="sm" asChild>
                           <Link href={`/owner/vehicles/${vehicle.id}/edit`}>
                             Edit

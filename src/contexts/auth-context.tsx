@@ -6,13 +6,19 @@ import { createClient, resetClient } from '@/lib/supabase/client'
 import type { User as UserProfile } from '@/types/user.types'
 import { roleCacheManager } from '@/lib/cache/role-cache'
 
+const sanitizeNextPath = (path?: string | null) => {
+  if (!path || typeof path !== 'string') return null
+  if (!path.startsWith('/')) return null
+  return path
+}
+
 interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>
-  signUp: (email: string, password: string, fullName: string, role: 'renter' | 'owner') => Promise<{ data: any; error: any }>
-  signInWithGoogle: () => Promise<{ data: any; error: any }>
+  signUp: (email: string, password: string, fullName: string, phoneNumber: string, role: 'renter' | 'owner') => Promise<{ data: any; error: any }>
+  signInWithGoogle: (nextPath?: string) => Promise<{ data: any; error: any }>
   signOut: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ data: any; error: any }>
   updatePassword: (newPassword: string) => Promise<{ data: any; error: any }>
@@ -196,20 +202,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      const fullName = user.user_metadata?.full_name || 
-                       user.email?.split('@')[0] || 
-                       'User'
-      const role = user.user_metadata?.role || 'renter'
+      const metadataFullName = typeof user.user_metadata?.full_name === 'string'
+        ? user.user_metadata.full_name.trim()
+        : null
+      const normalizedRole = ['renter', 'owner', 'admin'].includes(user.user_metadata?.role)
+        ? (user.user_metadata?.role as 'renter' | 'owner' | 'admin')
+        : 'pending'
+      const requiresOnboarding = normalizedRole === 'pending' || !metadataFullName
+      const fallbackFullName = metadataFullName || user.email?.split('@')[0] || 'User'
 
       console.log('🔧 Creating missing profile for:', user.email)
 
       const { error } = await supabase.from('users').insert({
         id: userId,
         email: user.email!,
-        full_name: fullName,
-        role: role as 'renter' | 'owner' | 'admin',
+        full_name: fallbackFullName,
+        role: normalizedRole,
         is_active: true,
         is_verified: false,
+        needs_onboarding: requiresOnboarding,
+        onboarding_completed_at: requiresOnboarding ? null : new Date().toISOString(),
       })
 
       if (error) {
@@ -245,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         console.log('✅ Session found, loading profile for:', session.user.id)
         await loadProfile(session.user.id)
+        setLoading(false)
       } else {
         console.log('❌ No session, setting loading to false')
         setLoading(false)
@@ -287,6 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           console.log('✅ Session user found, loading profile for:', session.user.id)
           await loadProfile(session.user.id)
+          setLoading(false)
         } else {
           console.log('❌ No session user, clearing profile')
           setProfile(null)
@@ -301,13 +315,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe()
     }
   }, [loadProfile])
-
-  useEffect(() => {
-    // Set loading to false once we have processed the auth state
-    if (user === null || profile !== null) {
-      setLoading(false)
-    }
-  }, [user, profile])
 
   const signIn = async (email: string, password: string, retryCount = 0) => {
     try {
@@ -372,7 +379,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'renter' | 'owner') => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    phoneNumber: string,
+    role: 'renter' | 'owner'
+  ) => {
     console.log('🚀 Starting signup process for:', email)
     
     // Sign up with Supabase Auth
@@ -382,6 +395,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: {
         data: {
           full_name: fullName,
+          phone_number: phoneNumber,
           role,
         },
       },
@@ -407,9 +421,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: data.user.id,
         email: data.user.email!,
         full_name: fullName,
+        phone_number: phoneNumber,
         role,
         is_active: true,
         is_verified: false,
+        needs_onboarding: false,
+        onboarding_completed_at: new Date().toISOString(),
       })
       
       if (insertError) {
@@ -457,11 +474,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { data, error: null }
   }
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (nextPath?: string) => {
+    if (typeof window === 'undefined') {
+      return {
+        data: null,
+        error: { message: 'Google sign-in is only available in the browser.' },
+      }
+    }
+
+    const origin = window.location.origin
+    const currentUrl = new URL(window.location.href)
+    const redirectParam = currentUrl.searchParams.get('redirect')
+    const sanitizedNext = sanitizeNextPath(nextPath ?? redirectParam ?? '/vehicles') ?? '/vehicles'
+
+    const params = new URLSearchParams()
+    params.set('next', sanitizedNext)
+
+    const redirectTo = `${origin}/auth/callback?${params.toString()}`
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo,
       },
     })
     return { data, error }

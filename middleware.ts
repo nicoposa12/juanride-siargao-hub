@@ -31,8 +31,11 @@ export async function middleware(req: NextRequest) {
   // Booking-specific routes that need authentication but have their own access control
   const isBookingRoute = path.startsWith('/dashboard/bookings/')
 
+  // Onboarding routes
+  const isOnboardingRoute = path.startsWith('/onboarding')
+
   // Redirect to login if accessing protected route without session
-  if (!session && (isRenterRoute || isOwnerRoute || isAdminRoute || isBookingRoute)) {
+  if (!session && (isRenterRoute || isOwnerRoute || isAdminRoute || isBookingRoute || isOnboardingRoute)) {
     const redirectUrl = new URL('/login', req.url)
     redirectUrl.searchParams.set('redirect', path)
     return NextResponse.redirect(redirectUrl)
@@ -42,20 +45,22 @@ export async function middleware(req: NextRequest) {
   if (session) {
     let userRole = await getCachedUserRole(supabase, session.user.id)
     console.log('🔐 Middleware - User role detected:', userRole, 'for user:', session.user.email)
-    
+    let needsOnboarding = false
+
     // CRITICAL FIX: If role is null, try direct database query as fallback
     if (!userRole) {
       console.log('⚠️  No cached role found, fetching directly from database...')
       try {
         const { data: user } = await supabase
           .from('users')
-          .select('role')
+          .select('role, needs_onboarding')
           .eq('id', session.user.id)
           .single()
-        
+
         userRole = user?.role || null
-        console.log('🔍 Direct DB query result:', userRole)
-        
+        needsOnboarding = (user?.needs_onboarding ?? (userRole === null)) || userRole === 'pending'
+        console.log('🔍 Direct DB query result:', userRole, 'needs onboarding:', needsOnboarding)
+
         // Cache the result for next time
         if (userRole) {
           const { roleCacheManager } = await import('@/lib/cache/role-cache')
@@ -64,6 +69,32 @@ export async function middleware(req: NextRequest) {
       } catch (dbError) {
         console.error('❌ Database query failed:', dbError)
       }
+    } else {
+      try {
+        const { data: onboardingData } = await supabase
+          .from('users')
+          .select('needs_onboarding')
+          .eq('id', session.user.id)
+          .single()
+        needsOnboarding = (onboardingData?.needs_onboarding ?? false) || userRole === 'pending'
+      } catch (dbError) {
+        console.error('❌ Failed to fetch onboarding state:', dbError)
+        needsOnboarding = userRole === 'pending'
+      }
+    }
+
+    if ((needsOnboarding || userRole === 'pending') && !isOnboardingRoute) {
+      console.log('🧭 Redirecting user to onboarding flow')
+      return NextResponse.redirect(new URL('/onboarding', req.url))
+    }
+
+    if (!needsOnboarding && userRole !== 'pending' && isOnboardingRoute) {
+      const destination = userRole === 'admin'
+        ? '/admin/dashboard'
+        : userRole === 'owner'
+          ? '/owner/dashboard'
+          : '/vehicles'
+      return NextResponse.redirect(new URL(destination, req.url))
     }
 
     // Check owner routes
