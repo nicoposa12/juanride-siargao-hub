@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, CheckCircle2, XCircle, RefreshCw, Smartphone, Copy, Check, QrCode } from 'lucide-react'
-import { getPaymentIntent } from '@/lib/payment/paymongo'
 
 interface QRPHDisplayProps {
   paymentIntentId: string
@@ -41,17 +40,24 @@ export default function QRPHDisplay({
     const checkPaymentStatus = async () => {
       try {
         setStatus('checking')
-        const paymentIntent = await getPaymentIntent(paymentIntentId)
         
-        if (paymentIntent.attributes.status === 'succeeded') {
+        // Call API route to get payment intent status
+        const response = await fetch(`/api/paymongo/payment-intents/${paymentIntentId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch payment intent')
+        }
+        
+        const { data: paymentIntent } = await response.json()
+        
+        if (paymentIntent.status === 'succeeded') {
           setStatus('paid')
           if (pollingInterval) clearInterval(pollingInterval)
           onPaymentSuccess()
-        } else if (paymentIntent.attributes.status === 'processing') {
+        } else if (paymentIntent.status === 'processing') {
           setStatus('pending')
         } else if (
-          paymentIntent.attributes.status === 'awaiting_payment_method' ||
-          paymentIntent.attributes.status === 'awaiting_next_action'
+          paymentIntent.status === 'awaiting_payment_method' ||
+          paymentIntent.status === 'awaiting_next_action'
         ) {
           setStatus('pending')
         } else {
@@ -107,9 +113,15 @@ export default function QRPHDisplay({
   const handleRefresh = async () => {
     try {
       setStatus('checking')
-      const paymentIntent = await getPaymentIntent(paymentIntentId)
       
-      if (paymentIntent.attributes.status === 'succeeded') {
+      const response = await fetch(`/api/paymongo/payment-intents/${paymentIntentId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch payment intent')
+      }
+      
+      const { data: paymentIntent } = await response.json()
+      
+      if (paymentIntent.status === 'succeeded') {
         setStatus('paid')
         onPaymentSuccess()
       } else {

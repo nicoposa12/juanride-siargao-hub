@@ -45,6 +45,7 @@ export async function createPaymentIntent(input: CreatePaymentIntentInput) {
       attributes: {
         amount: input.amount,
         payment_method_allowed: input.paymentMethodAllowed,
+        payment_method_options: input.paymentMethodOptions,
         currency: input.currency ?? 'PHP',
         description: input.description,
         statement_descriptor: input.statementDescriptor,
