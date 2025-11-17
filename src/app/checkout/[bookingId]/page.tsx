@@ -490,7 +490,7 @@ export default function CheckoutPage() {
                       <span className="text-muted-foreground">
                         Payment processing fee (
                         {selectedPaymentMethod === 'card' ? '3.5% + ₱15' : '2.5%'}
-                        {selectedPaymentMethod === 'gcash' ? ' GCash' : selectedPaymentMethod === 'paymaya' ? ' Maya' : selectedPaymentMethod === 'card' ? ' Card' : ' GrabPay'})
+                        {selectedPaymentMethod === 'gcash' ? ' GCash' : selectedPaymentMethod === 'paymaya' ? ' Maya' : selectedPaymentMethod === 'grab_pay' ? ' GrabPay' : selectedPaymentMethod === 'billease' ? ' BillEase' : selectedPaymentMethod === 'card' ? ' Card' : ''})
                       </span>
                       <span>₱{paymentFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                     </div>

@@ -396,7 +396,7 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
               <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t mt-3">
                 <CreditCard className="h-4 w-4" />
                 <span className="capitalize">
-                  Payment Method: {payment.payment_method === 'paymaya' ? 'Maya (PayMaya)' : payment.payment_method === 'gcash' ? 'GCash' : payment.payment_method === 'card' ? 'Credit/Debit Card' : payment.payment_method.replace('_', ' ')}
+                  Payment Method: {payment.payment_method === 'paymaya' ? 'Maya (PayMaya)' : payment.payment_method === 'gcash' ? 'GCash' : payment.payment_method === 'card' ? 'Credit/Debit Card' : payment.payment_method === 'grab_pay' ? 'GrabPay' : payment.payment_method === 'billease' ? 'BillEase' : payment.payment_method.replace('_', ' ')}
                 </span>
               </div>
             )}
