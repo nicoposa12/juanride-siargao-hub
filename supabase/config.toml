@@ -1,10 +1,6 @@
 # Supabase Configuration for JuanRide
 # This file is used by Supabase CLI for local development
 
-[project]
-# Project name for local development
-name = "juanride-siargao"
-
 [api]
 # Port to use for the API URL.
 port = 54321

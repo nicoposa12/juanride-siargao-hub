@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { CreditCard, Smartphone } from 'lucide-react'
 import Image from 'next/image'
 
-export type PaymentMethodType = 'gcash' | 'paymaya' | 'card' | 'grab_pay'
+export type PaymentMethodType = 'gcash' | 'paymaya' | 'grab_pay' | 'billease' | 'card'
 
 interface PaymentMethodSelectorProps {
   selectedMethod: PaymentMethodType | null
@@ -34,19 +34,27 @@ export default function PaymentMethodSelector({
       popular: true,
     },
     {
-      id: 'card' as PaymentMethodType,
-      name: 'Credit/Debit Card',
-      description: 'Visa, Mastercard, JCB, AMEX',
-      icon: <CreditCard className="h-6 w-6 text-purple-600" />,
-      popular: false,
-    },
-    {
       id: 'grab_pay' as PaymentMethodType,
       name: 'GrabPay',
       description: 'Pay with GrabPay wallet',
       icon: <Smartphone className="h-6 w-6 text-green-700" />,
       popular: false,
     },
+    {
+      id: 'billease' as PaymentMethodType,
+      name: 'BillEase',
+      description: 'Buy now, pay later with BillEase',
+      icon: <Smartphone className="h-6 w-6 text-purple-600" />,
+      popular: false,
+    },
+    // Temporarily hidden - Card payment
+    // {
+    //   id: 'card' as PaymentMethodType,
+    //   name: 'Credit/Debit Card',
+    //   description: 'Visa, Mastercard, JCB, AMEX',
+    //   icon: <CreditCard className="h-6 w-6 text-purple-600" />,
+    //   popular: false,
+    // },
   ]
 
   return (

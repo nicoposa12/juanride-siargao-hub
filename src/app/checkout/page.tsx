@@ -38,7 +38,6 @@ function CheckoutContent() {
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [specialRequests, setSpecialRequests] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('gcash')
   
   useEffect(() => {
     if (!vehicleId || !startDate || !endDate) {
@@ -147,31 +146,8 @@ function CheckoutContent() {
         throw new Error(bookingError?.message || 'Failed to create booking')
       }
       
-      // Create pending payment record
-      const supabase = createClient()
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          booking_id: booking.id,
-          amount: pricing.total,
-          payment_method: paymentMethod,
-          status: 'pending',
-        })
-      
-      if (paymentError) {
-        throw new Error(paymentError.message)
-      }
-      
-      // Clear pending booking from session
-      sessionStorage.removeItem('pendingBooking')
-      
-      toast({
-        title: 'Booking Created!',
-        description: 'Your booking has been created successfully.',
-      })
-      
-      // Redirect to booking confirmation
-      router.push(`/booking-confirmation/${booking.id}`)
+      // Redirect to payment checkout page
+      router.push(`/checkout/${booking.id}`)
     } catch (error: any) {
       console.error('Error creating booking:', error)
       toast({
@@ -323,58 +299,6 @@ function CheckoutContent() {
                 </div>
               </CardContent>
             </Card>
-            
-            {/* Payment Method */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Method</CardTitle>
-                <CardDescription>
-                  Choose how you'd like to pay
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-                    <RadioGroupItem value="gcash" id="gcash" />
-                    <Label htmlFor="gcash" className="flex items-center gap-3 cursor-pointer flex-1">
-                      <Smartphone className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <div className="font-medium">GCash</div>
-                        <div className="text-sm text-muted-foreground">Pay via GCash</div>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-                    <RadioGroupItem value="maya" id="maya" />
-                    <Label htmlFor="maya" className="flex items-center gap-3 cursor-pointer flex-1">
-                      <Wallet className="h-5 w-5 text-green-600" />
-                      <div>
-                        <div className="font-medium">Maya</div>
-                        <div className="text-sm text-muted-foreground">Pay via Maya</div>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card" className="flex items-center gap-3 cursor-pointer flex-1">
-                      <CreditCard className="h-5 w-5 text-purple-600" />
-                      <div>
-                        <div className="font-medium">Credit/Debit Card</div>
-                        <div className="text-sm text-muted-foreground">Visa, Mastercard, etc.</div>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-                
-                <Alert className="mt-4">
-                  <AlertDescription>
-                    Payment will be processed after the owner confirms your booking.
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
           </div>
           
           {/* Sidebar - Price Summary */}
@@ -422,17 +346,17 @@ function CheckoutContent() {
                     {processing ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
+                        Creating Booking...
                       </>
                     ) : !user ? (
                       <>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Sign In & Book Now
+                        Sign In to Continue
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Confirm Booking
+                        Continue to Payment
                       </>
                     )}
                   </Button>

@@ -14,11 +14,18 @@ const API_BASE_URL = 'https://api.paymongo.com/v1'
 
 // Encode the secret key for authorization
 const getAuthHeader = () => {
-  const encodedKey = Buffer.from(PAYMONGO_SECRET_KEY).toString('base64')
+  // Use btoa for browser-compatible base64 encoding
+  const encodedKey = btoa(PAYMONGO_SECRET_KEY)
   return `Basic ${encodedKey}`
 }
 
-export type PaymentMethod = 'gcash' | 'paymaya' | 'card' | 'grab_pay'
+// Payment methods that use Sources API
+export type SourcePaymentMethod = 'gcash' | 'grab_pay'
+
+// Payment methods that use Payment Methods API  
+export type PaymentMethodType = 'paymaya' | 'billease' | 'card'
+
+export type PaymentMethod = SourcePaymentMethod | PaymentMethodType
 
 export interface PaymentIntentData {
   amount: number // in centavos (₱100.00 = 10000)
@@ -33,7 +40,7 @@ export interface PaymentIntentData {
 }
 
 export interface PaymentSourceData {
-  type: 'gcash' | 'grab_pay'
+  type: SourcePaymentMethod
   amount: number
   redirect: {
     success: string
@@ -43,6 +50,20 @@ export interface PaymentSourceData {
     name: string
     email: string
     phone: string
+  }
+}
+
+export interface PaymentMethodData {
+  type: PaymentMethodType
+  amount: number
+  billing: {
+    name: string
+    email: string
+    phone?: string
+  }
+  redirect: {
+    success: string
+    failed: string
   }
 }
 
@@ -176,8 +197,99 @@ export async function attachPaymentIntent(paymentIntentId: string, paymentMethod
 }
 
 /**
- * Create a Payment Source (for e-wallet payments like GCash, Maya, GrabPay)
+ * Create a Payment Method (for PayMaya, BillEase, etc.)
+ * These use the /payment_methods endpoint instead of /sources
+ */
+export async function createPaymentMethodSource(data: PaymentMethodData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/payment_methods`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getAuthHeader(),
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            type: data.type,
+            billing: data.billing,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.errors?.[0]?.detail || 'Failed to create payment method')
+    }
+
+    const result = await response.json()
+    
+    // Create payment intent for this payment method
+    const intentResponse = await fetch(`${API_BASE_URL}/payment_intents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getAuthHeader(),
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount: data.amount,
+            payment_method_allowed: [data.type],
+            payment_method_options: {
+              [data.type]: {
+                redirect: data.redirect,
+              },
+            },
+            currency: 'PHP',
+            description: 'JuanRide Vehicle Rental',
+          },
+        },
+      }),
+    })
+
+    if (!intentResponse.ok) {
+      const error = await intentResponse.json()
+      throw new Error(error.errors?.[0]?.detail || 'Failed to create payment intent')
+    }
+
+    const intentResult = await intentResponse.json()
+    
+    // Attach payment method to intent
+    const attachResponse = await fetch(`${API_BASE_URL}/payment_intents/${intentResult.data.id}/attach`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getAuthHeader(),
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            payment_method: result.data.id,
+            return_url: data.redirect.success,
+          },
+        },
+      }),
+    })
+
+    if (!attachResponse.ok) {
+      const error = await attachResponse.json()
+      throw new Error(error.errors?.[0]?.detail || 'Failed to attach payment method')
+    }
+
+    const attachResult = await attachResponse.json()
+    return attachResult.data
+  } catch (error) {
+    console.error('Error creating payment method:', error)
+    throw error
+  }
+}
+
+/**
+ * Create a Payment Source (for e-wallet payments like GCash, GrabPay)
  * Sources are used for redirect-based payment methods
+ * NOTE: Only gcash and grab_pay are supported via /sources endpoint
  */
 export async function createPaymentSource(data: PaymentSourceData) {
   try {
@@ -217,7 +329,12 @@ export async function createPaymentSource(data: PaymentSourceData) {
  * Create a Payment (confirms the payment with a source)
  * This finalizes the payment process
  */
-export async function createPayment(sourceId: string, description: string, metadata?: Record<string, string>) {
+export async function createPayment(
+  sourceId: string, 
+  amount: number, 
+  description: string, 
+  metadata?: Record<string, string>
+) {
   try {
     const response = await fetch(`${API_BASE_URL}/payments`, {
       method: 'POST',
@@ -228,6 +345,8 @@ export async function createPayment(sourceId: string, description: string, metad
       body: JSON.stringify({
         data: {
           attributes: {
+            amount,
+            currency: 'PHP',
             source: {
               id: sourceId,
               type: 'source',
@@ -310,20 +429,30 @@ export async function updatePaymentRecord(
   try {
     const supabase = createClient()
     
+    const updateData: any = {
+      status,
+      updated_at: new Date().toISOString(),
+    }
+    
+    if (transactionId) {
+      updateData.transaction_id = transactionId
+    }
+    
+    if (status === 'paid') {
+      updateData.paid_at = new Date().toISOString()
+    }
+    
+    // Update all payment records for this booking (in case of duplicates)
     const { data, error } = await supabase
       .from('payments')
-      .update({
-        status,
-        transaction_id: transactionId,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('booking_id', bookingId)
       .select()
-      .single()
 
     if (error) throw error
 
-    return data
+    // Return the first record
+    return data && data.length > 0 ? data[0] : null
   } catch (error) {
     console.error('Error updating payment record:', error)
     throw error
@@ -332,6 +461,7 @@ export async function updatePaymentRecord(
 
 /**
  * Create payment record in Supabase
+ * Check if payment already exists for this booking first
  */
 export async function createPaymentRecord(
   bookingId: string,
@@ -341,6 +471,20 @@ export async function createPaymentRecord(
   try {
     const supabase = createClient()
     
+    // Check if payment already exists for this booking
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select()
+      .eq('booking_id', bookingId)
+      .single()
+    
+    // If payment exists, return it
+    if (existingPayment) {
+      console.log('Payment record already exists for booking:', bookingId)
+      return existingPayment
+    }
+    
+    // Create new payment record
     const { data, error } = await supabase
       .from('payments')
       .insert({
