@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { updatePaymentRecord } from '@/lib/payment/paymongo'
+import { updatePaymentRecord, createPayment } from '@/lib/payment/paymongo'
 
 export default function PaymentSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const bookingId = searchParams?.get('bookingId')
+  const sourceId = searchParams?.get('sourceId')
+  const amount = searchParams?.get('amount')
   const [processing, setProcessing] = useState(true)
   const [error, setError] = useState(false)
 
@@ -27,8 +29,35 @@ export default function PaymentSuccessPage() {
       try {
         const supabase = createClient()
 
-        // Update payment status to paid
-        await updatePaymentRecord(bookingId, 'paid')
+        // If we have a source ID and amount, we need to create the payment first
+        if (sourceId && amount) {
+          // Get booking details for metadata
+          const { data: booking } = await supabase
+            .from('bookings')
+            .select('id, vehicle_id, renter_id')
+            .eq('id', bookingId)
+            .single()
+
+          if (booking) {
+            // Create payment with the now-chargeable source
+            const payment = await createPayment(
+              sourceId,
+              parseInt(amount),
+              `JuanRide Booking #${bookingId.slice(0, 8)}`,
+              {
+                bookingId: booking.id,
+                userId: booking.renter_id,
+                vehicleId: booking.vehicle_id,
+              }
+            )
+
+            // Update payment status with transaction ID
+            await updatePaymentRecord(bookingId, 'paid', payment.id)
+          }
+        } else {
+          // Card payment - just update status
+          await updatePaymentRecord(bookingId, 'paid')
+        }
 
         // Update booking status to confirmed
         await supabase
@@ -50,7 +79,7 @@ export default function PaymentSuccessPage() {
     }
 
     confirmPayment()
-  }, [bookingId, router])
+  }, [bookingId, sourceId, amount, router])
 
   if (processing) {
     return (

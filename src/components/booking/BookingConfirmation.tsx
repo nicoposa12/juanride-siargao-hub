@@ -326,23 +326,78 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Rental Amount</span>
-              <span className="font-medium">{formatCurrency(booking.total_price * 0.95)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Service Fee (5%)</span>
-              <span className="font-medium">{formatCurrency(booking.total_price * 0.05)}</span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between text-lg font-semibold">
-              <span>Total Amount</span>
-              <span className="text-primary">{formatCurrency(booking.total_price)}</span>
-            </div>
+            {/* Calculate base price and fees */}
+            {(() => {
+              const basePrice = booking.total_price / 1.05 // Remove 5% service fee
+              const serviceFee = booking.total_price - basePrice
+              
+              // Calculate payment processing fee based on payment method
+              let paymentProcessingFee = 0
+              let paymentFeeLabel = ''
+              if (payment) {
+                if (payment.payment_method === 'card') {
+                  paymentProcessingFee = Math.round(((booking.total_price * 0.035) + 15) * 100) / 100
+                  paymentFeeLabel = '3.5% + ₱15'
+                } else {
+                  paymentProcessingFee = Math.round((booking.total_price * 0.025) * 100) / 100
+                  paymentFeeLabel = '2.5%'
+                }
+              }
+              
+              const totalPaid = payment ? Math.round((booking.total_price + paymentProcessingFee) * 100) / 100 : booking.total_price
+              
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Rental Amount</span>
+                    <span className="font-medium">{formatCurrency(basePrice)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Service Fee (5%)</span>
+                    <span className="font-medium">{formatCurrency(serviceFee)}</span>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex items-center justify-between font-semibold">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(booking.total_price)}</span>
+                  </div>
+                  
+                  {payment && paymentProcessingFee > 0 && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Payment processing fee ({paymentFeeLabel})
+                        </span>
+                        <span className="font-medium">{formatCurrency(paymentProcessingFee)}</span>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="flex items-center justify-between text-lg font-semibold">
+                        <span>Total Paid</span>
+                        <span className="text-primary">{formatCurrency(totalPaid)}</span>
+                      </div>
+                    </>
+                  )}
+                  
+                  {!payment && (
+                    <div className="flex items-center justify-between text-lg font-semibold">
+                      <span>Total Amount</span>
+                      <span className="text-primary">{formatCurrency(booking.total_price)}</span>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+            
             {payment && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t mt-3">
                 <CreditCard className="h-4 w-4" />
-                <span className="capitalize">Payment Method: {payment.payment_method.replace('_', ' ')}</span>
+                <span className="capitalize">
+                  Payment Method: {payment.payment_method === 'paymaya' ? 'Maya (PayMaya)' : payment.payment_method === 'gcash' ? 'GCash' : payment.payment_method === 'card' ? 'Credit/Debit Card' : payment.payment_method === 'grab_pay' ? 'GrabPay' : payment.payment_method === 'billease' ? 'BillEase' : payment.payment_method === 'qrph' ? 'QR PH' : payment.payment_method.replace('_', ' ')}
+                </span>
               </div>
             )}
           </CardContent>
