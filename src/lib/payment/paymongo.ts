@@ -23,7 +23,7 @@ const getAuthHeader = () => {
 export type SourcePaymentMethod = 'gcash' | 'grab_pay'
 
 // Payment methods that use Payment Methods API  
-export type PaymentMethodType = 'paymaya' | 'billease' | 'card'
+export type PaymentMethodType = 'paymaya' | 'billease' | 'card' | 'qrph'
 
 export type PaymentMethod = SourcePaymentMethod | PaymentMethodType
 
@@ -517,5 +517,88 @@ export function toCentavos(amount: number): number {
  */
 export function toPesos(centavos: number): number {
   return centavos / 100
+}
+
+/**
+ * Create QR PH Payment Intent
+ * QR PH allows customers to pay using any QR-enabled payment app
+ * Documentation: https://developers.paymongo.com/docs/qr-ph-api
+ */
+export async function createQRPHPaymentIntent(data: {
+  amount: number // in centavos
+  description: string
+  metadata?: Record<string, string>
+}) {
+  try {
+    console.log('Creating QR PH Payment Intent with amount:', data.amount)
+    
+    const response = await fetch(`${API_BASE_URL}/payment_intents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getAuthHeader(),
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount: data.amount,
+            payment_method_allowed: ['qrph'],
+            payment_method_options: {
+              qrph: {
+                request_type: 'dynamic', // 'dynamic' creates a QR code, 'static' for permanent QR
+              },
+            },
+            currency: 'PHP',
+            description: data.description,
+            statement_descriptor: 'JuanRide',
+            metadata: data.metadata,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      console.error('QR PH Payment Intent Error:', error)
+      throw new Error(error.errors?.[0]?.detail || 'Failed to create QR PH payment intent')
+    }
+
+    const result = await response.json()
+    console.log('QR PH Payment Intent Created:', result.data.id)
+    console.log('Payment Intent attributes:', JSON.stringify(result.data.attributes, null, 2))
+    
+    return result.data
+  } catch (error) {
+    console.error('Error creating QR PH payment intent:', error)
+    throw error
+  }
+}
+
+/**
+ * Retrieve Payment Intent by QR PH Invoice Number
+ * Use this to check payment status after customer scans QR code
+ * Documentation: https://developers.paymongo.com/docs/retriving-payment-intent-id-from-qrph-invoice-number
+ */
+export async function getPaymentIntentByInvoice(invoiceNumber: string) {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/payment_intents?invoice_number=${encodeURIComponent(invoiceNumber)}`,
+      {
+        headers: {
+          'Authorization': getAuthHeader(),
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to retrieve payment intent by invoice number')
+    }
+
+    const result = await response.json()
+    return result.data
+  } catch (error) {
+    console.error('Error retrieving payment intent by invoice:', error)
+    throw error
+  }
 }
 

@@ -14,6 +14,7 @@ import Image from 'next/image'
 import PriceBreakdown from '@/components/booking/PriceBreakdown'
 import PaymentMethodSelector, { PaymentMethodType } from '@/components/payment/PaymentMethodSelector'
 import CardPaymentForm, { CardDetails } from '@/components/payment/CardPaymentForm'
+import QRPHDisplay from '@/components/payment/QRPHDisplay'
 import {
   createPaymentIntent,
   createPaymentMethod,
@@ -24,6 +25,7 @@ import {
   createPaymentRecord,
   updatePaymentRecord,
   toCentavos,
+  createQRPHPaymentIntent,
 } from '@/lib/payment/paymongo'
 
 interface BookingData {
@@ -54,6 +56,7 @@ export default function CheckoutPage() {
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [qrphData, setQrphData] = useState<{ paymentIntentId: string; qrCode: string } | null>(null)
 
   useEffect(() => {
     if (!bookingId) {
@@ -152,11 +155,14 @@ export default function CheckoutPage() {
       if (selectedPaymentMethod === 'card') {
         // Card payment flow
         await handleCardPayment(amountInCentavos, paymentRecord.id)
+      } else if (selectedPaymentMethod === 'qrph') {
+        // QR PH payment flow
+        await handleQRPHPayment(amountInCentavos, paymentRecord.id)
       } else {
-        // E-wallet payment flow (GCash, Maya, GrabPay)
+        // E-wallet payment flow (GCash, Maya, GrabPay, BillEase)
         await handleEWalletPayment(
           amountInCentavos,
-          selectedPaymentMethod as Exclude<PaymentMethodType, 'card'>,
+          selectedPaymentMethod as Exclude<PaymentMethodType, 'card' | 'qrph'>,
           paymentRecord.id
         )
       }
@@ -279,9 +285,132 @@ export default function CheckoutPage() {
     }
   }
 
+  const handleQRPHPayment = async (amount: number, paymentRecordId: string) => {
+    try {
+      if (!booking || !user) return
+
+      // Create QR PH payment intent
+      const paymentIntent = await createQRPHPaymentIntent({
+        amount,
+        description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
+        metadata: {
+          bookingId: booking.id,
+          userId: user.id,
+          vehicleId: booking.vehicle_id,
+        },
+      })
+
+      // Update payment record with intent ID
+      await updatePaymentRecord(booking.id, 'pending', paymentIntent.id)
+
+      console.log('QR PH Payment Intent Created:', paymentIntent)
+      
+      // QR PH doesn't provide a QR code to display
+      // Instead, show instructions with the payment intent ID
+      setQrphData({
+        paymentIntentId: paymentIntent.id,
+        qrCode: paymentIntent.id, // Pass the intent ID as "qrCode" for now
+      })
+
+      // Don't set isProcessing to false - let QRPHDisplay component handle the flow
+    } catch (error) {
+      if (booking) {
+        await updatePaymentRecord(booking.id, 'failed')
+      }
+      throw error
+    }
+  }
+
+  const handleQRPHSuccess = async () => {
+    if (!booking || !user) return
+
+    try {
+      // Update payment and booking status
+      await updatePaymentRecord(booking.id, 'paid')
+      await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', booking.id)
+
+      // Send notifications
+      try {
+        const totalAmount = booking.total_price + (booking.total_price * 0.025)
+        
+        await fetch('/api/notifications/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'booking_confirmation',
+            data: {
+              userEmail: user.email || '',
+              userName: user.user_metadata?.full_name || 'Valued Customer',
+              bookingId: booking.id,
+              vehicleName: `${booking.vehicle?.make || ''} ${booking.vehicle?.model || 'Vehicle'}`.trim(),
+              startDate: new Date(booking.start_date).toLocaleDateString(),
+              endDate: new Date(booking.end_date).toLocaleDateString(),
+              totalPrice: totalAmount,
+              location: booking.vehicle?.location || 'Siargao',
+            },
+          }),
+        })
+
+        await fetch('/api/notifications/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'payment_confirmation',
+            data: {
+              userEmail: user.email || '',
+              userName: user.user_metadata?.full_name || 'Valued Customer',
+              bookingId: booking.id,
+              amount: totalAmount,
+              paymentMethod: 'QR PH',
+              vehicleName: `${booking.vehicle?.make || ''} ${booking.vehicle?.model || 'Vehicle'}`.trim(),
+            },
+          }),
+        })
+
+        console.log('✅ Notification emails sent successfully')
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send notification emails:', emailError)
+      }
+
+      toast({
+        title: 'Payment Successful!',
+        description: 'Your booking has been confirmed.',
+      })
+
+      router.push(`/booking-confirmation/${booking.id}`)
+    } catch (error) {
+      console.error('Error completing QR PH payment:', error)
+      toast({
+        title: 'Error',
+        description: 'Payment was successful but booking confirmation failed. Please contact support.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleQRPHFailed = async () => {
+    if (booking) {
+      await updatePaymentRecord(booking.id, 'failed')
+    }
+    
+    toast({
+      title: 'Payment Failed',
+      description: 'QR payment was not completed. Please try again.',
+      variant: 'destructive',
+    })
+    
+    setQrphData(null)
+    setIsProcessing(false)
+  }
+
   const handleEWalletPayment = async (
     amount: number,
-    method: Exclude<PaymentMethodType, 'card'>,
+    method: Exclude<PaymentMethodType, 'card' | 'qrph'>,
     paymentRecordId: string
   ) => {
     try {
@@ -404,58 +533,70 @@ export default function CheckoutPage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Payment Section */}
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Complete Your Booking</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Booking Summary */}
-                <div>
-                  <h3 className="font-semibold mb-3">Booking Summary</h3>
-                  <div className="flex gap-4">
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image
-                        src={booking.vehicle.image_urls?.[0] || '/placeholder.svg'}
-                        alt={`${booking.vehicle.make} ${booking.vehicle.model}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <div className="font-semibold">{booking.vehicle.make} {booking.vehicle.model}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(booking.start_date).toLocaleDateString()} -{' '}
-                        {new Date(booking.end_date).toLocaleDateString()}
+            {qrphData ? (
+              /* Show QR Code Display when QR PH payment is initiated */
+              <QRPHDisplay
+                paymentIntentId={qrphData.paymentIntentId}
+                qrCodeData={qrphData.qrCode}
+                amount={totalWithPaymentFee}
+                onPaymentSuccess={handleQRPHSuccess}
+                onPaymentFailed={handleQRPHFailed}
+              />
+            ) : (
+              /* Show normal payment flow */
+              <Card>
+                <CardHeader>
+                  <CardTitle>Complete Your Booking</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Booking Summary */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Booking Summary</h3>
+                    <div className="flex gap-4">
+                      <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                        <Image
+                          src={booking.vehicle.image_urls?.[0] || '/placeholder.svg'}
+                          alt={`${booking.vehicle.make} ${booking.vehicle.model}`}
+                          fill
+                          className="object-cover"
+                        />
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {numberOfDays} {numberOfDays === 1 ? 'day' : 'days'}
+                      <div>
+                        <div className="font-semibold">{booking.vehicle.make} {booking.vehicle.model}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(booking.start_date).toLocaleDateString()} -{' '}
+                          {new Date(booking.end_date).toLocaleDateString()}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {numberOfDays} {numberOfDays === 1 ? 'day' : 'days'}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <Separator />
+                  <Separator />
 
-                {/* Payment Method */}
-                <div>
-                  <PaymentMethodSelector
-                    selectedMethod={selectedPaymentMethod}
-                    onSelectMethod={setSelectedPaymentMethod}
-                  />
-                </div>
+                  {/* Payment Method */}
+                  <div>
+                    <PaymentMethodSelector
+                      selectedMethod={selectedPaymentMethod}
+                      onSelectMethod={setSelectedPaymentMethod}
+                    />
+                  </div>
 
-                <Separator />
+                  <Separator />
 
-                {/* Card Payment Form */}
-                {selectedPaymentMethod === 'card' && user && (
-                  <CardPaymentForm
-                    onCardDetailsChange={setCardDetails}
-                    billingName={user.user_metadata?.full_name || user.email?.split('@')[0] || ''}
-                    billingEmail={user.email || ''}
-                  />
-                )}
-              </CardContent>
-            </Card>
+                  {/* Card Payment Form */}
+                  {selectedPaymentMethod === 'card' && user && (
+                    <CardPaymentForm
+                      onCardDetailsChange={setCardDetails}
+                      billingName={user.user_metadata?.full_name || user.email?.split('@')[0] || ''}
+                      billingEmail={user.email || ''}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Summary Sidebar */}
@@ -490,7 +631,7 @@ export default function CheckoutPage() {
                       <span className="text-muted-foreground">
                         Payment processing fee (
                         {selectedPaymentMethod === 'card' ? '3.5% + ₱15' : '2.5%'}
-                        {selectedPaymentMethod === 'gcash' ? ' GCash' : selectedPaymentMethod === 'paymaya' ? ' Maya' : selectedPaymentMethod === 'grab_pay' ? ' GrabPay' : selectedPaymentMethod === 'billease' ? ' BillEase' : selectedPaymentMethod === 'card' ? ' Card' : ''})
+                        {selectedPaymentMethod === 'gcash' ? ' GCash' : selectedPaymentMethod === 'paymaya' ? ' Maya' : selectedPaymentMethod === 'grab_pay' ? ' GrabPay' : selectedPaymentMethod === 'billease' ? ' BillEase' : selectedPaymentMethod === 'qrph' ? ' QR PH' : selectedPaymentMethod === 'card' ? ' Card' : ''})
                       </span>
                       <span>₱{paymentFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                     </div>
