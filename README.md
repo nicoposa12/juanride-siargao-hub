@@ -1,4 +1,4 @@
-# JuanRide - Digital Vehicle Rental System for Siargao Island 
+# JuanRide - Digital Vehicle Rental System for Siargao Island
 
 A modern, full-stack vehicle rental platform built with Next.js 14 and Supabase, designed specifically for the tourism ecosystem in Siargao Island, Philippines.
 
