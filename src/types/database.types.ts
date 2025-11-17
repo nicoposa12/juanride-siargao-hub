@@ -69,7 +69,7 @@ export interface Database {
           price_per_day: number
           price_per_week: number | null
           price_per_month: number | null
-          status: 'available' | 'rented' | 'maintenance' | 'inactive'
+          status: 'available' | 'unavailable' | 'maintenance'
           location: string | null
           image_urls: string[]
           features: Json
@@ -91,7 +91,7 @@ export interface Database {
           price_per_day: number
           price_per_week?: number | null
           price_per_month?: number | null
-          status?: 'available' | 'rented' | 'maintenance' | 'inactive'
+          status?: 'available' | 'unavailable' | 'maintenance'
           location?: string | null
           image_urls?: string[]
           features?: Json
@@ -113,7 +113,7 @@ export interface Database {
           price_per_day?: number
           price_per_week?: number | null
           price_per_month?: number | null
-          status?: 'available' | 'rented' | 'maintenance' | 'inactive'
+          status?: 'available' | 'unavailable' | 'maintenance'
           location?: string | null
           image_urls?: string[]
           features?: Json
@@ -415,7 +415,7 @@ export interface Database {
     Enums: {
       user_role: 'pending' | 'renter' | 'owner' | 'admin'
       vehicle_type: 'scooter' | 'motorcycle' | 'car' | 'van'
-      vehicle_status: 'available' | 'rented' | 'maintenance' | 'inactive'
+      vehicle_status: 'available' | 'unavailable' | 'maintenance'
       booking_status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
       payment_status: 'pending' | 'paid' | 'failed' | 'refunded'
       payment_method: 'gcash' | 'maya' | 'card' | 'bank_transfer'

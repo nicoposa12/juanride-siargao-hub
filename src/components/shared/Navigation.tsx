@@ -84,16 +84,16 @@ const Navigation = () => {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-smooth bg-white shadow-sm`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-smooth bg-card shadow-layered-md border-b border-border/50`}
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo - Enhanced with depth */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="bg-primary rounded-lg p-2 group-hover:bg-primary-glow transition-smooth">
-              <Car className="h-6 w-6 text-primary-foreground" />
+            <div className="bg-primary-600 rounded-lg p-2 shadow-layered-sm group-hover:bg-primary-500 group-hover:shadow-layered-lg group-hover:scale-105 transition-all duration-300">
+              <Car className="h-6 w-6 text-primary-foreground group-hover:scale-110 group-hover:rotate-3 transition-all duration-300" />
             </div>
-            <span className="text-2xl font-bold text-primary">
+            <span className="text-2xl font-bold text-primary-700 group-hover:text-primary-600 transition-all duration-300">
               JuanRide
             </span>
           </Link>
@@ -106,9 +106,12 @@ const Navigation = () => {
                   <Link
                     key={link.name}
                     href={link.href}
-                    className="text-foreground hover:text-primary transition-smooth font-medium"
+                    className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-primary-50/50"
                   >
-                    {link.name}
+                    <span className="relative z-10 group-hover:font-semibold transition-all">
+                      {link.name}
+                    </span>
+                    <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 group-hover:w-full transition-all duration-300 rounded-full shadow-sm"></span>
                   </Link>
                 ))}
                 <NotificationCenter />
@@ -116,31 +119,33 @@ const Navigation = () => {
                   onClick={handleSignOut}
                   variant="outline"
                   size="sm"
-                  className="border-primary/20 hover:bg-primary/10"
+                  className="border-primary-300 hover:bg-red-50 hover:border-red-400 hover:text-red-600 shadow-layered-sm hover:shadow-layered-lg transition-all duration-300 group"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
+                  <LogOut className="mr-2 h-4 w-4 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
+                  <span className="font-medium">Sign Out</span>
                 </Button>
               </>
             ) : (
               <>
-                <Link href="/" className="text-foreground hover:text-primary transition-smooth font-medium">
-                  Home
+                <Link href="/" className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-primary-50/50">
+                  <span className="relative z-10 group-hover:font-semibold">Home</span>
+                  <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 group-hover:w-full transition-all duration-300 rounded-full shadow-sm"></span>
                 </Link>
-                <Link href="/vehicles" className="text-foreground hover:text-primary transition-smooth font-medium">
-                  Browse Vehicles
+                <Link href="/vehicles" className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-primary-50/50">
+                  <span className="relative z-10 group-hover:font-semibold">Browse Vehicles</span>
+                  <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 group-hover:w-full transition-all duration-300 rounded-full shadow-sm"></span>
                 </Link>
                 <Link href="/login">
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="border-primary/20 hover:bg-primary/10"
+                    className="border-primary-300 hover:bg-primary-50 hover:border-primary-500 shadow-layered-sm hover:shadow-layered-lg hover:scale-105 transition-all duration-300"
                   >
                     Sign In
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="gradient-hero text-primary-foreground hover:shadow-hover transition-smooth">
+                  <Button size="sm" className="gradient-hero text-primary-foreground shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300">
                     Get Started
                   </Button>
                 </Link>
@@ -165,10 +170,12 @@ const Navigation = () => {
                 <a
                   key={link.name}
                   href={link.href}
-                  className="text-foreground hover:text-primary transition-smooth font-medium"
+                  className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium p-3 rounded-lg hover:bg-primary-50 border border-transparent hover:border-primary-200 hover:shadow-sm group relative"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {link.name}
+                  <span className="group-hover:font-semibold group-hover:translate-x-1 inline-block transition-all duration-300">
+                    {link.name}
+                  </span>
                 </a>
               ))}
               {user && profile ? (
@@ -181,10 +188,10 @@ const Navigation = () => {
                       handleDashboard();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="gradient-hero text-primary-foreground w-full"
+                    className="gradient-hero text-primary-foreground w-full shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group"
                   >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    {profile.role === 'owner' ? 'Dashboard' : 'Browse Vehicles'}
+                    <LayoutDashboard className="mr-2 h-4 w-4 group-hover:scale-110 group-hover:rotate-3 transition-all" />
+                    <span className="font-medium">{profile.role === 'owner' ? 'Dashboard' : 'Browse Vehicles'}</span>
                   </Button>
                   <Button 
                     onClick={() => {
@@ -192,21 +199,21 @@ const Navigation = () => {
                       setIsMobileMenuOpen(false);
                     }}
                     variant="outline"
-                    className="w-full"
+                    className="w-full hover:bg-red-50 hover:text-red-600 hover:border-red-400 shadow-sm hover:shadow-md transition-all duration-300 group"
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
+                    <LogOut className="mr-2 h-4 w-4 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
+                    <span className="font-medium">Sign Out</span>
                   </Button>
                 </>
               ) : (
                 <>
                   <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300">
                       Sign In
                     </Button>
                   </Link>
                   <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button className="gradient-hero text-primary-foreground w-full">
+                    <Button className="gradient-hero text-primary-foreground w-full shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300">
                       Get Started
                     </Button>
                   </Link>

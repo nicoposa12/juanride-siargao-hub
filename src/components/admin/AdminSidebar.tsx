@@ -111,22 +111,27 @@ export function AdminSidebar() {
   }
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <LayoutDashboard className="h-5 w-5" />
+    <Sidebar className="border-r-2 border-primary-100/50">
+      <SidebarHeader className="border-b-2 border-primary-100/50 bg-gradient-to-br from-primary-50/80 via-white to-accent-50/50 relative overflow-hidden">
+        {/* Decorative background pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent-600 rounded-full blur-2xl"></div>
+        </div>
+        <div className="relative flex items-center gap-3 px-4 py-5 group cursor-pointer hover:bg-white/60 transition-all duration-300 rounded-xl mx-3 my-2 shadow-sm hover:shadow-layered-md">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 text-white shadow-layered-md group-hover:shadow-layered-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 ring-2 ring-primary-200/50 group-hover:ring-primary-300">
+            <LayoutDashboard className="h-6 w-6 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">JuanRide Admin</span>
-            <span className="text-xs text-muted-foreground">Management Portal</span>
+            <span className="text-base font-extrabold bg-gradient-to-r from-primary-700 via-primary-600 to-accent-600 bg-clip-text text-transparent group-hover:from-primary-600 group-hover:to-accent-500 transition-all">JuanRide Admin</span>
+            <span className="text-xs text-primary-600 font-semibold tracking-wide">Management Portal</span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="flex flex-col">
-        <SidebarMenu className="flex-1">
-          {adminNavItems.map((item) => {
+      <SidebarContent className="flex flex-col bg-gradient-to-b from-white via-primary-50/30 to-white">
+        <SidebarMenu className="flex-1 px-3 py-3 space-y-1.5">
+          {adminNavItems.map((item, index) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
             return (
               <SidebarMenuItem key={item.href}>
@@ -134,10 +139,39 @@ export function AdminSidebar() {
                   asChild 
                   isActive={isActive}
                   tooltip={item.title}
+                  className={cn(
+                    "group relative overflow-hidden transition-all duration-300 rounded-xl",
+                    isActive 
+                      ? "bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold shadow-layered-lg hover:shadow-layered-xl hover:scale-[1.02]" 
+                      : "hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50/50 hover:shadow-md hover:scale-[1.01] hover:border hover:border-primary-200/50"
+                  )}
                 >
-                  <Link href={item.href}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                  <Link href={item.href} className="flex items-center gap-3 py-3 px-4 rounded-xl relative">
+                    {/* Shine effect on active */}
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                    )}
+                    <div className={cn(
+                      "p-2 rounded-lg transition-all duration-300 relative z-10",
+                      isActive 
+                        ? "bg-white/20 text-white shadow-lg backdrop-blur-sm" 
+                        : "bg-primary-100/50 text-primary-700 group-hover:bg-primary-200 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-md"
+                    )}>
+                      <item.icon className={cn(
+                        "h-5 w-5 transition-all duration-300",
+                        isActive ? "" : "group-hover:scale-110 group-hover:-rotate-6"
+                      )} />
+                    </div>
+                    <span className={cn(
+                      "font-semibold transition-all duration-300 relative z-10",
+                      isActive ? "text-white" : "text-primary-800 group-hover:text-primary-700 group-hover:translate-x-1"
+                    )}>{item.title}</span>
+                    {isActive && (
+                      <>
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-10 bg-gradient-to-b from-white/50 via-white to-white/50 rounded-r-full shadow-lg"></div>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                      </>
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -146,7 +180,7 @@ export function AdminSidebar() {
         </SidebarMenu>
         
         {/* Bottom Navigation Items */}
-        <SidebarMenu className="mt-auto pt-2 border-t border-sidebar-border">
+        <SidebarMenu className="mt-auto pt-3 border-t-2 border-primary-100/50 px-3 pb-3 space-y-1.5 bg-gradient-to-t from-primary-50/30 to-transparent">
           {adminBottomNavItems.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
             return (
@@ -155,10 +189,26 @@ export function AdminSidebar() {
                   asChild 
                   isActive={isActive}
                   tooltip={item.title}
+                  className={cn(
+                    "group transition-all duration-300 rounded-xl",
+                    isActive 
+                      ? "bg-gradient-to-r from-accent-600 to-accent-700 text-white font-bold shadow-layered-md" 
+                      : "hover:bg-accent-50 hover:shadow-md hover:scale-[1.01] hover:border hover:border-accent-200/50"
+                  )}
                 >
-                  <Link href={item.href}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                  <Link href={item.href} className="flex items-center gap-3 py-3 px-4 rounded-xl">
+                    <div className={cn(
+                      "p-2 rounded-lg transition-all duration-300",
+                      isActive 
+                        ? "bg-white/20 text-white shadow-md backdrop-blur-sm" 
+                        : "bg-accent-100/50 text-accent-700 group-hover:bg-accent-200 group-hover:scale-110 group-hover:rotate-12 pulse-glow"
+                    )}>
+                      <item.icon className="h-5 w-5 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
+                    </div>
+                    <span className={cn(
+                      "font-semibold transition-all duration-300",
+                      isActive ? "text-white" : "text-accent-800 group-hover:text-accent-700 group-hover:translate-x-1"
+                    )}>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -167,21 +217,28 @@ export function AdminSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-0">
-        <SidebarMenu>
+      <SidebarFooter className="border-t-2 border-primary-100/50 p-0 bg-gradient-to-t from-primary-50/80 via-white to-transparent relative overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute bottom-0 right-0 w-24 h-24 bg-primary-600 rounded-full blur-2xl"></div>
+        </div>
+        <SidebarMenu className="relative z-10">
           <SidebarMenuItem>
-            <div className="flex flex-col gap-2 p-2">
-              <div className="flex items-center gap-2 px-2 py-1">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                  <span className="text-xs font-semibold text-primary">
-                    {profile?.full_name?.charAt(0).toUpperCase() || 'A'}
-                  </span>
+            <div className="flex flex-col gap-2 p-4">
+              <div className="flex items-center gap-3 px-3 py-3 hover:bg-white/60 rounded-xl transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md">
+                <div className="relative">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white shadow-layered-md group-hover:shadow-layered-lg group-hover:scale-110 transition-all duration-300 ring-2 ring-primary-200/50 group-hover:ring-primary-300">
+                    <span className="text-base font-extrabold">
+                      {profile?.full_name?.charAt(0).toUpperCase() || 'A'}
+                    </span>
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-sm font-medium truncate">
+                  <span className="text-sm font-bold truncate text-primary-800 group-hover:text-primary-700 transition-colors">
                     {profile?.full_name || 'Admin'}
                   </span>
-                  <span className="text-xs text-muted-foreground truncate">
+                  <span className="text-xs text-primary-600 truncate font-semibold">
                     Administrator
                   </span>
                 </div>
@@ -190,10 +247,12 @@ export function AdminSidebar() {
                 variant="ghost" 
                 size="sm" 
                 onClick={handleSignOut}
-                className="w-full justify-start"
+                className="w-full justify-start hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100/50 hover:text-red-700 transition-all duration-300 group shadow-sm hover:shadow-md rounded-xl font-semibold border border-transparent hover:border-red-200/50"
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                <div className="p-1.5 rounded-lg bg-red-100/50 group-hover:bg-red-200 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300 mr-2">
+                  <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                </div>
+                <span className="group-hover:translate-x-1 transition-transform">Sign Out</span>
               </Button>
             </div>
           </SidebarMenuItem>
@@ -218,17 +277,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full">
         <AdminSidebar />
         <SidebarInset className="flex-1">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background px-6">
-            <SidebarTrigger className="md:hidden" />
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background px-6 shadow-sm">
+            <SidebarTrigger className="md:hidden hover:bg-accent hover:scale-105 transition-all duration-300" />
             
             {/* Search Bar */}
             <div className="flex-1 max-w-xl">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-hover:text-primary-600 transition-colors duration-300" />
                 <input
                   type="text"
                   placeholder="Search users, vehicles, bookings..."
-                  className="w-full h-10 pl-10 pr-4 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="w-full h-10 pl-10 pr-4 rounded-lg border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:border-primary-300 transition-all duration-300 shadow-inset-sm hover:shadow-sm"
                 />
               </div>
             </div>
@@ -297,7 +356,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 p-6 bg-gray-50">
+          <main className="flex-1 p-4 sm:p-6 bg-gradient-subtle bg-pattern-dots">
             {children}
           </main>
         </SidebarInset>

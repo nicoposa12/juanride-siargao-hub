@@ -29,7 +29,7 @@ export default function VehiclesPage({ searchParams }: VehiclesPageProps) {
   const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="min-h-screen bg-gradient-subtle bg-pattern-dots pt-20">
       {/* Navigation */}
       <Navigation />
       

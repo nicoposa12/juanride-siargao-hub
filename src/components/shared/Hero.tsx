@@ -40,12 +40,12 @@ const Hero = () => {
       {/* Content */}
       <div className="container mx-auto px-4 z-10 text-center">
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-          <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-white leading-tight tracking-tight animate-fade-in">
             A Smarter Way to Rent Vehicles in{" "}
-            <span className="text-accent">Siargao Island</span>
+            <span className="text-accent-200 drop-shadow-lg inline-block hover:scale-105 transition-transform duration-300 cursor-default">Siargao Island</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-white/95 max-w-2xl mx-auto font-medium leading-relaxed">
             Book, track, and manage vehicle rentals easily with JuanRide — your all-in-one
             platform for efficient booking and monitoring.
           </p>
@@ -54,7 +54,7 @@ const Hero = () => {
             <Link href="/vehicles">
               <Button 
                 size="lg" 
-                className="bg-white text-primary hover:bg-white/90 shadow-hover transition-smooth text-lg px-8 py-6"
+                className="bg-white text-primary-700 hover:bg-white/95 shadow-layered-lg hover:shadow-layered-lg hover:scale-105 transition-all text-lg px-8 py-6 font-bold"
               >
                 Book Now <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -63,7 +63,7 @@ const Hero = () => {
               onClick={handleOwnerButton}
               size="lg" 
               variant="outline" 
-              className="bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm transition-smooth text-lg px-8 py-6"
+              className="bg-white/10 text-white border-2 border-white/40 hover:bg-white/20 hover:border-white/60 backdrop-blur-md shadow-layered-md hover:shadow-layered-lg transition-all text-lg px-8 py-6 font-semibold"
             >
               {user && profile ? (
                 <>

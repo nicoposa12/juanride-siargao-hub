@@ -128,37 +128,41 @@ export function VehicleCard({ vehicle, onFavoriteChange }: VehicleCardProps) {
 
   return (
     <Link href={`/vehicles/${vehicle.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full">
-        <div className="relative aspect-[4/3]">
+      <Card className="overflow-hidden card-gradient shadow-layered-md hover:shadow-layered-lg transition-all duration-500 h-full group hover:-translate-y-2 border-border/50 hover:border-primary-300/50 cursor-pointer">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-muted/20 to-muted/5">
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-primary-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
+          
           <Image
             src={imageUrl}
             alt={`${vehicle.make} ${vehicle.model}`}
             fill
-            className="object-cover"
+            className="object-cover group-hover:scale-110 transition-transform duration-700"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
           
-          {/* Favorite Button */}
+          {/* Favorite Button - Enhanced interactivity */}
           <button
             onClick={toggleFavorite}
             disabled={loading || initialLoading}
             className={cn(
-              "absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm",
-              "hover:bg-white transition-colors",
-              isFavorite && "text-red-500",
+              "absolute top-3 right-3 p-2 sm:p-2.5 rounded-full bg-white shadow-layered-sm z-20",
+              "hover:bg-white hover:shadow-layered-lg transition-all duration-300",
+              "hover:scale-110 active:scale-95",
+              isFavorite && "text-red-500 bg-red-50",
               (loading || initialLoading) && "opacity-50 cursor-not-allowed"
             )}
           >
             <Heart
               className={cn(
-                "h-5 w-5",
-                isFavorite && "fill-current"
+                "h-4 w-4 sm:h-5 sm:w-5 transition-all duration-300",
+                isFavorite && "fill-current scale-110 animate-pulse"
               )}
             />
           </button>
 
-          {/* Vehicle Type Badge */}
-          <Badge className="absolute top-3 left-3 bg-primary/90 backdrop-blur-sm">
+          {/* Vehicle Type Badge - Enhanced with animation */}
+          <Badge className="absolute top-3 left-3 bg-primary-600 text-primary-foreground shadow-layered-sm border-0 z-20 group-hover:scale-105 transition-transform duration-300 text-xs sm:text-sm">
             {vehicleType}
           </Badge>
         </div>
@@ -195,13 +199,18 @@ export function VehicleCard({ vehicle, onFavoriteChange }: VehicleCardProps) {
 
         <CardFooter className="p-4 pt-0 flex items-center justify-between">
           <div>
-            <div className="text-2xl font-bold text-primary">
+            <div className="text-2xl font-bold text-primary-700 group-hover:text-primary-600 transition-colors">
               {formatCurrency(vehicle.price_per_day)}
             </div>
-            <div className="text-sm text-muted-foreground">per day</div>
+            <div className="text-sm text-muted-foreground font-medium">per day</div>
           </div>
 
-          <Button size="sm">View Details</Button>
+          <Button 
+            size="sm" 
+            className="shadow-layered-sm hover:shadow-layered-md bg-primary-600 hover:bg-primary-500 transition-all"
+          >
+            View Details
+          </Button>
         </CardFooter>
       </Card>
     </Link>

@@ -155,13 +155,13 @@ export default function OwnerDashboardPage() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-subtle bg-pattern-dots">
       <Navigation />
       <div className="container mx-auto px-4 pt-24 pb-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Owner Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-4xl font-extrabold text-primary-700 tracking-tight">Owner Dashboard</h1>
+          <p className="text-muted-foreground mt-2 text-lg font-medium">
             {(() => {
               const isNewOwner = profile?.created_at ? 
                 new Date(profile.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000) :
@@ -174,59 +174,75 @@ export default function OwnerDashboardPage() {
         </div>
         
         {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
-              <Car className="h-4 w-4 text-muted-foreground" />
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card className="card-gradient border-primary-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            {/* Animated background on hover */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-100/0 to-primary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-primary-600 transition-colors">Total Vehicles</CardTitle>
+              <div className="p-2 sm:p-2.5 bg-primary-100 rounded-lg shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
+                <Car className="h-4 w-4 sm:h-5 sm:w-5 text-primary-600 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalVehicles}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <Link href="/owner/vehicles" className="text-primary hover:underline">
-                  Manage vehicles
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalVehicles}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
+                <Link href="/owner/vehicles" className="text-primary-600 hover:text-primary-500 hover:underline transition-colors inline-flex items-center gap-1">
+                  Manage vehicles →
                 </Link>
               </p>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active Bookings</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-accent-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent-100/0 to-accent-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-primary-600 transition-colors">Active Bookings</CardTitle>
+              <div className="p-2 sm:p-2.5 bg-accent-100 rounded-lg shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 pulse-glow">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-accent-400 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeBookings}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.activeBookings}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
                 Currently rented out
               </p>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-secondary-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary-100/0 to-secondary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-primary-600 transition-colors">Pending Approvals</CardTitle>
+              <div className="p-2 sm:p-2.5 bg-secondary-100 rounded-lg shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-secondary-500 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingBookings}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <Link href="/owner/bookings" className="text-primary hover:underline">
-                  Review bookings
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.pendingBookings}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
+                <Link href="/owner/bookings" className="text-primary-600 hover:text-primary-500 hover:underline transition-colors inline-flex items-center gap-1">
+                  Review bookings →
                 </Link>
               </p>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-green-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-green-100/30 opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-green-700 transition-colors">Total Earnings</CardTitle>
+              <div className="p-2 sm:p-2.5 bg-green-100 rounded-lg shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 bounce-subtle">
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalEarnings)}</div>
-              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-green-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(stats.totalEarnings)}</div>
+              <p className="text-xs text-green-700 mt-1 flex items-center gap-1 font-semibold">
+                <TrendingUp className="h-3 w-3 group-hover:animate-bounce" />
                 {formatCurrency(stats.thisMonthEarnings)} this month
               </p>
             </CardContent>

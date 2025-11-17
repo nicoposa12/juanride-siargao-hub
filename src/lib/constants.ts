@@ -14,16 +14,14 @@ export const VEHICLE_TYPE_LABELS = {
 
 export const VEHICLE_STATUSES = {
   AVAILABLE: 'available',
-  RENTED: 'rented',
+  UNAVAILABLE: 'unavailable',
   MAINTENANCE: 'maintenance',
-  INACTIVE: 'inactive',
 } as const
 
 export const VEHICLE_STATUS_LABELS = {
   available: 'Available',
-  rented: 'Rented',
+  unavailable: 'Unavailable',
   maintenance: 'Under Maintenance',
-  inactive: 'Inactive',
 } as const
 
 export const BOOKING_STATUSES = {

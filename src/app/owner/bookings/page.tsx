@@ -35,6 +35,7 @@ import {
   Search,
   Filter,
   Loader2,
+  Eye,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -213,29 +214,29 @@ function BookingsContent() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-subtle bg-pattern-dots">
       <Navigation />
       <div className="py-8 pt-24">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Manage Bookings</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Manage Bookings</h1>
+          <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
             View and manage booking requests for your vehicles
           </p>
         </div>
         
         {/* Search & Filter */}
-        <Card className="mb-6">
+        <Card className="mb-6 card-gradient shadow-layered-md border-border/50">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <div className="flex-1 relative group">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-hover:text-primary-600 transition-colors duration-300" />
                 <Input
                   placeholder="Search by renter name, vehicle, or plate number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 focus-visible:ring-primary-500 hover:shadow-sm transition-all duration-300"
                 />
               </div>
             </div>
@@ -279,16 +280,17 @@ function BookingsContent() {
           ) : (
             <div className="space-y-4">
               {filteredBookings.map((booking) => (
-                <Card key={booking.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card key={booking.id} className="overflow-hidden card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-border/50 hover:border-primary-200/50">
                   <div className="grid md:grid-cols-[200px_1fr] gap-6">
                     {/* Vehicle Image */}
-                    <div className="relative aspect-video md:aspect-square">
+                    <div className="relative aspect-video md:aspect-square overflow-hidden">
                       <Image
                         src={booking.vehicle?.image_urls?.[0] || '/placeholder.svg'}
                         alt={`${booking.vehicle?.make} ${booking.vehicle?.model}`}
                         fill
-                        className="object-cover"
+                        className="object-cover group-hover:scale-110 transition-transform duration-700"
                       />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
                     
                     {/* Booking Details */}
@@ -296,7 +298,7 @@ function BookingsContent() {
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-xl font-semibold">
+                            <h3 className="text-xl font-bold text-primary-700 group-hover:text-primary-600 transition-colors">
                               {booking.vehicle?.make} {booking.vehicle?.model}
                             </h3>
                             <Badge className={getStatusColor(booking.status)}>
@@ -311,7 +313,9 @@ function BookingsContent() {
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedBooking(booking)}
+                          className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn"
                         >
+                          <Eye className="mr-2 h-4 w-4 group-hover/btn:scale-110 transition-transform" />
                           View Details
                         </Button>
                       </div>

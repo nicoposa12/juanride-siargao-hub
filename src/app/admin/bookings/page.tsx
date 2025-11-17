@@ -200,25 +200,25 @@ export default function AdminBookingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Booking Management</h1>
-        <p className="text-muted-foreground mt-1">
+      <div className="mb-2">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Booking Management</h1>
+        <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
           Monitor and manage all rental bookings
         </p>
       </div>
 
       {/* Search and Filters */}
-      <Card>
+      <Card className="card-gradient shadow-layered-md border-border/50">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex-1 relative group">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-hover:text-primary-600 transition-colors duration-300" />
               <Input
                 placeholder="Search by booking ID, vehicle, or renter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 focus-visible:ring-primary-500 hover:shadow-sm transition-all duration-300"
               />
             </div>
 
@@ -253,7 +253,7 @@ export default function AdminBookingsPage() {
       </Card>
 
       {/* Bookings Table */}
-      <Card>
+      <Card className="card-gradient shadow-layered-md border-border/50">
         <CardContent className="p-0">
           <div className="p-6 border-b">
             <h3 className="font-semibold">All Bookings ({filteredBookings.length})</h3>

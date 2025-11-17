@@ -164,76 +164,90 @@ export default function OwnerEarningsPage() {
   if (!user || user.user_metadata?.role !== 'owner') return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-subtle bg-pattern-dots">
       <Navigation />
       <div className="py-12 pt-24">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Earnings & Analytics</h1>
-          <p className="text-muted-foreground">Track your revenue and financial performance</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700 mb-2">Earnings & Analytics</h1>
+          <p className="text-muted-foreground text-base sm:text-lg font-medium">Track your revenue and financial performance</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          <Card className="card-gradient border-green-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-100/0 to-green-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-green-700 transition-colors">Total Earnings</CardTitle>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 pulse-glow">
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalEarnings)}</div>
-              <p className="text-xs text-muted-foreground mt-1">All time</p>
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-green-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(stats.totalEarnings)}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">All time</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">This Month</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-blue-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-100/0 to-blue-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-blue-700 transition-colors">This Month</CardTitle>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.monthlyEarnings)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-blue-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(stats.monthlyEarnings)}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
                 {format(new Date(), 'MMMM yyyy')}
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Completed Bookings</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-purple-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-100/0 to-purple-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-purple-700 transition-colors">Completed Bookings</CardTitle>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 bounce-subtle">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.completedBookings}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total bookings</p>
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-purple-700 group-hover:scale-110 transition-transform duration-300">{stats.completedBookings}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Total bookings</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Average per Booking</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-teal-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-100/0 to-teal-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-teal-700 transition-colors">Average per Booking</CardTitle>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-teal-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 group-hover:scale-110 transition-transform" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-teal-700 group-hover:scale-110 transition-transform duration-300">
                 {formatCurrency(
                   stats.completedBookings > 0
                     ? stats.totalEarnings / stats.completedBookings
                     : 0
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Per rental</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Per rental</p>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Earnings by Vehicle */}
-          <Card>
+          <Card className="card-gradient shadow-layered-md border-border/50">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Car className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-primary-700">
+                <div className="p-2 bg-primary-100 rounded-lg shadow-sm">
+                  <Car className="h-5 w-5 text-primary-600" />
+                </div>
                 Earnings by Vehicle
               </CardTitle>
             </CardHeader>
@@ -245,7 +259,7 @@ export default function OwnerEarningsPage() {
               ) : (
                 <div className="space-y-4">
                   {vehicleEarnings.map(vehicle => (
-                    <div key={vehicle.vehicle_id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={vehicle.vehicle_id} className="flex items-center justify-between p-4 border border-border/50 rounded-lg hover:shadow-layered-md hover:border-primary-200 hover:-translate-x-1 transition-all duration-300 group cursor-pointer bg-white/50">
                       <div className="flex-1">
                         <div className="font-semibold">{vehicle.vehicle_name}</div>
                         <div className="text-sm text-muted-foreground">
@@ -268,9 +282,9 @@ export default function OwnerEarningsPage() {
           </Card>
 
           {/* Recent Transactions */}
-          <Card>
+          <Card className="card-gradient shadow-layered-md border-border/50">
             <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
+              <CardTitle className="text-primary-700">Recent Transactions</CardTitle>
             </CardHeader>
             <CardContent>
               {transactions.length === 0 ? (
@@ -280,7 +294,7 @@ export default function OwnerEarningsPage() {
               ) : (
                 <div className="space-y-4">
                   {transactions.map(transaction => (
-                    <div key={transaction.id} className="flex items-start justify-between p-4 border rounded-lg">
+                    <div key={transaction.id} className="flex items-start justify-between p-4 border border-border/50 rounded-lg hover:shadow-layered-md hover:border-primary-200 hover:-translate-x-1 transition-all duration-300 group cursor-pointer bg-white/50">
                       <div className="flex-1">
                         <div className="font-semibold">{transaction.vehicle_name}</div>
                         <div className="text-sm text-muted-foreground">
@@ -303,9 +317,9 @@ export default function OwnerEarningsPage() {
         </div>
 
         {/* Summary Info */}
-        <Card className="mt-6">
+        <Card className="mt-6 card-gradient shadow-layered-md border-border/50">
           <CardHeader>
-            <CardTitle>Financial Summary</CardTitle>
+            <CardTitle className="text-primary-700">Financial Summary</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-6">

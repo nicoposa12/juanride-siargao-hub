@@ -151,7 +151,7 @@ export default function AdminListingsPage() {
           .from('vehicles')
           .update({
             is_approved: false,
-            status: 'inactive',
+            status: 'unavailable',
             admin_notes: adminNotes,
             updated_at: new Date().toISOString(),
           })
@@ -197,23 +197,23 @@ export default function AdminListingsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-          <h1 className="text-3xl font-bold">Vehicle Listings</h1>
-          <p className="text-muted-foreground mt-2">
+      <div className="mb-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Vehicle Listings</h1>
+          <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
             Review and approve vehicle listings
           </p>
         </div>
         
         {/* Search */}
-        <Card className="mb-6">
+        <Card className="mb-6 card-gradient shadow-layered-md border-border/50">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <div className="relative group">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-hover:text-primary-600 transition-colors duration-300" />
               <Input
                 placeholder="Search by make, model, plate number, or owner..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 focus-visible:ring-primary-500 hover:shadow-sm transition-all duration-300"
               />
             </div>
           </CardContent>
@@ -247,16 +247,17 @@ export default function AdminListingsPage() {
           ) : (
             <div className="space-y-4">
               {filteredVehicles.map((vehicle) => (
-                <Card key={vehicle.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card key={vehicle.id} className="overflow-hidden card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-border/50 hover:border-primary-200/50">
                   <div className="grid md:grid-cols-[200px_1fr] gap-6">
                     {/* Vehicle Image */}
-                    <div className="relative aspect-video md:aspect-square">
+                    <div className="relative aspect-video md:aspect-square overflow-hidden">
                       <Image
                         src={vehicle.image_urls?.[0] || '/placeholder.svg'}
                         alt={`${vehicle.make} ${vehicle.model}`}
                         fill
-                        className="object-cover"
+                        className="object-cover group-hover:scale-110 transition-transform duration-700"
                       />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
                     
                     {/* Vehicle Details */}
@@ -264,10 +265,10 @@ export default function AdminListingsPage() {
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-xl font-semibold">
+                            <h3 className="text-xl font-bold text-primary-700 group-hover:text-primary-600 transition-colors">
                               {vehicle.make} {vehicle.model}
                             </h3>
-                            <Badge className={vehicle.is_approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                            <Badge className={vehicle.is_approved ? 'bg-green-100 text-green-800 border border-green-200 shadow-sm' : 'bg-yellow-100 text-yellow-800 border border-yellow-200 shadow-sm pulse-glow'}>
                               {vehicle.is_approved ? 'Approved' : 'Pending'}
                             </Badge>
                           </div>
@@ -302,9 +303,9 @@ export default function AdminListingsPage() {
                       )}
                       
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn">
                           <a href={`/vehicles/${vehicle.id}`} target="_blank">
-                            <Eye className="h-4 w-4 mr-2" />
+                            <Eye className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
                             View Listing
                           </a>
                         </Button>
@@ -317,8 +318,9 @@ export default function AdminListingsPage() {
                                 setSelectedVehicle(vehicle)
                                 setActionDialog({ open: true, action: 'approve', processing: false })
                               }}
+                              className="shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
                             >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              <CheckCircle2 className="h-4 w-4 mr-2 group-hover/btn:scale-110 group-hover/btn:rotate-12 transition-all" />
                               Approve
                             </Button>
                             <Button
@@ -328,8 +330,9 @@ export default function AdminListingsPage() {
                                 setSelectedVehicle(vehicle)
                                 setActionDialog({ open: true, action: 'reject', processing: false })
                               }}
+                              className="shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
                             >
-                              <XCircle className="h-4 w-4 mr-2" />
+                              <XCircle className="h-4 w-4 mr-2 group-hover/btn:scale-110 group-hover/btn:-rotate-12 transition-all" />
                               Reject
                             </Button>
                           </>

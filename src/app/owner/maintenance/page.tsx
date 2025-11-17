@@ -341,66 +341,75 @@ export default function OwnerMaintenancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-subtle bg-pattern-dots">
       <Navigation />
       <div className="py-8 pt-24">
         <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Vehicle Maintenance</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Vehicle Maintenance</h1>
+            <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
               Track service history and maintenance costs
             </p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setDialogOpen(true)} className="shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group">
+            <Plus className="h-4 w-4 mr-2 group-hover:scale-110 group-hover:rotate-90 transition-all duration-300" />
             Add Maintenance Record
           </Button>
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-muted-foreground" />
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+          <Card className="card-gradient border-blue-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-100/0 to-blue-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-3 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-blue-700 transition-colors flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 pulse-glow">
+                  <Wrench className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                </div>
                 Total Services
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getTotalServices()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-blue-700 group-hover:scale-110 transition-transform duration-300">{getTotalServices()}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
                 All-time maintenance records
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-purple-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-100/0 to-purple-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-3 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-purple-700 transition-colors flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                  <Calendar className="h-4 w-4 text-purple-600 group-hover:scale-110 transition-transform" />
+                </div>
                 Recent Services
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getRecentServices()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-purple-700 group-hover:scale-110 transition-transform duration-300">{getRecentServices()}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
                 Last 30 days
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className="card-gradient border-green-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-100/0 to-green-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-3 relative z-10">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-green-700 transition-colors flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 bounce-subtle">
+                  <DollarSign className="h-4 w-4 text-green-600 group-hover:scale-110 transition-transform" />
+                </div>
                 Total Cost
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(getTotalCost())}</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="relative z-10">
+              <div className="text-2xl sm:text-3xl font-extrabold text-green-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(getTotalCost())}</div>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">
                 All-time maintenance expenses
               </p>
             </CardContent>
@@ -408,9 +417,9 @@ export default function OwnerMaintenancePage() {
         </div>
 
         {/* Maintenance Logs Table */}
-        <Card>
+        <Card className="card-gradient shadow-layered-md border-border/50">
           <CardHeader>
-            <CardTitle>Maintenance History</CardTitle>
+            <CardTitle className="text-primary-700">Maintenance History</CardTitle>
             <CardDescription>
               View and manage all maintenance records for your vehicles
             </CardDescription>
@@ -423,8 +432,8 @@ export default function OwnerMaintenancePage() {
                 <p className="text-muted-foreground mb-4">
                   Start tracking your vehicle maintenance by adding a record
                 </p>
-                <Button onClick={() => setDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={() => setDialogOpen(true)} className="shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group">
+                  <Plus className="h-4 w-4 mr-2 group-hover:scale-110 group-hover:rotate-90 transition-all duration-300" />
                   Add First Record
                 </Button>
               </div>
@@ -443,7 +452,7 @@ export default function OwnerMaintenancePage() {
                   </TableHeader>
                   <TableBody>
                     {logs.map((log) => (
-                      <TableRow key={log.id}>
+                      <TableRow key={log.id} className="hover:bg-primary-50/30 transition-colors duration-200 cursor-pointer">
                         <TableCell>
                           <div>
                             <p className="font-medium">
@@ -472,14 +481,16 @@ export default function OwnerMaintenancePage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleEdit(log)}
+                              className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-4 w-4 group-hover/btn:scale-110 group-hover/btn:rotate-12 transition-all" />
                             </Button>
                             <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDelete(log.id)}
                               disabled={deleteId === log.id}
+                              className="shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn"
                             >
                               {deleteId === log.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

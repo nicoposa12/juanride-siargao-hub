@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Plus, Car, AlertCircle, Edit, Eye, Trash2, MoreVertical } from 'lucide-react'
+import { Plus, Car, AlertCircle, Edit, Eye, Trash2, MoreVertical, Settings } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +19,11 @@ import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import Navigation from '@/components/shared/Navigation'
 import { formatCurrency } from '@/lib/utils/format'
-import { VEHICLE_STATUS_LABELS, VEHICLE_TYPE_LABELS } from '@/lib/constants'
+import { VEHICLE_TYPE_LABELS } from '@/lib/constants'
 import { useToast } from '@/hooks/use-toast'
 import Image from 'next/image'
+import { VehicleStatusSelector } from '@/components/vehicle/VehicleStatusSelector'
+import type { VehicleStatus } from '@/lib/supabase/queries/vehicles'
 
 export default function OwnerVehiclesPage() {
   const router = useRouter()
@@ -98,19 +100,12 @@ export default function OwnerVehiclesPage() {
     }
   }
   
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800'
-      case 'rented':
-        return 'bg-blue-100 text-blue-800'
-      case 'maintenance':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
+  const handleVehicleStatusUpdate = (vehicleId: string, newStatus: VehicleStatus) => {
+    setVehicles(prev => prev.map(vehicle => 
+      vehicle.id === vehicleId 
+        ? { ...vehicle, status: newStatus }
+        : vehicle
+    ))
   }
   
   if (authLoading || loading) {
@@ -132,21 +127,21 @@ export default function OwnerVehiclesPage() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-subtle bg-pattern-dots">
       <Navigation />
       <div className="py-8 pt-24">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">My Vehicles</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">My Vehicles</h1>
+            <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
               Manage your vehicle listings
             </p>
           </div>
-          <Button asChild size="lg">
+          <Button asChild size="lg" className="shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group">
             <Link href="/owner/vehicles/new">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4 group-hover:scale-110 group-hover:rotate-90 transition-all duration-300" />
               Add New Vehicle
             </Link>
           </Button>
@@ -172,21 +167,17 @@ export default function OwnerVehiclesPage() {
         ) : (
           <div className="grid gap-6">
             {vehicles.map((vehicle) => (
-              <Card key={vehicle.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <Card key={vehicle.id} className="overflow-hidden card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-border/50 hover:border-primary-200/50">
                 <div className="grid md:grid-cols-[240px_1fr] gap-6">
                   {/* Vehicle Image */}
-                  <div className="relative aspect-video md:aspect-square">
+                  <div className="relative aspect-video md:aspect-square overflow-hidden">
                     <Image
                       src={vehicle.image_urls?.[0] || '/placeholder.svg'}
                       alt={`${vehicle.make} ${vehicle.model}`}
                       fill
-                      className="object-cover"
+                      className="object-cover group-hover:scale-110 transition-transform duration-700"
                     />
-                    <div className="absolute top-3 right-3">
-                      <Badge className={getStatusColor(vehicle.status)}>
-                        {VEHICLE_STATUS_LABELS[vehicle.status as keyof typeof VEHICLE_STATUS_LABELS]}
-                      </Badge>
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     {!vehicle.is_approved && (
                       <div className="absolute top-3 left-3">
                         <Badge variant="outline" className="bg-white/90">
@@ -200,7 +191,7 @@ export default function OwnerVehiclesPage() {
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="text-2xl font-semibold">
+                        <h3 className="text-2xl font-bold text-primary-700 group-hover:text-primary-600 transition-colors">
                           {vehicle.make} {vehicle.model}
                         </h3>
                         <p className="text-muted-foreground">
@@ -208,7 +199,13 @@ export default function OwnerVehiclesPage() {
                         </p>
                       </div>
                       
-                      <DropdownMenu>
+                      <div className="flex items-center gap-2">
+                        <VehicleStatusSelector 
+                          vehicleId={vehicle.id}
+                          currentStatus={vehicle.status as VehicleStatus}
+                          onStatusUpdate={(newStatus) => handleVehicleStatusUpdate(vehicle.id, newStatus)}
+                        />
+                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
                             <MoreVertical className="h-4 w-4" />
@@ -235,7 +232,8 @@ export default function OwnerVehiclesPage() {
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
-                      </DropdownMenu>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     
                     {!vehicle.is_approved && vehicle.admin_notes && (
@@ -275,15 +273,15 @@ export default function OwnerVehiclesPage() {
                     )}
                     
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
+                      <Button variant="outline" size="sm" asChild className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn">
                         <Link href={`/vehicles/${vehicle.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
+                          <Eye className="mr-2 h-4 w-4 group-hover/btn:scale-110 transition-transform" />
                           View
                         </Link>
                       </Button>
-                      <Button size="sm" asChild>
+                      <Button size="sm" asChild className="shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn">
                         <Link href={`/owner/vehicles/${vehicle.id}/edit`}>
-                          <Edit className="mr-2 h-4 w-4" />
+                          <Edit className="mr-2 h-4 w-4 group-hover/btn:scale-110 group-hover/btn:rotate-12 transition-all" />
                           Edit
                         </Link>
                       </Button>

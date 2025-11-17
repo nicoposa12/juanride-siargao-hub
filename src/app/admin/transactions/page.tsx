@@ -213,79 +213,82 @@ export default function AdminTransactionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payment & Transactions</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Payment & Transactions</h1>
+          <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
             Monitor all payment transactions and revenue
           </p>
         </div>
-        <Button onClick={exportToCSV} className="bg-blue-600 hover:bg-blue-700">
-          <Download className="h-4 w-4 mr-2" />
+        <Button onClick={exportToCSV} className="bg-blue-600 hover:bg-blue-700 shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group">
+          <Download className="h-4 w-4 mr-2 group-hover:scale-110 group-hover:-rotate-12 transition-all" />
           Export Report
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
         {/* Total Collected This Month */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="card-gradient border-green-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-100/0 to-green-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-green-700 transition-colors">
               Total Collected This Month
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-              <DollarSign className="h-4 w-4 text-green-600" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 pulse-glow">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 group-hover:scale-110 transition-transform" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(monthlyCompleted)}</div>
+          <CardContent className="relative z-10">
+            <div className="text-2xl sm:text-3xl font-extrabold text-green-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(monthlyCompleted)}</div>
           </CardContent>
         </Card>
 
         {/* Pending Payments */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="card-gradient border-orange-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-100/0 to-orange-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-orange-700 transition-colors">
               Pending Payments
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-orange-600" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-orange-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 bounce-subtle">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 group-hover:scale-110 transition-transform" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(pendingPayments)}</div>
+          <CardContent className="relative z-10">
+            <div className="text-2xl sm:text-3xl font-extrabold text-orange-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(pendingPayments)}</div>
           </CardContent>
         </Card>
 
         {/* Failed Payments */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="card-gradient border-red-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-100/0 to-red-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-red-700 transition-colors">
               Failed Payments
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle className="h-4 w-4 text-red-600" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:-rotate-12 transition-all duration-500">
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 group-hover:scale-110 transition-transform" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(failedPayments)}</div>
+          <CardContent className="relative z-10">
+            <div className="text-2xl sm:text-3xl font-extrabold text-red-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(failedPayments)}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Search and Filters */}
-      <Card>
+      <Card className="card-gradient shadow-layered-md border-border/50">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex-1 relative group">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-hover:text-primary-600 transition-colors duration-300" />
               <Input
                 placeholder="Search by transaction ID, renter, or vehicle..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 focus-visible:ring-primary-500 hover:shadow-sm transition-all duration-300"
               />
             </div>
 
@@ -319,7 +322,7 @@ export default function AdminTransactionsPage() {
       </Card>
 
       {/* Transactions Table */}
-      <Card>
+      <Card className="card-gradient shadow-layered-md border-border/50">
         <CardContent className="p-0">
           <div className="p-6 border-b">
             <h3 className="font-semibold">All Transactions ({filteredTransactions.length})</h3>
