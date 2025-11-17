@@ -30,7 +30,7 @@ import Navigation from '@/components/shared/Navigation'
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth()
   const { toast } = useToast()
   const supabase = createClient()
   
@@ -119,6 +119,9 @@ export default function ProfilePage() {
       
       setProfileImageUrl(publicUrl)
       
+      // Refresh the profile context to ensure the new image persists
+      await refreshProfile()
+      
       toast({
         title: 'Image Uploaded',
         description: 'Your profile image has been updated.',
@@ -152,6 +155,9 @@ export default function ProfilePage() {
         .eq('id', user.id)
       
       if (error) throw error
+      
+      // Refresh the profile context to ensure changes persist
+      await refreshProfile()
       
       toast({
         title: 'Profile Updated',
