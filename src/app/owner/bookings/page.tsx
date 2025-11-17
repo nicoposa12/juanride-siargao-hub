@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import Navigation from '@/components/shared/Navigation'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { BOOKING_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { 
@@ -212,7 +213,9 @@ function BookingsContent() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="py-8 pt-24">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
@@ -462,6 +465,7 @@ function BookingsContent() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </div>
       </div>
     </div>
   )

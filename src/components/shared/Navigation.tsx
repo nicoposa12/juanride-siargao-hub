@@ -31,19 +31,56 @@ const Navigation = () => {
   const handleDashboard = () => {
     if (profile?.role === 'owner') {
       router.push('/owner/dashboard');
+    } else if (profile?.role === 'admin') {
+      router.push('/admin/dashboard');
     } else {
       router.push('/vehicles');
     }
   };
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "My Rentals", href: "/dashboard/bookings" },
-    { name: "Favorites", href: "/favorites" },
-    { name: "Reviews", href: "/dashboard/reviews" },
-    { name: "Support", href: "/support" },
-    { name: "Profile", href: "/profile" },
-  ];
+  // Role-based navigation links
+  const getNavLinks = () => {
+    if (!profile) return [];
+
+    const role = profile.role;
+
+    // Owner navigation
+    if (role === 'owner') {
+      return [
+        { name: "Home", href: "/" },
+        { name: "Dashboard", href: "/owner/dashboard" },
+        { name: "My Vehicles", href: "/owner/vehicles" },
+        { name: "Bookings", href: "/owner/bookings" },
+        { name: "Earnings", href: "/owner/earnings" },
+        { name: "Maintenance", href: "/owner/maintenance" },
+        { name: "Profile", href: "/profile" },
+      ];
+    }
+
+    // Admin navigation
+    if (role === 'admin') {
+      return [
+        { name: "Home", href: "/" },
+        { name: "Dashboard", href: "/admin/dashboard" },
+        { name: "Users", href: "/admin/users" },
+        { name: "Listings", href: "/admin/listings" },
+        { name: "Bookings", href: "/admin/bookings" },
+        { name: "Profile", href: "/profile" },
+      ];
+    }
+
+    // Renter navigation (default)
+    return [
+      { name: "Home", href: "/" },
+      { name: "Browse Vehicles", href: "/vehicles" },
+      { name: "My Rentals", href: "/dashboard/bookings" },
+      { name: "Favorites", href: "/favorites" },
+      { name: "Reviews", href: "/dashboard/reviews" },
+      { name: "Profile", href: "/profile" },
+    ];
+  };
+
+  const navLinks = getNavLinks();
 
   return (
     <nav

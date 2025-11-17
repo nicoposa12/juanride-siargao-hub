@@ -183,24 +183,21 @@ export default function AdminListingsPage() {
   
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
-          <Skeleton className="h-12 w-64 mb-8" />
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
-          </div>
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
         </div>
       </div>
     )
   }
   
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
           <h1 className="text-3xl font-bold">Vehicle Listings</h1>
           <p className="text-muted-foreground mt-2">
             Review and approve vehicle listings
@@ -415,7 +412,6 @@ export default function AdminListingsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 }

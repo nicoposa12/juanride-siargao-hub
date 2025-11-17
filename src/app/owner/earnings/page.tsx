@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
+import Navigation from '@/components/shared/Navigation'
 import { DollarSign, TrendingUp, Calendar, Car } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/format'
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns'
@@ -163,7 +164,9 @@ export default function OwnerEarningsPage() {
   if (!user || user.user_metadata?.role !== 'owner') return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <Navigation />
+      <div className="py-12 pt-24">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Earnings & Analytics</h1>
@@ -333,6 +336,7 @@ export default function OwnerEarningsPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   )
 }

@@ -126,6 +126,13 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL('/', req.url))
       }
     }
+
+    // Redirect admins and owners from home page to their dashboards
+    if (path === '/' && (userRole === 'admin' || userRole === 'owner')) {
+      console.log('🏠 Redirecting', userRole, 'from home to dashboard')
+      const dashboardUrl = userRole === 'admin' ? '/admin/dashboard' : '/owner/dashboard'
+      return NextResponse.redirect(new URL(dashboardUrl, req.url))
+    }
   }
 
   return res

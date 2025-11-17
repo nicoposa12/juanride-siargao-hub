@@ -32,18 +32,21 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Wrench, Calendar, DollarSign, Loader2, Trash2 } from 'lucide-react'
+import { Plus, Wrench, Calendar, DollarSign, Loader2, Trash2, Edit } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
+import Navigation from '@/components/shared/Navigation'
 
 interface MaintenanceLog {
   id: string
   vehicle_id: string
   service_date: string
+  service_type: string
   description: string
   cost: number
+  status: string
   created_at: string
   vehicle: {
     make: string
@@ -62,14 +65,26 @@ export default function OwnerMaintenancePage() {
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [selectedLog, setSelectedLog] = useState<MaintenanceLog | null>(null)
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
     service_date: '',
+    service_type: 'General Maintenance',
     description: '',
     cost: '',
+    status: 'scheduled',
+  })
+
+  const [editFormData, setEditFormData] = useState({
+    service_date: '',
+    service_type: '',
+    description: '',
+    cost: '',
+    status: '',
   })
 
   useEffect(() => {
@@ -102,8 +117,10 @@ export default function OwnerMaintenancePage() {
           id,
           vehicle_id,
           service_date,
+          service_type,
           description,
           cost,
+          status,
           created_at,
           vehicle:vehicles (
             make,
@@ -158,8 +175,10 @@ export default function OwnerMaintenancePage() {
         .insert({
           vehicle_id: formData.vehicle_id,
           service_date: formData.service_date,
+          service_type: formData.service_type,
           description: formData.description,
           cost: formData.cost ? parseFloat(formData.cost) : 0,
+          status: formData.status,
         })
 
       if (error) throw error
@@ -170,7 +189,7 @@ export default function OwnerMaintenancePage() {
       })
 
       setDialogOpen(false)
-      setFormData({ vehicle_id: '', service_date: '', description: '', cost: '' })
+      setFormData({ vehicle_id: '', service_date: '', service_type: 'General Maintenance', description: '', cost: '', status: 'scheduled' })
       loadData()
     } catch (error: any) {
       console.error('Error adding log:', error)
@@ -216,6 +235,56 @@ export default function OwnerMaintenancePage() {
     }
   }
 
+  const handleEdit = (log: MaintenanceLog) => {
+    setSelectedLog(log)
+    setEditFormData({
+      service_date: log.service_date,
+      service_type: log.service_type || 'General Maintenance',
+      description: log.description,
+      cost: log.cost?.toString() || '',
+      status: log.status || 'scheduled',
+    })
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedLog) return
+
+    setSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('maintenance_logs')
+        .update({
+          service_date: editFormData.service_date,
+          service_type: editFormData.service_type,
+          description: editFormData.description,
+          cost: editFormData.cost ? parseFloat(editFormData.cost) : 0,
+          status: editFormData.status,
+        })
+        .eq('id', selectedLog.id)
+
+      if (error) throw error
+
+      toast({
+        title: 'Maintenance Log Updated',
+        description: 'The maintenance record has been updated successfully',
+      })
+
+      setEditDialogOpen(false)
+      loadData()
+    } catch (error: any) {
+      console.error('Error updating log:', error)
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update maintenance log',
+        variant: 'destructive',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const getTotalCost = () => {
     return logs.reduce((sum, log) => sum + (log.cost || 0), 0)
   }
@@ -230,25 +299,52 @@ export default function OwnerMaintenancePage() {
     return logs.filter(log => new Date(log.service_date) >= thirtyDaysAgo).length
   }
 
+  const getStatusBadge = (status: string) => {
+    if (status === 'in_progress') {
+      return (
+        <Badge className="bg-blue-100 text-blue-800 border-blue-200 border">
+          In Progress
+        </Badge>
+      )
+    }
+    if (status === 'scheduled') {
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-200 border">
+          Scheduled
+        </Badge>
+      )
+    }
+    return (
+      <Badge variant="outline">
+        Completed
+      </Badge>
+    )
+  }
+
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
-          <Skeleton className="h-12 w-64 mb-8" />
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="py-8 pt-24">
+          <div className="container mx-auto px-4">
+            <Skeleton className="h-12 w-64 mb-8" />
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-32" />
+              ))}
+            </div>
+            <Skeleton className="h-96" />
           </div>
-          <Skeleton className="h-96" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="py-8 pt-24">
+        <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -341,6 +437,7 @@ export default function OwnerMaintenancePage() {
                       <TableHead>Service Date</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Cost</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -366,19 +463,31 @@ export default function OwnerMaintenancePage() {
                             {formatCurrency(log.cost || 0)}
                           </span>
                         </TableCell>
+                        <TableCell>
+                          {getStatusBadge(log.status)}
+                        </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(log.id)}
-                            disabled={deleteId === log.id}
-                          >
-                            {deleteId === log.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(log)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(log.id)}
+                              disabled={deleteId === log.id}
+                            >
+                              {deleteId === log.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -430,6 +539,30 @@ export default function OwnerMaintenancePage() {
               </div>
 
               <div>
+                <Label htmlFor="service_type">Service Type *</Label>
+                <Select
+                  value={formData.service_type}
+                  onValueChange={(value) => setFormData({ ...formData, service_type: value })}
+                >
+                  <SelectTrigger id="service_type">
+                    <SelectValue placeholder="Select service type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="General Maintenance">General Maintenance</SelectItem>
+                    <SelectItem value="Oil Change">Oil Change</SelectItem>
+                    <SelectItem value="Tire Service">Tire Service</SelectItem>
+                    <SelectItem value="Brake Service">Brake Service</SelectItem>
+                    <SelectItem value="Engine Repair">Engine Repair</SelectItem>
+                    <SelectItem value="Transmission Service">Transmission Service</SelectItem>
+                    <SelectItem value="Body Work">Body Work</SelectItem>
+                    <SelectItem value="Electrical">Electrical</SelectItem>
+                    <SelectItem value="Inspection">Inspection</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
@@ -439,6 +572,23 @@ export default function OwnerMaintenancePage() {
                   rows={3}
                   required
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="status">Status *</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -477,6 +627,127 @@ export default function OwnerMaintenancePage() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Maintenance Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Maintenance Record</DialogTitle>
+              <DialogDescription>
+                Update the maintenance or service record
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {selectedLog && (
+                <div>
+                  <Label>Vehicle</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedLog.vehicle.make} {selectedLog.vehicle.model} ({selectedLog.vehicle.plate_number})
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="edit_service_date">Service Date *</Label>
+                <Input
+                  id="edit_service_date"
+                  type="date"
+                  value={editFormData.service_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, service_date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit_service_type">Service Type *</Label>
+                <Select
+                  value={editFormData.service_type}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, service_type: value })}
+                >
+                  <SelectTrigger id="edit_service_type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="General Maintenance">General Maintenance</SelectItem>
+                    <SelectItem value="Oil Change">Oil Change</SelectItem>
+                    <SelectItem value="Tire Service">Tire Service</SelectItem>
+                    <SelectItem value="Brake Service">Brake Service</SelectItem>
+                    <SelectItem value="Engine Repair">Engine Repair</SelectItem>
+                    <SelectItem value="Transmission Service">Transmission Service</SelectItem>
+                    <SelectItem value="Body Work">Body Work</SelectItem>
+                    <SelectItem value="Electrical">Electrical</SelectItem>
+                    <SelectItem value="Inspection">Inspection</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="edit_description">Description *</Label>
+                <Textarea
+                  id="edit_description"
+                  placeholder="e.g., Oil change, tire rotation, brake pad replacement..."
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit_status">Status *</Label>
+                <Select
+                  value={editFormData.status}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+                >
+                  <SelectTrigger id="edit_status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="edit_cost">Cost (₱)</Label>
+                <Input
+                  id="edit_cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={editFormData.cost}
+                  onChange={(e) => setEditFormData({ ...editFormData, cost: e.target.value })}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditDialogOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
       </div>
     </div>
   )

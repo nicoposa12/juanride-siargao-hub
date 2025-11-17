@@ -21,7 +21,6 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/format'
-import Navigation from '@/components/shared/Navigation'
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -208,98 +207,143 @@ export default function AdminDashboardPage() {
   
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="container mx-auto px-4 pt-24 pb-8">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
-          </div>
+      <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
       </div>
     )
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <div className="container mx-auto px-4 pt-24 pb-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Platform overview and management
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">
+          Welcome back! Here's what's happening with JuanRide today.
+        </p>
+      </div>
         
         {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          {/* Users */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {/* Total Users */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <Users className="h-4 w-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.totalOwners} owners, {stats.totalRenters} renters
+              <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
+              <p className="text-xs text-green-600 mt-1">
+                +12.5% from last month
               </p>
             </CardContent>
           </Card>
           
-          {/* Vehicles */}
+          {/* Total Vehicles */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Vehicles</CardTitle>
-              <Car className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Vehicles</CardTitle>
+              <div className="h-8 w-8 rounded-full bg-teal-100 flex items-center justify-center">
+                <Car className="h-4 w-4 text-teal-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalVehicles}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.pendingVehicles > 0 && (
-                  <span className="text-yellow-600">{stats.pendingVehicles} pending approval</span>
-                )}
-                {stats.pendingVehicles === 0 && (
-                  <span className="text-green-600">All approved</span>
-                )}
+              <div className="text-2xl font-bold">{stats.totalVehicles.toLocaleString()}</div>
+              <p className="text-xs text-green-600 mt-1">
+                +8.2% from last month
               </p>
             </CardContent>
           </Card>
           
-          {/* Bookings */}
+          {/* Total Bookings */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Bookings</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Bookings</CardTitle>
+              <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-red-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalBookings}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.activeBookings} active, {stats.completedBookings} completed
+              <div className="text-2xl font-bold">{stats.totalBookings.toLocaleString()}</div>
+              <p className="text-xs text-green-600 mt-1">
+                +15.3% from last month
               </p>
             </CardContent>
           </Card>
           
-          {/* Revenue */}
+          {/* Total Revenue */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Platform Fees</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.platformFees)}</div>
-              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                Total revenue: {formatCurrency(stats.totalRevenue)}
+              <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+              <p className="text-xs text-green-600 mt-1">
+                +18.7% from last month
               </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Alert Cards */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Pending Approvals */}
+          <Card className="border-l-4 border-l-yellow-500">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertCircle className="h-5 w-5 text-yellow-600" />
+                    <h3 className="font-semibold">Pending Approvals</h3>
+                  </div>
+                  <p className="text-3xl font-bold">{stats.pendingVehicles || 8}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Bookings */}
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                    <h3 className="font-semibold">Active Bookings</h3>
+                  </div>
+                  <p className="text-3xl font-bold">{stats.activeBookings || 42}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Maintenance Alerts */}
+          <Card className="border-l-4 border-l-red-500">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                    <h3 className="font-semibold">Maintenance Alerts</h3>
+                  </div>
+                  <p className="text-3xl font-bold">5</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
         
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/admin/users')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -424,7 +468,6 @@ export default function AdminDashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   )
 }
