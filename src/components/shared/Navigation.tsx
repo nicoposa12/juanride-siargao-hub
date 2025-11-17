@@ -53,6 +53,7 @@ const Navigation = () => {
         { name: "Bookings", href: "/owner/bookings" },
         { name: "Earnings", href: "/owner/earnings" },
         { name: "Maintenance", href: "/owner/maintenance" },
+        { name: "Support", href: "/support" },
         { name: "Profile", href: "/profile" },
       ];
     }
@@ -76,6 +77,7 @@ const Navigation = () => {
       { name: "My Rentals", href: "/dashboard/bookings" },
       { name: "Favorites", href: "/favorites" },
       { name: "Reviews", href: "/dashboard/reviews" },
+      { name: "Support", href: "/support" },
       { name: "Profile", href: "/profile" },
     ];
   };

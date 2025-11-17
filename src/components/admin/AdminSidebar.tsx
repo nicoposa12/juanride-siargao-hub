@@ -192,8 +192,8 @@ export function AdminSidebar() {
                   className={cn(
                     "group transition-all duration-300 rounded-xl",
                     isActive 
-                      ? "bg-gradient-to-r from-accent-600 to-accent-700 text-white font-bold shadow-layered-md" 
-                      : "hover:bg-accent-50 hover:shadow-md hover:scale-[1.01] hover:border hover:border-accent-200/50"
+                      ? "bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold shadow-layered-md" 
+                      : "hover:bg-primary-50 hover:shadow-md hover:scale-[1.01] hover:border hover:border-primary-200/50"
                   )}
                 >
                   <Link href={item.href} className="flex items-center gap-3 py-3 px-4 rounded-xl">
@@ -201,13 +201,13 @@ export function AdminSidebar() {
                       "p-2 rounded-lg transition-all duration-300",
                       isActive 
                         ? "bg-white/20 text-white shadow-md backdrop-blur-sm" 
-                        : "bg-accent-100/50 text-accent-700 group-hover:bg-accent-200 group-hover:scale-110 group-hover:rotate-12 pulse-glow"
+                        : "bg-primary-100/50 text-primary-700 group-hover:bg-primary-200 group-hover:scale-110 group-hover:rotate-12"
                     )}>
                       <item.icon className="h-5 w-5 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
                     </div>
                     <span className={cn(
                       "font-semibold transition-all duration-300",
-                      isActive ? "text-white" : "text-accent-800 group-hover:text-accent-700 group-hover:translate-x-1"
+                      isActive ? "text-white" : "text-primary-800 group-hover:text-primary-700 group-hover:translate-x-1"
                     )}>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
