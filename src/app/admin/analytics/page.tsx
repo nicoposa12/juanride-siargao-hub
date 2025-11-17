@@ -15,6 +15,22 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/format'
 import { format, subDays, parseISO } from 'date-fns'
+import { 
+  BarChart, 
+  Bar, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts'
+
+// Chart colors
+const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4', '#84cc16']
 
 export default function AdminAnalyticsPage() {
   const router = useRouter()
@@ -203,19 +219,44 @@ export default function AdminAnalyticsPage() {
               {analytics.vehiclesByType.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No data available</p>
               ) : (
-                <div className="space-y-4">
-                  {analytics.vehiclesByType.map(item => (
-                    <div key={item.type} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Car className="h-5 w-5 text-primary" />
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analytics.vehiclesByType}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="type" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2">
+                    {analytics.vehiclesByType.map((item, index) => (
+                      <div key={item.type} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="h-3 w-3 rounded" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="font-medium capitalize">{item.type}</span>
                         </div>
-                        <span className="font-medium">{item.type}</span>
+                        <span className="text-muted-foreground">{item.count} vehicles</span>
                       </div>
-                      <div className="text-2xl font-bold">{item.count}</div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -231,14 +272,47 @@ export default function AdminAnalyticsPage() {
               {analytics.bookingsByStatus.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No data available</p>
               ) : (
-                <div className="space-y-4">
-                  {analytics.bookingsByStatus.map(item => (
-                    <div key={item.status} className="flex items-center justify-between">
-                      <span className="font-medium capitalize">{item.status}</span>
-                      <div className="text-2xl font-bold">{item.count}</div>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={analytics.bookingsByStatus}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ status, percent }) => `${status}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {analytics.bookingsByStatus.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2">
+                    {analytics.bookingsByStatus.map((item, index) => (
+                      <div key={item.status} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="h-3 w-3 rounded-full" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="font-medium capitalize">{item.status}</span>
+                        </div>
+                        <span className="text-muted-foreground">{item.count} bookings</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -256,25 +330,55 @@ export default function AdminAnalyticsPage() {
             {analytics.topVehicles.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No data available</p>
             ) : (
-              <div className="space-y-4">
-                {analytics.topVehicles.map((vehicle, index) => (
-                  <div key={vehicle.name} className="flex items-center gap-4 p-4 border rounded-lg">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-lg">
-                      #{index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold">{vehicle.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {vehicle.bookings} booking{vehicle.bookings !== 1 ? 's' : ''}
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.topVehicles} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      type="number" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      width={150}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[0, 8, 8, 0]} />
+                    <Bar dataKey="bookings" fill="#3b82f6" name="Bookings" radius={[0, 8, 8, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-6 grid gap-4">
+                  {analytics.topVehicles.map((vehicle, index) => (
+                    <div key={vehicle.name} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-lg">
+                        #{index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold">{vehicle.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {vehicle.bookings} booking{vehicle.bookings !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-600">{formatCurrency(vehicle.revenue)}</div>
+                        <div className="text-xs text-muted-foreground">Total revenue</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold">{formatCurrency(vehicle.revenue)}</div>
-                      <div className="text-xs text-muted-foreground">Total revenue</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
