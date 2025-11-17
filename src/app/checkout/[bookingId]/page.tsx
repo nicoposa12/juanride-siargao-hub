@@ -16,16 +16,11 @@ import PaymentMethodSelector, { PaymentMethodType } from '@/components/payment/P
 import CardPaymentForm, { CardDetails } from '@/components/payment/CardPaymentForm'
 import QRPHDisplay from '@/components/payment/QRPHDisplay'
 import {
-  createPaymentIntent,
-  createPaymentMethod,
-  attachPaymentIntent,
   createPaymentSource,
   createPaymentMethodSource,
-  createPayment,
-  createPaymentRecord,
   updatePaymentRecord,
+  createPaymentRecord,
   toCentavos,
-  createQRPHPaymentIntent,
 } from '@/lib/payment/paymongo'
 
 interface BookingData {
@@ -183,39 +178,74 @@ export default function CheckoutPage() {
       if (!cardDetails || !booking || !user) return
       const totalAmount = amount / 100
 
-      // Step 1: Create payment intent
-      const paymentIntent = await createPaymentIntent({
-        amount,
-        description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
-        paymentMethod: 'card',
-        metadata: {
-          bookingId: booking.id,
-          userId: user!.id,
-          vehicleId: booking.vehicle_id,
-        },
+      // Step 1: Create payment intent via API route
+      const intentResponse = await fetch('/api/paymongo/payment-intents/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
+          paymentMethodAllowed: ['card'],
+          metadata: {
+            bookingId: booking.id,
+            userId: user.id,
+            vehicleId: booking.vehicle_id,
+          },
+        }),
       })
 
-      // Step 2: Create payment method (tokenize card)
-      const paymentMethodData = await createPaymentMethod({
-        cardNumber: cardDetails.cardNumber,
-        expMonth: parseInt(cardDetails.expMonth),
-        expYear: parseInt(cardDetails.expYear),
-        cvc: cardDetails.cvc,
-        billingDetails: {
-          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
-          email: user.email || '',
-          phone: user.user_metadata?.phone_number || undefined,
-        },
+      if (!intentResponse.ok) {
+        const error = await intentResponse.json()
+        throw new Error(error.error?.message || 'Failed to create payment intent')
+      }
+
+      const { data: paymentIntent } = await intentResponse.json()
+
+      // Step 2: Create payment method (tokenize card) via API route
+      const methodResponse = await fetch('/api/paymongo/payment-methods/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'card',
+          details: {
+            card_number: cardDetails.cardNumber,
+            exp_month: parseInt(cardDetails.expMonth),
+            exp_year: parseInt(cardDetails.expYear),
+            cvc: cardDetails.cvc,
+          },
+          billing: {
+            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+            email: user.email || '',
+            phone: user.user_metadata?.phone_number || undefined,
+          },
+        }),
       })
 
-      // Step 3: Attach payment method to intent
-      const attachedIntent = await attachPaymentIntent(
-        paymentIntent.id,
-        paymentMethodData.id
-      )
+      if (!methodResponse.ok) {
+        const error = await methodResponse.json()
+        throw new Error(error.error?.message || 'Failed to create payment method')
+      }
+
+      const { data: paymentMethodData } = await methodResponse.json()
+
+      // Step 3: Attach payment method to intent via API route
+      const attachResponse = await fetch(`/api/paymongo/payment-intents/${paymentIntent.id}/attach`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentMethodId: paymentMethodData.id,
+        }),
+      })
+
+      if (!attachResponse.ok) {
+        const error = await attachResponse.json()
+        throw new Error(error.error?.message || 'Failed to attach payment method')
+      }
+
+      const { data: attachedIntent } = await attachResponse.json()
 
       // Check if payment requires additional authentication (3D Secure)
-      if (attachedIntent.attributes.status === 'awaiting_payment_method') {
+      if (attachedIntent.status === 'awaiting_payment_method') {
         throw new Error('Payment authentication required. Please try again.')
       }
 
@@ -289,16 +319,33 @@ export default function CheckoutPage() {
     try {
       if (!booking || !user) return
 
-      // Create QR PH payment intent
-      const paymentIntent = await createQRPHPaymentIntent({
-        amount,
-        description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
-        metadata: {
-          bookingId: booking.id,
-          userId: user.id,
-          vehicleId: booking.vehicle_id,
-        },
+      // Create QR PH payment intent via API route
+      const intentResponse = await fetch('/api/paymongo/payment-intents/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
+          paymentMethodAllowed: ['qrph'],
+          paymentMethodOptions: {
+            qrph: {
+              request_type: 'dynamic',
+            },
+          },
+          metadata: {
+            bookingId: booking.id,
+            userId: user.id,
+            vehicleId: booking.vehicle_id,
+          },
+        }),
       })
+
+      if (!intentResponse.ok) {
+        const error = await intentResponse.json()
+        throw new Error(error.error?.message || 'Failed to create QR PH payment intent')
+      }
+
+      const { data: paymentIntent } = await intentResponse.json()
 
       // Update payment record with intent ID
       await updatePaymentRecord(booking.id, 'pending', paymentIntent.id)
@@ -428,7 +475,7 @@ export default function CheckoutPage() {
           type: method,
           amount,
           redirect: {
-            success: `${window.location.origin}/payment/success?bookingId=${booking.id}&sourceId=${encodeURIComponent('SOURCE_ID_PLACEHOLDER')}&amount=${amount}`,
+            success: `${window.location.origin}/payment/success?bookingId=${booking.id}&amount=${amount}`,
             failed: `${window.location.origin}/payment/failed?bookingId=${booking.id}`,
           },
           billing: {
@@ -455,7 +502,7 @@ export default function CheckoutPage() {
             phone: user.user_metadata?.phone_number || '',
           },
           redirect: {
-            success: `${window.location.origin}/payment/success?bookingId=${booking.id}&intentId=${encodeURIComponent('INTENT_ID_PLACEHOLDER')}&amount=${amount}`,
+            success: `${window.location.origin}/payment/success?bookingId=${booking.id}&amount=${amount}`,
             failed: `${window.location.origin}/payment/failed?bookingId=${booking.id}`,
           },
         })

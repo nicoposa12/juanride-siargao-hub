@@ -8,6 +8,7 @@ export const createPaymentIntentSchema = z.object({
   currency: z.enum(['PHP']).default('PHP').optional(),
   description: z.string().optional(),
   paymentMethodAllowed: z.array(z.enum(PAYMONGO_ALLOWED_METHODS)).nonempty(),
+  paymentMethodOptions: z.record(z.string(), z.any()).optional(),
   statementDescriptor: z.string().max(22).optional(),
   metadata: metadataSchema,
   customerId: z.string().optional(),

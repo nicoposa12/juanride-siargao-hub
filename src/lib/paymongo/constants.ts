@@ -15,6 +15,8 @@ export const PAYMONGO_ALLOWED_METHODS = [
   'paymaya',
   'gcash',
   'grab_pay',
+  'qrph',
+  'billease',
 ] as const
 
 export type PaymongoPaymentMethod = (typeof PAYMONGO_ALLOWED_METHODS)[number]
