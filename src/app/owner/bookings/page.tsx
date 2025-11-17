@@ -257,6 +257,9 @@ function BookingsContent() {
             <TabsTrigger value="completed">
               Completed ({bookings.filter(b => b.status === 'completed').length})
             </TabsTrigger>
+            <TabsTrigger value="cancelled">
+              Cancelled ({bookings.filter(b => b.status === 'cancelled').length})
+            </TabsTrigger>
           </TabsList>
           
           {/* Bookings List */}
