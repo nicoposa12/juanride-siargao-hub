@@ -68,20 +68,34 @@ export default function AdminAnalyticsPage() {
       const supabase = createClient()
       
       // Fetch users
-      const { data: users } = await supabase
+      const { data: users, error: usersError } = await supabase
         .from('users')
         .select('created_at')
         .order('created_at', { ascending: true })
 
+      if (usersError) {
+        console.error('Error fetching users:', usersError)
+      }
+
       // Fetch vehicles
-      const { data: vehicles } = await supabase
+      const { data: vehicles, error: vehiclesError } = await supabase
         .from('vehicles')
-        .select('type, name, location')
+        .select('type, make, model, location')
+
+      if (vehiclesError) {
+        console.error('Error fetching vehicles:', vehiclesError)
+      }
+      console.log('Vehicles fetched:', vehicles?.length || 0)
 
       // Fetch bookings
-      const { data: bookings } = await supabase
+      const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('status, total_price, start_date, vehicle_id, vehicles(name)')
+        .select('status, total_price, start_date, vehicle_id, vehicles(make, model)')
+
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError)
+      }
+      console.log('Bookings fetched:', bookings?.length || 0)
 
       // Process data
       const vehiclesByType = vehicles?.reduce((acc: any[], v) => {
@@ -107,7 +121,9 @@ export default function AdminAnalyticsPage() {
       // Top vehicles
       const vehicleBookings = bookings?.reduce((acc: any, b: any) => {
         const vehicleRelation = Array.isArray(b.vehicles) ? b.vehicles[0] : b.vehicles
-        const vehicleName = vehicleRelation?.name || 'Unknown'
+        const vehicleName = vehicleRelation?.make && vehicleRelation?.model 
+          ? `${vehicleRelation.make} ${vehicleRelation.model}` 
+          : 'Unknown'
         if (!acc[vehicleName]) {
           acc[vehicleName] = { bookings: 0, revenue: 0 }
         }
@@ -117,6 +133,8 @@ export default function AdminAnalyticsPage() {
         }
         return acc
       }, {})
+
+      console.log('Vehicle bookings processed:', Object.keys(vehicleBookings || {}).length)
 
       const topVehicles = Object.entries(vehicleBookings || {})
         .map(([name, data]: any) => ({ name, ...data }))
@@ -133,6 +151,13 @@ export default function AdminAnalyticsPage() {
         .map(([location, vehicles]) => ({ location, vehicles: vehicles as number }))
         .sort((a, b) => b.vehicles - a.vehicles)
         .slice(0, 5)
+
+      console.log('Analytics processed:', {
+        vehiclesByType: vehiclesByType.length,
+        bookingsByStatus: bookingsByStatus.length,
+        topVehicles: topVehicles.length,
+        topLocations: topLocations.length
+      })
 
       setAnalytics({
         userGrowth: [],
