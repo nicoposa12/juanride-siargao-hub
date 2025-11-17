@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { CreditCard, Smartphone } from 'lucide-react'
 import Image from 'next/image'
 
-export type PaymentMethodType = 'gcash' | 'paymaya' | 'card' | 'grab_pay'
+export type PaymentMethodType = 'gcash' | 'paymaya' | 'grab_pay' | 'billease' | 'qrph' | 'card'
 
 interface PaymentMethodSelectorProps {
   selectedMethod: PaymentMethodType | null
@@ -19,6 +19,17 @@ export default function PaymentMethodSelector({
   onSelectMethod 
 }: PaymentMethodSelectorProps) {
   const paymentMethods = [
+    {
+      id: 'qrph' as PaymentMethodType,
+      name: 'QR PH',
+      description: 'Scan QR code with any banking app',
+      icon: (
+        <svg className="h-6 w-6 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zM13 3v8h8V3h-8zm6 6h-4V5h4v4zM13 13h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm4-2h2v2h-2v-2zm0 4h2v2h-2v-2zm2-2h2v2h-2v-2z"/>
+        </svg>
+      ),
+      popular: true,
+    },
     {
       id: 'gcash' as PaymentMethodType,
       name: 'GCash',
@@ -34,19 +45,27 @@ export default function PaymentMethodSelector({
       popular: true,
     },
     {
-      id: 'card' as PaymentMethodType,
-      name: 'Credit/Debit Card',
-      description: 'Visa, Mastercard, JCB, AMEX',
-      icon: <CreditCard className="h-6 w-6 text-purple-600" />,
-      popular: false,
-    },
-    {
       id: 'grab_pay' as PaymentMethodType,
       name: 'GrabPay',
       description: 'Pay with GrabPay wallet',
       icon: <Smartphone className="h-6 w-6 text-green-700" />,
       popular: false,
     },
+    {
+      id: 'billease' as PaymentMethodType,
+      name: 'BillEase',
+      description: 'Buy now, pay later with BillEase',
+      icon: <Smartphone className="h-6 w-6 text-purple-600" />,
+      popular: false,
+    },
+    // Temporarily hidden - Card payment
+    // {
+    //   id: 'card' as PaymentMethodType,
+    //   name: 'Credit/Debit Card',
+    //   description: 'Visa, Mastercard, JCB, AMEX',
+    //   icon: <CreditCard className="h-6 w-6 text-purple-600" />,
+    //   popular: false,
+    // },
   ]
 
   return (

@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { updatePaymentRecord } from '@/lib/payment/paymongo'
+import { updatePaymentRecord, createPayment } from '@/lib/payment/paymongo'
 
 export default function PaymentSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const bookingId = searchParams?.get('bookingId')
+  const amount = searchParams?.get('amount')
   const [processing, setProcessing] = useState(true)
   const [error, setError] = useState(false)
 
@@ -27,8 +28,74 @@ export default function PaymentSuccessPage() {
       try {
         const supabase = createClient()
 
-        // Update payment status to paid
-        await updatePaymentRecord(bookingId, 'paid')
+        // Get the payment record to check current status
+        const { data: paymentRecord } = await supabase
+          .from('payments')
+          .select('transaction_id, payment_method, status')
+          .eq('booking_id', bookingId)
+          .single()
+
+        // If payment is already marked as paid, skip payment creation
+        if (paymentRecord?.status === 'paid') {
+          console.log('Payment already processed, skipping charge')
+          
+          // Just ensure booking is confirmed
+          await supabase
+            .from('bookings')
+            .update({ status: 'confirmed' })
+            .eq('id', bookingId)
+
+          setProcessing(false)
+
+          // Redirect to booking confirmation after 2 seconds
+          setTimeout(() => {
+            router.push(`/booking-confirmation/${bookingId}`)
+          }, 2000)
+          return
+        }
+
+        // If we have a source ID (e-wallet payment) and amount, create the payment
+        if (paymentRecord?.transaction_id && amount) {
+          // Get booking details for metadata
+          const { data: booking } = await supabase
+            .from('bookings')
+            .select('id, vehicle_id, renter_id')
+            .eq('id', bookingId)
+            .single()
+
+          if (booking) {
+            try {
+              // Create payment with the now-chargeable source
+              const payment = await createPayment(
+                paymentRecord.transaction_id,
+                parseInt(amount),
+                `JuanRide Booking #${bookingId.slice(0, 8)}`,
+                {
+                  bookingId: booking.id,
+                  userId: booking.renter_id,
+                  vehicleId: booking.vehicle_id,
+                }
+              )
+
+              // Update payment status with transaction ID
+              await updatePaymentRecord(bookingId, 'paid', payment.id)
+            } catch (paymentError: any) {
+              // Check if error is because source was already charged
+              if (paymentError.message?.includes('not chargeable') || 
+                  paymentError.message?.includes('already been used')) {
+                console.log('Source already charged, marking as paid')
+                // Just mark as paid - the payment was already processed
+                await updatePaymentRecord(bookingId, 'paid', paymentRecord.transaction_id)
+              } else {
+                // Re-throw other errors
+                throw paymentError
+              }
+            }
+          }
+        } else {
+          // Card payment or already processed - just update status
+          await updatePaymentRecord(bookingId, 'paid')
+        }
 
         // Update booking status to confirmed
         await supabase
@@ -50,7 +117,7 @@ export default function PaymentSuccessPage() {
     }
 
     confirmPayment()
-  }, [bookingId, router])
+  }, [bookingId, amount, router])
 
   if (processing) {
     return (
