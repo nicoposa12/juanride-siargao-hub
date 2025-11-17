@@ -482,6 +482,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Use the current origin (will be your Vercel URL in production)
     const origin = window.location.origin
     const currentUrl = new URL(window.location.href)
     const redirectParam = currentUrl.searchParams.get('redirect')
@@ -492,10 +493,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const redirectTo = `${origin}/auth/callback?${params.toString()}`
 
+    console.log('🔐 Google OAuth redirect URL:', redirectTo)
+    console.log('🌍 Current origin:', origin)
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
+        // Explicitly set skipBrowserRedirect to false to ensure proper redirect
+        skipBrowserRedirect: false,
       },
     })
     return { data, error }
