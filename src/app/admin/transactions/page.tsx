@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Search, Download, DollarSign, TrendingUp, AlertCircle, CreditCard } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/format'
 import { format, parseISO } from 'date-fns'
@@ -60,6 +61,8 @@ export default function AdminTransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [methodFilter, setMethodFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   useEffect(() => {
     if (!authLoading) {
@@ -73,6 +76,7 @@ export default function AdminTransactionsPage() {
 
   useEffect(() => {
     filterTransactions()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [searchQuery, transactions, methodFilter, statusFilter])
 
   const fetchTransactions = async () => {
@@ -325,7 +329,7 @@ export default function AdminTransactionsPage() {
       <Card className="card-gradient shadow-layered-md border-border/50">
         <CardContent className="p-0">
           <div className="p-6 border-b">
-            <h3 className="font-semibold">All Transactions ({filteredTransactions.length})</h3>
+            <h3 className="font-semibold">All Transactions ({filteredTransactions.length} total)</h3>
           </div>
           
           <div className="overflow-x-auto">
@@ -352,7 +356,9 @@ export default function AdminTransactionsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTransactions.map((transaction) => (
+                  {filteredTransactions
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell className="font-mono text-xs">
                         {transaction.id.slice(0, 8)}
@@ -390,6 +396,18 @@ export default function AdminTransactionsPage() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+            
+            {/* Pagination */}
+            {filteredTransactions.length > 0 && (
+              <div className="px-6 pb-6">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={filteredTransactions.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
             )}
           </div>
           </CardContent>

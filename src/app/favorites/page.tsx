@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Heart, Car } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
@@ -23,6 +24,8 @@ export default function FavoritesPage() {
   const { user, profile, loading: authLoading } = useAuth()
   const [favorites, setFavorites] = useState<FavoriteVehicle[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
   const supabase = createClient()
 
   useEffect(() => {
@@ -140,7 +143,9 @@ export default function FavoritesPage() {
 
               {/* Favorites Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {favorites.map((favorite) => (
+                {favorites
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((favorite) => (
                   <VehicleCard 
                     key={favorite.id} 
                     vehicle={favorite.vehicles}
@@ -148,6 +153,18 @@ export default function FavoritesPage() {
                   />
                 ))}
               </div>
+              
+              {/* Pagination */}
+              {favorites.length > itemsPerPage && (
+                <div className="mt-8">
+                  <TablePagination
+                    currentPage={currentPage}
+                    totalItems={favorites.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>

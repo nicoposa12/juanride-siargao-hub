@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -51,6 +52,8 @@ export default function AdminListingsPage() {
     processing: boolean
   }>({ open: false, action: null, processing: false })
   const [adminNotes, setAdminNotes] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
   
   useEffect(() => {
     if (!authLoading) {
@@ -64,6 +67,7 @@ export default function AdminListingsPage() {
   
   useEffect(() => {
     filterVehicles()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [vehicles, activeTab, searchQuery])
   
   const loadVehicles = async () => {
@@ -245,8 +249,11 @@ export default function AdminListingsPage() {
               </CardContent>
             </Card>
           ) : (
+            <>
             <div className="space-y-4">
-              {filteredVehicles.map((vehicle) => (
+              {filteredVehicles
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map((vehicle) => (
                 <Card key={vehicle.id} className="overflow-hidden card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-border/50 hover:border-primary-200/50">
                   <div className="grid md:grid-cols-[200px_1fr] gap-6">
                     {/* Vehicle Image */}
@@ -357,6 +364,19 @@ export default function AdminListingsPage() {
                 </Card>
               ))}
             </div>
+            
+            {/* Pagination */}
+            {filteredVehicles.length > itemsPerPage && (
+              <div className="mt-8">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={filteredVehicles.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
+            </>
           )}
         </Tabs>
         

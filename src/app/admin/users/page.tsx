@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -62,6 +63,8 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<any>(null)
   const [editDialog, setEditDialog] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
   
   const [editForm, setEditForm] = useState({
     role: '',
@@ -83,6 +86,7 @@ export default function AdminUsersPage() {
   
   useEffect(() => {
     filterUsers()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [users, searchQuery, roleFilter, statusFilter])
   
   const loadUsers = async () => {
@@ -404,7 +408,9 @@ export default function AdminUsersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => (
+                    {filteredUsers
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>
                           <div>
@@ -489,6 +495,18 @@ export default function AdminUsersPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            
+            {/* Pagination */}
+            {filteredUsers.length > 0 && (
+              <div className="p-6">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={filteredUsers.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </CardContent>

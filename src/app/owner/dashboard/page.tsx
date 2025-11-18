@@ -64,10 +64,10 @@ export default function OwnerDashboardPage() {
     }
   }, [user, profile, authLoading, router])
   
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (silent = false) => {
     if (!user) return
     
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const supabase = createClient()
       
@@ -121,7 +121,7 @@ export default function OwnerDashboardPage() {
     } catch (error) {
       console.error('Error loading dashboard:', error)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
   
@@ -421,7 +421,7 @@ export default function OwnerDashboardPage() {
         booking={selectedBooking}
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
-        onBookingUpdate={loadDashboardData}
+        onBookingUpdate={() => loadDashboardData(true)}
       />
     </div>
   )

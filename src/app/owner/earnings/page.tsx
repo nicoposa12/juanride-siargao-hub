@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import Navigation from '@/components/shared/Navigation'
@@ -47,6 +48,9 @@ export default function OwnerEarningsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [vehicleEarnings, setVehicleEarnings] = useState<VehicleEarnings[]>([])
   const [loading, setLoading] = useState(true)
+  const [vehicleEarningsPage, setVehicleEarningsPage] = useState(1)
+  const [transactionsPage, setTransactionsPage] = useState(1)
+  const itemsPerPage = 15
 
   useEffect(() => {
     if (!authLoading && (!user || user.user_metadata?.role !== 'owner')) {
@@ -121,7 +125,7 @@ export default function OwnerEarningsPage() {
           renter_name: renterInfo?.full_name || 'Customer',
         }
       })
-      setTransactions(transactionList.slice(0, 10))
+      setTransactions(transactionList)
 
       // Calculate earnings by vehicle
       const vehicleEarningsMap = new Map<string, VehicleEarnings>()
@@ -257,8 +261,11 @@ export default function OwnerEarningsPage() {
                   <p>No earnings data available</p>
                 </div>
               ) : (
+                <>
                 <div className="space-y-4">
-                  {vehicleEarnings.map(vehicle => (
+                  {vehicleEarnings
+                    .slice((vehicleEarningsPage - 1) * itemsPerPage, vehicleEarningsPage * itemsPerPage)
+                    .map(vehicle => (
                     <div key={vehicle.vehicle_id} className="flex items-center justify-between p-4 border border-border/50 rounded-lg hover:shadow-layered-md hover:border-primary-200 hover:-translate-x-1 transition-all duration-300 group cursor-pointer bg-white/50">
                       <div className="flex-1">
                         <div className="font-semibold">{vehicle.vehicle_name}</div>
@@ -277,6 +284,17 @@ export default function OwnerEarningsPage() {
                     </div>
                   ))}
                 </div>
+                {vehicleEarnings.length > itemsPerPage && (
+                  <div className="mt-6">
+                    <TablePagination
+                      currentPage={vehicleEarningsPage}
+                      totalItems={vehicleEarnings.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={setVehicleEarningsPage}
+                    />
+                  </div>
+                )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -292,8 +310,11 @@ export default function OwnerEarningsPage() {
                   <p>No transactions yet</p>
                 </div>
               ) : (
+                <>
                 <div className="space-y-4">
-                  {transactions.map(transaction => (
+                  {transactions
+                    .slice((transactionsPage - 1) * itemsPerPage, transactionsPage * itemsPerPage)
+                    .map(transaction => (
                     <div key={transaction.id} className="flex items-start justify-between p-4 border border-border/50 rounded-lg hover:shadow-layered-md hover:border-primary-200 hover:-translate-x-1 transition-all duration-300 group cursor-pointer bg-white/50">
                       <div className="flex-1">
                         <div className="font-semibold">{transaction.vehicle_name}</div>
@@ -311,6 +332,17 @@ export default function OwnerEarningsPage() {
                     </div>
                   ))}
                 </div>
+                {transactions.length > itemsPerPage && (
+                  <div className="mt-6">
+                    <TablePagination
+                      currentPage={transactionsPage}
+                      totalItems={transactions.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={setTransactionsPage}
+                    />
+                  </div>
+                )}
+                </>
               )}
             </CardContent>
           </Card>

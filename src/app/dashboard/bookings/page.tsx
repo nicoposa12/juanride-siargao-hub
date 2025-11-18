@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
@@ -47,6 +48,10 @@ export default function RenterBookingsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('upcoming')
   const [cancelling, setCancelling] = useState<string | null>(null)
+  const [upcomingPage, setUpcomingPage] = useState(1)
+  const [pastPage, setPastPage] = useState(1)
+  const [allPage, setAllPage] = useState(1)
+  const itemsPerPage = 15
   
   useEffect(() => {
     if (authLoading) return; // still resolving session
@@ -337,9 +342,23 @@ export default function RenterBookingsPage() {
                 </CardContent>
               </Card>
             ) : (
+              <>
               <div className="space-y-4">
-                {filterBookings(upcomingBookings).map(renderBookingCard)}
+                {filterBookings(upcomingBookings)
+                  .slice((upcomingPage - 1) * itemsPerPage, upcomingPage * itemsPerPage)
+                  .map(renderBookingCard)}
               </div>
+              {filterBookings(upcomingBookings).length > itemsPerPage && (
+                <div className="mt-6">
+                  <TablePagination
+                    currentPage={upcomingPage}
+                    totalItems={filterBookings(upcomingBookings).length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setUpcomingPage}
+                  />
+                </div>
+              )}
+              </>
             )}
           </TabsContent>
           
@@ -355,9 +374,23 @@ export default function RenterBookingsPage() {
                 </CardContent>
               </Card>
             ) : (
+              <>
               <div className="space-y-4">
-                {filterBookings(pastBookings).map(renderBookingCard)}
+                {filterBookings(pastBookings)
+                  .slice((pastPage - 1) * itemsPerPage, pastPage * itemsPerPage)
+                  .map(renderBookingCard)}
               </div>
+              {filterBookings(pastBookings).length > itemsPerPage && (
+                <div className="mt-6">
+                  <TablePagination
+                    currentPage={pastPage}
+                    totalItems={filterBookings(pastBookings).length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setPastPage}
+                  />
+                </div>
+              )}
+              </>
             )}
           </TabsContent>
           
@@ -380,9 +413,23 @@ export default function RenterBookingsPage() {
                 </CardContent>
               </Card>
             ) : (
+              <>
               <div className="space-y-4">
-                {filterBookings(allBookings).map(renderBookingCard)}
+                {filterBookings(allBookings)
+                  .slice((allPage - 1) * itemsPerPage, allPage * itemsPerPage)
+                  .map(renderBookingCard)}
               </div>
+              {filterBookings(allBookings).length > itemsPerPage && (
+                <div className="mt-6">
+                  <TablePagination
+                    currentPage={allPage}
+                    totalItems={filterBookings(allBookings).length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setAllPage}
+                  />
+                </div>
+              )}
+              </>
             )}
           </TabsContent>
         </Tabs>

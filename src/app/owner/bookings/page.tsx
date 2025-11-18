@@ -101,22 +101,24 @@ function BookingsContent() {
     setCurrentPage(1) // Reset to first page when filters change
   }, [bookings, activeTab, searchQuery])
   
-  const loadBookings = async () => {
+  const loadBookings = async (silent = false) => {
     if (!user) return
     
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const data = await getOwnerBookings(user.id)
       setBookings(data)
     } catch (error) {
       console.error('Error loading bookings:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load bookings.',
-        variant: 'destructive',
-      })
+      if (!silent) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load bookings.',
+          variant: 'destructive',
+        })
+      }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
   
@@ -166,13 +168,25 @@ function BookingsContent() {
       }
       
       if (result?.success) {
+        // Optimistic update - update local state immediately
+        const newStatus = actionDialog.action === 'cancel' ? 'cancelled' : 
+                         actionDialog.action === 'confirm' ? 'confirmed' :
+                         actionDialog.action === 'activate' ? 'active' : 'completed'
+        
+        setBookings(prev => prev.map(b => 
+          b.id === selectedBooking.id ? { ...b, status: newStatus } : b
+        ))
+        
         toast({
           title: 'Success',
           description: `Booking ${actionDialog.action}ed successfully.`,
         })
-        await loadBookings()
+        
         setActionDialog({ open: false, action: null, processing: false })
         setSelectedBooking(null)
+        
+        // Silently refresh data in background
+        loadBookings(true)
       } else {
         throw new Error(result?.error?.message || 'Action failed')
       }
@@ -371,7 +385,59 @@ function BookingsContent() {
                           </p>
                         </div>
                         
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          {booking.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedBooking(booking)
+                                  setActionDialog({ open: true, action: 'cancel', processing: false })
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Decline
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedBooking(booking)
+                                  setActionDialog({ open: true, action: 'confirm', processing: false })
+                                }}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Confirm
+                              </Button>
+                            </>
+                          )}
+                          
+                          {booking.status === 'confirmed' && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBooking(booking)
+                                setActionDialog({ open: true, action: 'activate', processing: false })
+                              }}
+                            >
+                              <Car className="h-4 w-4 mr-2" />
+                              Mark as Picked Up
+                            </Button>
+                          )}
+                          
+                          {booking.status === 'active' && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBooking(booking)
+                                setActionDialog({ open: true, action: 'complete', processing: false })
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Mark as Returned
+                            </Button>
+                          )}
+                          
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/messages?booking=${booking.id}`}>
                               <MessageSquare className="h-4 w-4 mr-2" />
@@ -406,7 +472,7 @@ function BookingsContent() {
           booking={selectedBooking}
           open={detailsDialogOpen}
           onOpenChange={setDetailsDialogOpen}
-          onBookingUpdate={loadBookings}
+          onBookingUpdate={() => loadBookings(true)}
         />
         
         {/* Action Confirmation Dialog */}
