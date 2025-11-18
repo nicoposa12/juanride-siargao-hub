@@ -25,7 +25,7 @@ interface VehicleGridProps {
 export function VehicleGrid({ filters }: VehicleGridProps) {
   const router = useRouter()
   const currentPage = parseInt(filters.page || '1')
-  const itemsPerPage = 12
+  const itemsPerPage = 15
 
   // Convert filters to VehicleFilters format
   const vehicleFilters: VehicleFilters = useMemo(() => {

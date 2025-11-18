@@ -39,6 +39,11 @@ export default function AdminDashboardPage() {
     completedBookings: 0,
     totalRevenue: 0,
     platformFees: 0,
+    userGrowth: 0,
+    vehicleGrowth: 0,
+    bookingGrowth: 0,
+    revenueGrowth: 0,
+    maintenanceAlerts: 0,
   })
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   
@@ -99,7 +104,7 @@ export default function AdminDashboardPage() {
       console.log('👥 Fetching users...')
       const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('role')
+        .select('role, created_at')
       
       if (usersError) {
         console.error('❌ Error fetching users:', usersError)
@@ -111,11 +116,28 @@ export default function AdminDashboardPage() {
       const totalOwners = users?.filter(u => u.role === 'owner').length || 0
       const totalRenters = users?.filter(u => u.role === 'renter').length || 0
       
+      // Calculate user growth (users created in last 30 days vs previous 30 days)
+      const now = new Date()
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+      
+      const recentUsers = users?.filter(u => {
+        const createdAt = new Date(u.created_at || '')
+        return createdAt >= thirtyDaysAgo
+      }).length || 0
+      
+      const previousUsers = users?.filter(u => {
+        const createdAt = new Date(u.created_at || '')
+        return createdAt >= sixtyDaysAgo && createdAt < thirtyDaysAgo
+      }).length || 0
+      
+      const userGrowth = previousUsers > 0 ? ((recentUsers - previousUsers) / previousUsers * 100) : (recentUsers > 0 ? 100 : 0)
+      
       // Load vehicle stats
       console.log('🚗 Fetching vehicles...')
       const { data: vehicles, error: vehiclesError } = await supabase
         .from('vehicles')
-        .select('is_approved')
+        .select('is_approved, created_at, status')
       
       if (vehiclesError) {
         console.error('❌ Error fetching vehicles:', vehiclesError)
@@ -126,6 +148,22 @@ export default function AdminDashboardPage() {
       const totalVehicles = vehicles?.length || 0
       const pendingVehicles = vehicles?.filter(v => !v.is_approved).length || 0
       const approvedVehicles = vehicles?.filter(v => v.is_approved).length || 0
+      
+      // Calculate vehicle growth
+      const recentVehicles = vehicles?.filter(v => {
+        const createdAt = new Date(v.created_at || '')
+        return createdAt >= thirtyDaysAgo
+      }).length || 0
+      
+      const previousVehicles = vehicles?.filter(v => {
+        const createdAt = new Date(v.created_at || '')
+        return createdAt >= sixtyDaysAgo && createdAt < thirtyDaysAgo
+      }).length || 0
+      
+      const vehicleGrowth = previousVehicles > 0 ? ((recentVehicles - previousVehicles) / previousVehicles * 100) : (recentVehicles > 0 ? 100 : 0)
+      
+      // Calculate maintenance alerts
+      const maintenanceAlerts = vehicles?.filter(v => v.status === 'maintenance').length || 0
       
       // Load booking stats
       console.log('📅 Fetching bookings...')
@@ -143,9 +181,35 @@ export default function AdminDashboardPage() {
       const activeBookings = bookings?.filter(b => b.status === 'active').length || 0
       const completedBookings = bookings?.filter(b => b.status === 'completed').length || 0
       
+      // Calculate booking growth
+      const recentBookings = bookings?.filter(b => {
+        const createdAt = new Date(b.created_at || '')
+        return createdAt >= thirtyDaysAgo
+      }).length || 0
+      
+      const previousBookings = bookings?.filter(b => {
+        const createdAt = new Date(b.created_at || '')
+        return createdAt >= sixtyDaysAgo && createdAt < thirtyDaysAgo
+      }).length || 0
+      
+      const bookingGrowth = previousBookings > 0 ? ((recentBookings - previousBookings) / previousBookings * 100) : (recentBookings > 0 ? 100 : 0)
+      
       // Calculate revenue
       const totalRevenue = bookings?.reduce((sum, b) => sum + (parseFloat(b.total_price?.toString() || '0')), 0) || 0
-      const platformFees = totalRevenue * 0.05 // 5% platform fee
+      const platformFees = totalRevenue * 0.10 // 10% platform fee
+      
+      // Calculate revenue growth
+      const recentRevenue = bookings?.filter(b => {
+        const createdAt = new Date(b.created_at || '')
+        return createdAt >= thirtyDaysAgo
+      }).reduce((sum, b) => sum + (parseFloat(b.total_price?.toString() || '0')), 0) || 0
+      
+      const previousRevenue = bookings?.filter(b => {
+        const createdAt = new Date(b.created_at || '')
+        return createdAt >= sixtyDaysAgo && createdAt < thirtyDaysAgo
+      }).reduce((sum, b) => sum + (parseFloat(b.total_price?.toString() || '0')), 0) || 0
+      
+      const revenueGrowth = previousRevenue > 0 ? ((recentRevenue - previousRevenue) / previousRevenue * 100) : (recentRevenue > 0 ? 100 : 0)
       
       setStats({
         totalUsers,
@@ -159,6 +223,11 @@ export default function AdminDashboardPage() {
         completedBookings,
         totalRevenue,
         platformFees,
+        userGrowth: Math.round(userGrowth * 10) / 10,
+        vehicleGrowth: Math.round(vehicleGrowth * 10) / 10,
+        bookingGrowth: Math.round(bookingGrowth * 10) / 10,
+        revenueGrowth: Math.round(revenueGrowth * 10) / 10,
+        maintenanceAlerts,
       })
       
       // Load recent activity (latest bookings and vehicles)
@@ -240,9 +309,9 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent className="relative z-10">
               <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalUsers.toLocaleString()}</div>
-              <p className="text-xs text-green-600 mt-1 font-semibold flex items-center gap-1">
+              <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.userGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3" />
-                +12.5% from last month
+                {stats.userGrowth >= 0 ? '+' : ''}{stats.userGrowth}% from last month
               </p>
             </CardContent>
           </Card>
@@ -258,9 +327,9 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent className="relative z-10">
               <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalVehicles.toLocaleString()}</div>
-              <p className="text-xs text-green-600 mt-1 font-semibold flex items-center gap-1">
+              <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.vehicleGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3" />
-                +8.2% from last month
+                {stats.vehicleGrowth >= 0 ? '+' : ''}{stats.vehicleGrowth}% from last month
               </p>
             </CardContent>
           </Card>
@@ -276,9 +345,9 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent className="relative z-10">
               <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalBookings.toLocaleString()}</div>
-              <p className="text-xs text-green-600 mt-1 font-semibold flex items-center gap-1">
+              <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.bookingGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3" />
-                +15.3% from last month
+                {stats.bookingGrowth >= 0 ? '+' : ''}{stats.bookingGrowth}% from last month
               </p>
             </CardContent>
           </Card>
@@ -294,9 +363,9 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent className="relative z-10">
               <div className="text-2xl sm:text-3xl font-extrabold text-green-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(stats.totalRevenue)}</div>
-              <p className="text-xs text-green-700 mt-1 font-semibold flex items-center gap-1">
+              <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.revenueGrowth >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3 group-hover:animate-bounce" />
-                +18.7% from last month
+                {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth}% from last month
               </p>
             </CardContent>
           </Card>
@@ -349,7 +418,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <h3 className="font-bold text-primary-700">Maintenance Alerts</h3>
                   </div>
-                  <p className="text-3xl font-extrabold text-red-700 group-hover:scale-110 transition-transform">5</p>
+                  <p className="text-3xl font-extrabold text-red-700 group-hover:scale-110 transition-transform">{stats.maintenanceAlerts}</p>
                 </div>
               </div>
             </CardContent>

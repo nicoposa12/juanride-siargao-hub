@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Plus, Car, AlertCircle, Edit, Eye, Trash2, MoreVertical, Settings } from 'lucide-react'
 import {
   DropdownMenu,
@@ -32,6 +33,8 @@ export default function OwnerVehiclesPage() {
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [navigating, setNavigating] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
   
   useEffect(() => {
     if (!authLoading) {
@@ -177,8 +180,11 @@ export default function OwnerVehiclesPage() {
             </CardContent>
           </Card>
         ) : (
+          <>
           <div className="grid gap-6">
-            {vehicles.map((vehicle) => (
+            {vehicles
+              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+              .map((vehicle) => (
               <Card key={vehicle.id} className="overflow-hidden card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-border/50 hover:border-primary-200/50">
                 <div className="grid md:grid-cols-[240px_1fr] gap-6">
                   {/* Vehicle Image */}
@@ -303,6 +309,19 @@ export default function OwnerVehiclesPage() {
               </Card>
             ))}
           </div>
+          
+          {/* Pagination */}
+          {vehicles.length > itemsPerPage && (
+            <div className="mt-8">
+              <TablePagination
+                currentPage={currentPage}
+                totalItems={vehicles.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+          </>
         )}
       </div>
       </div>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import {
   Select,
   SelectContent,
@@ -73,6 +74,9 @@ export default function AdminSupportPage() {
   const [openCount, setOpenCount] = useState(0)
   const [inProgressCount, setInProgressCount] = useState(0)
   const [resolvedCount, setResolvedCount] = useState(0)
+  
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   useEffect(() => {
     if (!authLoading) {
@@ -86,6 +90,7 @@ export default function AdminSupportPage() {
 
   useEffect(() => {
     filterTickets()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [tickets, searchQuery, typeFilter, statusFilter, priorityFilter])
 
   const loadTickets = async () => {
@@ -353,7 +358,7 @@ export default function AdminSupportPage() {
           {/* Table */}
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">
-              Support Tickets ({filteredTickets.length})
+              Support Tickets ({filteredTickets.length} total)
             </h3>
             
             {filteredTickets.length === 0 ? (
@@ -378,7 +383,9 @@ export default function AdminSupportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTickets.map((ticket) => (
+                    {filteredTickets
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((ticket) => (
                       <TableRow key={ticket.id}>
                         <TableCell className="font-mono text-sm">
                           {ticket.ticket_number}
@@ -403,6 +410,18 @@ export default function AdminSupportPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            
+            {/* Pagination */}
+            {filteredTickets.length > 0 && (
+              <div className="mt-6">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={filteredTickets.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </div>

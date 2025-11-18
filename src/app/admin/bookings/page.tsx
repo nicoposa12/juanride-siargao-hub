@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Search, MoreVertical, Eye, Check, X } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
@@ -66,6 +67,8 @@ export default function AdminBookingsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   useEffect(() => {
     if (!authLoading) {
@@ -79,6 +82,7 @@ export default function AdminBookingsPage() {
 
   useEffect(() => {
     filterBookings()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [bookings, searchQuery, statusFilter, paymentFilter])
 
   const loadBookings = async () => {
@@ -256,7 +260,7 @@ export default function AdminBookingsPage() {
       <Card className="card-gradient shadow-layered-md border-border/50">
         <CardContent className="p-0">
           <div className="p-6 border-b">
-            <h3 className="font-semibold">All Bookings ({filteredBookings.length})</h3>
+            <h3 className="font-semibold">All Bookings ({filteredBookings.length} total)</h3>
           </div>
           
           <div className="overflow-x-auto">
@@ -282,7 +286,9 @@ export default function AdminBookingsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredBookings.map((booking) => (
+                  filteredBookings
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((booking) => (
                     <TableRow key={booking.id}>
                       <TableCell className="font-medium">{booking.booking_id}</TableCell>
                       <TableCell>
@@ -327,6 +333,18 @@ export default function AdminBookingsPage() {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination */}
+          {filteredBookings.length > 0 && (
+            <div className="px-6 pb-6">
+              <TablePagination
+                currentPage={currentPage}
+                totalItems={filteredBookings.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

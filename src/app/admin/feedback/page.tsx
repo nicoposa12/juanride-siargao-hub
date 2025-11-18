@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import {
   Select,
   SelectContent,
@@ -62,6 +63,8 @@ export default function FeedbackPage() {
   const [averageRating, setAverageRating] = useState(0)
   const [totalReviews, setTotalReviews] = useState(0)
   const [flaggedCount, setFlaggedCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   useEffect(() => {
     if (!authLoading) {
@@ -75,6 +78,7 @@ export default function FeedbackPage() {
 
   useEffect(() => {
     filterReviews()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [reviews, searchQuery, ratingFilter, statusFilter])
 
   const loadReviews = async () => {
@@ -344,7 +348,7 @@ export default function FeedbackPage() {
           {/* Table */}
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">
-              All Reviews ({filteredReviews.length})
+              All Reviews ({filteredReviews.length} total)
             </h3>
             
             {filteredReviews.length === 0 ? (
@@ -367,7 +371,9 @@ export default function FeedbackPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredReviews.map((review) => (
+                    {filteredReviews
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((review) => (
                       <TableRow key={review.id}>
                         <TableCell className="font-medium">
                           {review.vehicle?.make} {review.vehicle?.model}
@@ -417,6 +423,18 @@ export default function FeedbackPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            
+            {/* Pagination */}
+            {filteredReviews.length > 0 && (
+              <div className="mt-6">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={filteredReviews.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </div>

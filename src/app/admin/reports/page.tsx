@@ -11,7 +11,8 @@ import {
   Car, 
   TrendingUp, 
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  MapPin
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
@@ -43,6 +44,11 @@ interface TopVehicle {
   rating: number
 }
 
+interface TopLocation {
+  location: string
+  count: number
+}
+
 export default function ReportsPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
@@ -55,6 +61,7 @@ export default function ReportsPage() {
   const [revenueGrowth, setRevenueGrowth] = useState(0)
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [topVehicles, setTopVehicles] = useState<TopVehicle[]>([])
+  const [topLocations, setTopLocations] = useState<TopLocation[]>([])
   const [totalReviews, setTotalReviews] = useState(0)
   const [responseRate, setResponseRate] = useState(0)
 
@@ -78,6 +85,7 @@ export default function ReportsPage() {
         loadRevenueGrowth(),
         loadMonthlyTrends(),
         loadTopVehicles(),
+        loadTopLocations(),
         loadCustomerSatisfaction()
       ])
     } catch (error) {
@@ -262,18 +270,31 @@ export default function ReportsPage() {
         }
       })
 
-      // Get ratings for top vehicles
+      // Get all ratings in a single query
+      const vehicleIds = Array.from(vehicleMap.keys())
+      const { data: allReviews } = await supabase
+        .from('reviews')
+        .select('vehicle_id, rating')
+        .in('vehicle_id', vehicleIds)
+
+      // Calculate average rating per vehicle
+      const ratingMap = new Map<string, number>()
+      const reviewCountMap = new Map<string, number>()
+      
+      allReviews?.forEach((review) => {
+        const currentSum = ratingMap.get(review.vehicle_id) || 0
+        const currentCount = reviewCountMap.get(review.vehicle_id) || 0
+        ratingMap.set(review.vehicle_id, currentSum + review.rating)
+        reviewCountMap.set(review.vehicle_id, currentCount + 1)
+      })
+
+      // Build top vehicles data
       const topVehiclesData: TopVehicle[] = []
       
       for (const [id, data] of vehicleMap.entries()) {
-        const { data: reviews } = await supabase
-          .from('reviews')
-          .select('rating')
-          .eq('vehicle_id', id)
-
-        const avgRating = reviews && reviews.length > 0
-          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-          : 0
+        const totalRating = ratingMap.get(id) || 0
+        const reviewCount = reviewCountMap.get(id) || 0
+        const avgRating = reviewCount > 0 ? totalRating / reviewCount : 0
 
         topVehiclesData.push({
           id,
@@ -292,19 +313,72 @@ export default function ReportsPage() {
     }
   }
 
+  const loadTopLocations = async () => {
+    try {
+      const { data: vehicles, error } = await supabase
+        .from('vehicles')
+        .select('location')
+        .eq('is_approved', true)
+        .not('location', 'is', null)
+
+      if (error) throw error
+
+      // Count vehicles per location
+      const locationMap = new Map<string, number>()
+
+      vehicles?.forEach((vehicle) => {
+        const location = vehicle.location?.trim()
+        if (location) {
+          locationMap.set(location, (locationMap.get(location) || 0) + 1)
+        }
+      })
+
+      // Convert to array and sort by count
+      const topLocationsData: TopLocation[] = Array.from(locationMap.entries())
+        .map(([location, count]) => ({ location, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6) // Get top 6 locations
+
+      setTopLocations(topLocationsData)
+    } catch (error) {
+      console.error('Error loading top locations:', error)
+    }
+  }
+
   const loadCustomerSatisfaction = async () => {
     try {
+      const now = new Date()
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      
       const { data: reviews, error } = await supabase
         .from('reviews')
         .select('rating, created_at')
 
       if (error) throw error
 
-      setTotalReviews(reviews?.length || 0)
+      const totalReviews = reviews?.length || 0
+      setTotalReviews(totalReviews)
 
-      // Calculate response rate (reviews responded to within 24 hours)
-      // For now, we'll use a mock 98% response rate
-      setResponseRate(98)
+      // Calculate review response rate (% of vehicles with at least 1 review)
+      const { data: vehicles } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('is_approved', true)
+      
+      if (vehicles && vehicles.length > 0) {
+        // Count vehicles with reviews
+        const vehicleIds = vehicles.map(v => v.id)
+        const { data: reviewedVehicles } = await supabase
+          .from('reviews')
+          .select('vehicle_id')
+          .in('vehicle_id', vehicleIds)
+        
+        const uniqueReviewedVehicles = new Set(reviewedVehicles?.map(r => r.vehicle_id) || [])
+        const responseRate = Math.round((uniqueReviewedVehicles.size / vehicles.length) * 100)
+        setResponseRate(responseRate)
+      } else {
+        setResponseRate(0)
+      }
     } catch (error) {
       console.error('Error loading customer satisfaction:', error)
     }
@@ -345,6 +419,14 @@ export default function ReportsPage() {
     csvData.push(['Rank', 'Vehicle', 'Bookings', 'Revenue (₱)', 'Rating'])
     topVehicles.forEach((v, i) => {
       csvData.push([i + 1, v.name, v.bookings, v.revenue, v.rating])
+    })
+    csvData.push([])
+    
+    // Top Locations
+    csvData.push(['Top Locations'])
+    csvData.push(['Rank', 'Location', 'Vehicle Count'])
+    topLocations.forEach((loc, i) => {
+      csvData.push([i + 1, loc.location, loc.count])
     })
     csvData.push([])
     
@@ -566,6 +648,39 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
 
+      {/* Top Locations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-cyan-600" />
+            Top Locations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {topLocations.map((location, index) => (
+              <div
+                key={location.location}
+                className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-semibold text-sm flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  <span className="font-medium text-base">{location.location}</span>
+                </div>
+                <span className="text-2xl font-bold text-cyan-600">{location.count}</span>
+              </div>
+            ))}
+          </div>
+          {topLocations.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No location data available</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Customer Satisfaction Summary */}
       <Card>
         <CardHeader>
@@ -595,14 +710,14 @@ export default function ReportsPage() {
             <div className="text-center p-6 bg-gray-50 rounded-lg">
               <p className="text-sm text-muted-foreground mb-2">Total Reviews</p>
               <p className="text-4xl font-bold mb-2">{totalReviews.toLocaleString()}</p>
-              <p className="text-sm text-green-600">+15% this month</p>
+              <p className="text-sm text-muted-foreground">All time</p>
             </div>
 
-            {/* Response Rate */}
+            {/* Vehicles with Reviews */}
             <div className="text-center p-6 bg-gray-50 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-2">Response Rate</p>
+              <p className="text-sm text-muted-foreground mb-2">Vehicles with Reviews</p>
               <p className="text-4xl font-bold mb-2">{responseRate}%</p>
-              <p className="text-sm text-muted-foreground">Within 24 hours</p>
+              <p className="text-sm text-muted-foreground">Have at least 1 review</p>
             </div>
           </div>
         </CardContent>

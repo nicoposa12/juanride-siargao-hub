@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -71,6 +72,8 @@ function BookingsContent() {
     action: 'confirm' | 'activate' | 'complete' | 'cancel' | null
     processing: boolean
   }>({ open: false, action: null, processing: false })
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
   
   useEffect(() => {
     if (!authLoading) {
@@ -95,6 +98,7 @@ function BookingsContent() {
   
   useEffect(() => {
     filterBookings()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [bookings, activeTab, searchQuery])
   
   const loadBookings = async () => {
@@ -281,8 +285,11 @@ function BookingsContent() {
               </CardContent>
             </Card>
           ) : (
+            <>
             <div className="space-y-4">
-              {filteredBookings.map((booking) => (
+              {filteredBookings
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map((booking) => (
                 <Card key={booking.id} className="overflow-hidden card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-border/50 hover:border-primary-200/50">
                   <div className="grid md:grid-cols-[200px_1fr] gap-6">
                     {/* Vehicle Image */}
@@ -378,6 +385,19 @@ function BookingsContent() {
                 </Card>
               ))}
             </div>
+            
+            {/* Pagination */}
+            {filteredBookings.length > itemsPerPage && (
+              <div className="mt-8">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={filteredBookings.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
+            </>
           )}
         </Tabs>
         

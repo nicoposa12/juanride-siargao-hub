@@ -14,7 +14,7 @@ export function useVehicles(filters?: VehicleFilters) {
 }
 
 // New hook for paginated vehicle search
-export function useVehicleSearch(filters?: VehicleFilters, page: number = 1, limit: number = 12) {
+export function useVehicleSearch(filters?: VehicleFilters, page: number = 1, limit: number = 15) {
   const normalizedFilters: VehicleQueryFilters | undefined = filters
     ? {
         ...filters,
