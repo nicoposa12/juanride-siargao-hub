@@ -151,6 +151,28 @@ Think of building a web app like building a house. You need different materials 
 
 ---
 
+## Data Flow Diagrams (DFD)
+
+For detailed, code-traced data flow diagrams of all 8 core system flows, see:
+
+- **[Part 1: User Signup & Vehicle Search](./DATA_FLOW_DIAGRAMS_PART1.md)**
+  - DFD 1: User Signup & Profile Creation Flow
+  - DFD 2: Vehicle Search & Availability Filtering
+
+- **[Part 2: Booking & Payment Processing](./DATA_FLOW_DIAGRAMS_PART2.md)**
+  - DFD 3: Booking Creation & Checkout Flow
+  - DFD 4: PayMongo Payment Processing Flow
+
+- **[Part 3: Chat, Listings & Security](./DATA_FLOW_DIAGRAMS_PART3.md)**
+  - DFD 5: Real-time Chat Messaging System
+  - DFD 6: Owner Vehicle Listing Creation
+  - DFD 7: Admin Dashboard Analytics Aggregation
+  - DFD 8: Middleware Role-Based Authorization
+
+These diagrams trace actual code execution paths through the system, showing exactly how data flows from user input through API routes, database queries, and external services, with specific file and line number references.
+
+---
+
 ## System Architecture Flow
 
 This diagram shows how information flows through our system when a user books a vehicle. Think of it like tracking a pizza order from phone call to delivery.
