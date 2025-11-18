@@ -28,6 +28,7 @@ import Image from 'next/image'
 import Navigation from '@/components/shared/Navigation'
 import { VehicleStatusSelector } from '@/components/vehicle/VehicleStatusSelector'
 import type { VehicleStatus } from '@/lib/supabase/queries/vehicles'
+import { BookingDetailsDialog } from '@/components/booking/BookingDetailsDialog'
 
 export default function OwnerDashboardPage() {
   const router = useRouter()
@@ -42,6 +43,8 @@ export default function OwnerDashboardPage() {
   })
   const [recentBookings, setRecentBookings] = useState<any[]>([])
   const [vehicles, setVehicles] = useState<any[]>([])
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   
   const handleVehicleStatusUpdate = (vehicleId: string, newStatus: VehicleStatus) => {
     setVehicles(prev => prev.map(vehicle => 
@@ -309,11 +312,16 @@ export default function OwnerDashboardPage() {
                           <span className="font-semibold text-primary">
                             {formatCurrency(booking.total_price * 0.95)}
                           </span>
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/owner/bookings?id=${booking.id}`}>
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedBooking(booking)
+                              setDetailsDialogOpen(true)
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
                           </Button>
                         </div>
                       </div>
@@ -407,6 +415,14 @@ export default function OwnerDashboardPage() {
           </Card>
         </div>
       </div>
+      
+      {/* Booking Details Dialog */}
+      <BookingDetailsDialog
+        booking={selectedBooking}
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+        onBookingUpdate={loadDashboardData}
+      />
     </div>
   )
 }

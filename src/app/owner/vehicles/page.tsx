@@ -31,6 +31,7 @@ export default function OwnerVehiclesPage() {
   const { toast } = useToast()
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [navigating, setNavigating] = useState(false)
   
   useEffect(() => {
     if (!authLoading) {
@@ -139,8 +140,16 @@ export default function OwnerVehiclesPage() {
               Manage your vehicle listings
             </p>
           </div>
-          <Button asChild size="lg" className="shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group">
-            <Link href="/owner/vehicles/new">
+          <Button 
+            asChild 
+            size="lg" 
+            disabled={navigating}
+            className="shadow-layered-md hover:shadow-layered-lg hover:scale-105 transition-all duration-300 group"
+          >
+            <Link 
+              href="/owner/vehicles/new"
+              onClick={() => setNavigating(true)}
+            >
               <Plus className="mr-2 h-4 w-4 group-hover:scale-110 group-hover:rotate-90 transition-all duration-300" />
               Add New Vehicle
             </Link>
@@ -156,8 +165,11 @@ export default function OwnerVehiclesPage() {
               <p className="text-muted-foreground mb-6">
                 Start earning by adding your first vehicle to the platform.
               </p>
-              <Button asChild>
-                <Link href="/owner/vehicles/new">
+              <Button asChild disabled={navigating}>
+                <Link 
+                  href="/owner/vehicles/new"
+                  onClick={() => setNavigating(true)}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Your First Vehicle
                 </Link>

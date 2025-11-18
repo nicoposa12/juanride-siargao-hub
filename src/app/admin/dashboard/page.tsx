@@ -405,21 +405,21 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
           
-          <Card className="card-gradient hover:shadow-layered-lg hover:-translate-y-2 transition-all duration-300 cursor-pointer group border-border/50 hover:border-blue-300/50" onClick={() => router.push('/admin/analytics')}>
+          <Card className="card-gradient hover:shadow-layered-lg hover:-translate-y-2 transition-all duration-300 cursor-pointer group border-border/50 hover:border-blue-300/50" onClick={() => router.push('/admin/reports')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-primary-700 group-hover:text-blue-700 transition-colors">
                 <div className="p-2 bg-blue-100 rounded-lg shadow-sm group-hover:shadow-md group-hover:scale-110 transition-all pulse-glow">
                   <Activity className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <span className="font-bold">Analytics</span>
+                <span className="font-bold">Reports</span>
               </CardTitle>
               <CardDescription>
-                View detailed platform analytics
+                View detailed platform reports
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button className="w-full" asChild>
-                <Link href="/admin/analytics">View Analytics</Link>
+                <Link href="/admin/reports">View Reports</Link>
               </Button>
             </CardContent>
           </Card>

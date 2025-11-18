@@ -50,6 +50,7 @@ import {
   cancelBooking,
   type BookingWithDetails,
 } from '@/lib/supabase/queries/bookings'
+import { BookingDetailsDialog } from '@/components/booking/BookingDetailsDialog'
 
 function BookingsContent() {
   const router = useRouter()
@@ -64,6 +65,7 @@ function BookingsContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [actionDialog, setActionDialog] = useState<{
     open: boolean
     action: 'confirm' | 'activate' | 'complete' | 'cancel' | null
@@ -81,11 +83,12 @@ function BookingsContent() {
   }, [user, profile, authLoading, router])
   
   useEffect(() => {
-    // Check if there's a specific booking to view
+    // Check if there's a specific booking to view from URL param
     if (bookingIdParam && bookings.length > 0) {
       const booking = bookings.find(b => b.id === bookingIdParam)
       if (booking) {
         setSelectedBooking(booking)
+        setDetailsDialogOpen(true)
       }
     }
   }, [bookingIdParam, bookings])
@@ -312,7 +315,10 @@ function BookingsContent() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedBooking(booking)}
+                          onClick={() => {
+                            setSelectedBooking(booking)
+                            setDetailsDialogOpen(true)
+                          }}
                           className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn"
                         >
                           <Eye className="mr-2 h-4 w-4 group-hover/btn:scale-110 transition-transform" />
@@ -359,58 +365,6 @@ function BookingsContent() {
                         </div>
                         
                         <div className="flex gap-2">
-                          {booking.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBooking(booking)
-                                  setActionDialog({ open: true, action: 'cancel', processing: false })
-                                }}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Decline
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBooking(booking)
-                                  setActionDialog({ open: true, action: 'confirm', processing: false })
-                                }}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Confirm
-                              </Button>
-                            </>
-                          )}
-                          
-                          {booking.status === 'confirmed' && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedBooking(booking)
-                                setActionDialog({ open: true, action: 'activate', processing: false })
-                              }}
-                            >
-                              <Car className="h-4 w-4 mr-2" />
-                              Mark as Picked Up
-                            </Button>
-                          )}
-                          
-                          {booking.status === 'active' && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedBooking(booking)
-                                setActionDialog({ open: true, action: 'complete', processing: false })
-                              }}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Mark as Returned
-                            </Button>
-                          )}
-                          
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/messages?booking=${booking.id}`}>
                               <MessageSquare className="h-4 w-4 mr-2" />
@@ -426,6 +380,14 @@ function BookingsContent() {
             </div>
           )}
         </Tabs>
+        
+        {/* Booking Details Dialog */}
+        <BookingDetailsDialog
+          booking={selectedBooking}
+          open={detailsDialogOpen}
+          onOpenChange={setDetailsDialogOpen}
+          onBookingUpdate={loadBookings}
+        />
         
         {/* Action Confirmation Dialog */}
         <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog({ ...actionDialog, open })}>

@@ -33,44 +33,25 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
   const [submitting, setSubmitting] = useState(false)
   const [isFormLoaded, setIsFormLoaded] = useState(false)
   const [showDraftNotice, setShowDraftNotice] = useState(false)
+  const [initialDraft, setInitialDraft] = useState<any>(null)
   
-  // Load saved draft from sessionStorage (only for new vehicles, not when editing)
-  const loadSavedDraft = useCallback(() => {
-    if (isEditing || typeof window === 'undefined') return null
-    
-    try {
-      const saved = sessionStorage.getItem(FORM_CACHE_KEY)
-      if (saved) {
-        const draft = JSON.parse(saved)
-        console.log('📝 Restored form draft from cache')
-        setShowDraftNotice(true)
-        return draft
-      }
-    } catch (err) {
-      console.error('Failed to load form draft:', err)
-    }
-    return null
-  }, [isEditing])
-  
-  const savedDraft = !isFormLoaded ? loadSavedDraft() : null
-  
-  // Form state - use saved draft if available and not editing
-  const [type, setType] = useState(savedDraft?.type || initialData?.type || '')
-  const [make, setMake] = useState(savedDraft?.make || initialData?.make || '')
-  const [model, setModel] = useState(savedDraft?.model || initialData?.model || '')
-  const [year, setYear] = useState(savedDraft?.year || initialData?.year?.toString() || '')
-  const [plateNumber, setPlateNumber] = useState(savedDraft?.plateNumber || initialData?.plate_number || '')
-  const [description, setDescription] = useState(savedDraft?.description || initialData?.description || '')
-  const [location, setLocation] = useState(savedDraft?.location || initialData?.location || '')
-  const [pricePerDay, setPricePerDay] = useState(savedDraft?.pricePerDay || initialData?.price_per_day?.toString() || '')
-  const [pricePerWeek, setPricePerWeek] = useState(savedDraft?.pricePerWeek || initialData?.price_per_week?.toString() || '')
-  const [pricePerMonth, setPricePerMonth] = useState(savedDraft?.pricePerMonth || initialData?.price_per_month?.toString() || '')
-  const [rentalTerms, setRentalTerms] = useState(savedDraft?.rentalTerms || initialData?.rental_terms || '')
-  const [imageUrls, setImageUrls] = useState<string[]>(savedDraft?.imageUrls || initialData?.image_urls || [])
+  // Form state - will be initialized in useEffect
+  const [type, setType] = useState(initialData?.type || '')
+  const [make, setMake] = useState(initialData?.make || '')
+  const [model, setModel] = useState(initialData?.model || '')
+  const [year, setYear] = useState(initialData?.year?.toString() || '')
+  const [plateNumber, setPlateNumber] = useState(initialData?.plate_number || '')
+  const [description, setDescription] = useState(initialData?.description || '')
+  const [location, setLocation] = useState(initialData?.location || '')
+  const [pricePerDay, setPricePerDay] = useState(initialData?.price_per_day?.toString() || '')
+  const [pricePerWeek, setPricePerWeek] = useState(initialData?.price_per_week?.toString() || '')
+  const [pricePerMonth, setPricePerMonth] = useState(initialData?.price_per_month?.toString() || '')
+  const [rentalTerms, setRentalTerms] = useState(initialData?.rental_terms || '')
+  const [imageUrls, setImageUrls] = useState<string[]>(initialData?.image_urls || [])
   
   // Features
   const [features, setFeatures] = useState<Record<string, boolean>>(
-    savedDraft?.features || initialData?.features || {
+    initialData?.features || {
       helmet_included: false,
       phone_holder: false,
       storage_box: false,
@@ -80,37 +61,80 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
     }
   )
   
-  // Mark form as loaded
+  // Load saved draft on mount (only for new vehicles)
   useEffect(() => {
+    if (isEditing || isFormLoaded) return
+    
+    try {
+      const saved = sessionStorage.getItem(FORM_CACHE_KEY)
+      if (saved) {
+        const draft = JSON.parse(saved)
+        console.log('📝 Restored form draft from cache')
+        
+        // Restore all form fields from draft
+        setType(draft.type || '')
+        setMake(draft.make || '')
+        setModel(draft.model || '')
+        setYear(draft.year || '')
+        setPlateNumber(draft.plateNumber || '')
+        setDescription(draft.description || '')
+        setLocation(draft.location || '')
+        setPricePerDay(draft.pricePerDay || '')
+        setPricePerWeek(draft.pricePerWeek || '')
+        setPricePerMonth(draft.pricePerMonth || '')
+        setRentalTerms(draft.rentalTerms || '')
+        setImageUrls(draft.imageUrls || [])
+        setFeatures(draft.features || {
+          helmet_included: false,
+          phone_holder: false,
+          storage_box: false,
+          gps_enabled: false,
+          bluetooth: false,
+          usb_charging: false,
+        })
+        
+        setInitialDraft(draft)
+        setShowDraftNotice(true)
+      }
+    } catch (err) {
+      console.error('Failed to load form draft:', err)
+    }
+    
     setIsFormLoaded(true)
-  }, [])
+  }, [isEditing, isFormLoaded])
   
-  // Auto-save form state to sessionStorage (only for new vehicles)
+  // Auto-save form state to sessionStorage with debouncing (only for new vehicles)
   useEffect(() => {
     if (isEditing || !isFormLoaded) return
     
-    const formState = {
-      type,
-      make,
-      model,
-      year,
-      plateNumber,
-      description,
-      location,
-      pricePerDay,
-      pricePerWeek,
-      pricePerMonth,
-      rentalTerms,
-      imageUrls,
-      features,
-      savedAt: Date.now(),
-    }
+    // Debounce the save to avoid excessive writes
+    const timeoutId = setTimeout(() => {
+      const formState = {
+        type,
+        make,
+        model,
+        year,
+        plateNumber,
+        description,
+        location,
+        pricePerDay,
+        pricePerWeek,
+        pricePerMonth,
+        rentalTerms,
+        imageUrls,
+        features,
+        savedAt: Date.now(),
+      }
+      
+      try {
+        sessionStorage.setItem(FORM_CACHE_KEY, JSON.stringify(formState))
+        console.log('💾 Form draft auto-saved')
+      } catch (err) {
+        console.error('Failed to save form draft:', err)
+      }
+    }, 1000) // Save after 1 second of inactivity
     
-    try {
-      sessionStorage.setItem(FORM_CACHE_KEY, JSON.stringify(formState))
-    } catch (err) {
-      console.error('Failed to save form draft:', err)
-    }
+    return () => clearTimeout(timeoutId)
   }, [
     type, make, model, year, plateNumber, description, location,
     pricePerDay, pricePerWeek, pricePerMonth, rentalTerms, imageUrls,
