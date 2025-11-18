@@ -12,7 +12,7 @@ const VEHICLE_CATEGORIES = [
   { value: 'scooter', label: 'Scooters', icon: Bike },
   { value: 'car', label: 'Cars', icon: Car },
   { value: 'van', label: 'Vans', icon: Truck },
-  { value: 'motorcycle', label: 'Bikes', icon: Bike },
+  { value: 'motorcycle', label: 'Motorcycles', icon: Bike },
 ]
 
 interface VehicleCategoryTabsProps {
