@@ -56,6 +56,7 @@ export interface PaymentSourceData {
 export interface PaymentMethodData {
   type: PaymentMethodType
   amount: number
+  description: string
   billing: {
     name: string
     email: string
@@ -243,7 +244,7 @@ export async function createPaymentMethodSource(data: PaymentMethodData) {
               },
             },
             currency: 'PHP',
-            description: 'JuanRide Vehicle Rental',
+            description: data.description,
           },
         },
       }),
@@ -328,6 +329,8 @@ export async function createPaymentSource(data: PaymentSourceData) {
 /**
  * Create a Payment (confirms the payment with a source)
  * This finalizes the payment process
+ * NOTE: Only use this for SOURCE-based payments (gcash, grab_pay)
+ * Payment Intent-based methods (paymaya, billease, card) don't need this step
  */
 export async function createPayment(
   sourceId: string, 
@@ -336,38 +339,82 @@ export async function createPayment(
   metadata?: Record<string, string>
 ) {
   try {
+    // Validate that this is a source ID, not a payment intent ID
+    if (sourceId.startsWith('pi_')) {
+      const error = new Error(
+        `Invalid ID type: Expected source ID (src_*), but received payment intent ID (pi_*). ` +
+        `Payment Intents don't use the /payments endpoint. This likely means the wrong payment method flow is being used.`
+      )
+      console.error('[PayMongo createPayment] ID Type Mismatch:', {
+        receivedId: sourceId,
+        expectedFormat: 'src_*',
+        actualFormat: 'pi_*',
+        endpoint: '/v1/payments',
+        note: 'Payment Intent-based methods (paymaya, billease, card) are self-contained and do not require calling /payments'
+      })
+      throw error
+    }
+
+    const requestBody = {
+      data: {
+        attributes: {
+          amount,
+          currency: 'PHP',
+          source: {
+            id: sourceId,
+            type: 'source',
+          },
+          description,
+          statement_descriptor: 'JuanRide',
+          metadata,
+        },
+      },
+    }
+
+    console.log('[PayMongo createPayment] Request:', {
+      endpoint: `${API_BASE_URL}/payments`,
+      sourceId: sourceId,
+      sourceType: 'source',
+      amount: amount,
+      description: description,
+    })
+
     const response = await fetch(`${API_BASE_URL}/payments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': getAuthHeader(),
       },
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            amount,
-            currency: 'PHP',
-            source: {
-              id: sourceId,
-              type: 'source',
-            },
-            description,
-            statement_descriptor: 'JuanRide',
-            metadata,
-          },
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.errors?.[0]?.detail || 'Failed to create payment')
+      const errorDetail = error.errors?.[0]?.detail || 'Failed to create payment'
+      const errorCode = error.errors?.[0]?.code || 'unknown'
+      
+      console.error('[PayMongo createPayment] Error Response:', {
+        status: response.status,
+        code: errorCode,
+        detail: errorDetail,
+        sourceId: sourceId,
+        requestedAmount: amount,
+        fullError: error,
+      })
+      
+      throw new Error(`${errorCode}: ${errorDetail}`)
     }
 
     const result = await response.json()
+    console.log('[PayMongo createPayment] Success:', {
+      paymentId: result.data.id,
+      status: result.data.attributes.status,
+      amount: result.data.attributes.amount,
+    })
+    
     return result.data
   } catch (error) {
-    console.error('Error creating payment:', error)
+    console.error('[PayMongo createPayment] Exception:', error)
     throw error
   }
 }
@@ -471,18 +518,32 @@ export async function createPaymentRecord(
   try {
     const supabase = createClient()
     
+    console.log('[createPaymentRecord] Checking for existing payment:', {
+      bookingId,
+      paymentMethod,
+      amount
+    })
+    
     // Check if payment already exists for this booking
-    const { data: existingPayment } = await supabase
+    // Use .maybeSingle() instead of .single() to avoid 406 error when no records exist
+    const { data: existingPayment, error: fetchError } = await supabase
       .from('payments')
       .select()
       .eq('booking_id', bookingId)
-      .single()
+      .maybeSingle()
+    
+    // Log any fetch errors (but don't throw - just continue to create)
+    if (fetchError) {
+      console.warn('[createPaymentRecord] Error fetching existing payment:', fetchError)
+    }
     
     // If payment exists, return it
     if (existingPayment) {
-      console.log('Payment record already exists for booking:', bookingId)
+      console.log('[createPaymentRecord] Payment record already exists:', existingPayment.id)
       return existingPayment
     }
+    
+    console.log('[createPaymentRecord] Creating new payment record')
     
     // Create new payment record
     const { data, error } = await supabase
@@ -496,11 +557,21 @@ export async function createPaymentRecord(
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('[createPaymentRecord] Insert error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        paymentMethod,
+      })
+      throw error
+    }
 
+    console.log('[createPaymentRecord] Payment record created successfully:', data.id)
     return data
   } catch (error) {
-    console.error('Error creating payment record:', error)
+    console.error('[createPaymentRecord] Exception:', error)
     throw error
   }
 }

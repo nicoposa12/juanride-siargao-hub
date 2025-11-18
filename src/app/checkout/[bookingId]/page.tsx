@@ -496,6 +496,7 @@ export default function CheckoutPage() {
         const paymentIntent = await createPaymentMethodSource({
           type: method as 'paymaya' | 'billease',
           amount,
+          description: `JuanRide Booking #${booking.id.slice(0, 8)}`,
           billing: {
             name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
             email: user.email || '',
