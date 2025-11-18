@@ -328,6 +328,8 @@ export async function createPaymentSource(data: PaymentSourceData) {
 /**
  * Create a Payment (confirms the payment with a source)
  * This finalizes the payment process
+ * NOTE: Only use this for SOURCE-based payments (gcash, grab_pay)
+ * Payment Intent-based methods (paymaya, billease, card) don't need this step
  */
 export async function createPayment(
   sourceId: string, 
@@ -336,38 +338,82 @@ export async function createPayment(
   metadata?: Record<string, string>
 ) {
   try {
+    // Validate that this is a source ID, not a payment intent ID
+    if (sourceId.startsWith('pi_')) {
+      const error = new Error(
+        `Invalid ID type: Expected source ID (src_*), but received payment intent ID (pi_*). ` +
+        `Payment Intents don't use the /payments endpoint. This likely means the wrong payment method flow is being used.`
+      )
+      console.error('[PayMongo createPayment] ID Type Mismatch:', {
+        receivedId: sourceId,
+        expectedFormat: 'src_*',
+        actualFormat: 'pi_*',
+        endpoint: '/v1/payments',
+        note: 'Payment Intent-based methods (paymaya, billease, card) are self-contained and do not require calling /payments'
+      })
+      throw error
+    }
+
+    const requestBody = {
+      data: {
+        attributes: {
+          amount,
+          currency: 'PHP',
+          source: {
+            id: sourceId,
+            type: 'source',
+          },
+          description,
+          statement_descriptor: 'JuanRide',
+          metadata,
+        },
+      },
+    }
+
+    console.log('[PayMongo createPayment] Request:', {
+      endpoint: `${API_BASE_URL}/payments`,
+      sourceId: sourceId,
+      sourceType: 'source',
+      amount: amount,
+      description: description,
+    })
+
     const response = await fetch(`${API_BASE_URL}/payments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': getAuthHeader(),
       },
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            amount,
-            currency: 'PHP',
-            source: {
-              id: sourceId,
-              type: 'source',
-            },
-            description,
-            statement_descriptor: 'JuanRide',
-            metadata,
-          },
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.errors?.[0]?.detail || 'Failed to create payment')
+      const errorDetail = error.errors?.[0]?.detail || 'Failed to create payment'
+      const errorCode = error.errors?.[0]?.code || 'unknown'
+      
+      console.error('[PayMongo createPayment] Error Response:', {
+        status: response.status,
+        code: errorCode,
+        detail: errorDetail,
+        sourceId: sourceId,
+        requestedAmount: amount,
+        fullError: error,
+      })
+      
+      throw new Error(`${errorCode}: ${errorDetail}`)
     }
 
     const result = await response.json()
+    console.log('[PayMongo createPayment] Success:', {
+      paymentId: result.data.id,
+      status: result.data.attributes.status,
+      amount: result.data.attributes.amount,
+    })
+    
     return result.data
   } catch (error) {
-    console.error('Error creating payment:', error)
+    console.error('[PayMongo createPayment] Exception:', error)
     throw error
   }
 }
