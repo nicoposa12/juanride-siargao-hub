@@ -35,9 +35,16 @@ export default function PaymentSuccessPage() {
           .eq('booking_id', bookingId)
           .single()
 
+        console.log('[Payment Success] Payment record:', {
+          bookingId,
+          transactionId: paymentRecord?.transaction_id,
+          paymentMethod: paymentRecord?.payment_method,
+          status: paymentRecord?.status,
+        })
+
         // If payment is already marked as paid, skip payment creation
         if (paymentRecord?.status === 'paid') {
-          console.log('Payment already processed, skipping charge')
+          console.log('[Payment Success] Payment already processed, skipping charge')
           
           // Just ensure booking is confirmed
           await supabase
@@ -54,8 +61,39 @@ export default function PaymentSuccessPage() {
           return
         }
 
-        // If we have a source ID (e-wallet payment) and amount, create the payment
-        if (paymentRecord?.transaction_id && amount) {
+        // Determine if this payment method uses Sources API or Payment Intents API
+        const sourceBasedMethods = ['gcash', 'grab_pay']
+        const paymentIntentMethods = ['paymaya', 'billease', 'card', 'qrph']
+        
+        const isSourceBased = paymentRecord?.payment_method && 
+                              sourceBasedMethods.includes(paymentRecord.payment_method)
+        const isPaymentIntent = paymentRecord?.payment_method && 
+                                paymentIntentMethods.includes(paymentRecord.payment_method)
+
+        console.log('[Payment Success] Payment method classification:', {
+          paymentMethod: paymentRecord?.payment_method,
+          isSourceBased,
+          isPaymentIntent,
+          transactionIdPrefix: paymentRecord?.transaction_id?.substring(0, 3),
+        })
+
+        // Only create payment for SOURCE-based methods (GCash, GrabPay)
+        // Payment Intent methods (PayMaya, BillEase, Card) are self-contained
+        if (isSourceBased && paymentRecord?.transaction_id && amount) {
+          // Validate we have a source ID
+          if (!paymentRecord.transaction_id.startsWith('src_')) {
+            console.error('[Payment Success] Invalid transaction ID format:', {
+              transactionId: paymentRecord.transaction_id,
+              paymentMethod: paymentRecord.payment_method,
+              expected: 'src_*',
+              actual: paymentRecord.transaction_id.substring(0, 3) + '_*',
+            })
+            throw new Error(
+              `Invalid transaction ID for ${paymentRecord.payment_method}: ` +
+              `Expected source ID (src_*), got ${paymentRecord.transaction_id.substring(0, 10)}...`
+            )
+          }
+
           // Get booking details for metadata
           const { data: booking } = await supabase
             .from('bookings')
@@ -65,6 +103,7 @@ export default function PaymentSuccessPage() {
 
           if (booking) {
             try {
+              console.log('[Payment Success] Creating payment for source-based method')
               // Create payment with the now-chargeable source
               const payment = await createPayment(
                 paymentRecord.transaction_id,
@@ -77,13 +116,16 @@ export default function PaymentSuccessPage() {
                 }
               )
 
+              console.log('[Payment Success] Payment created successfully:', payment.id)
               // Update payment status with transaction ID
               await updatePaymentRecord(bookingId, 'paid', payment.id)
             } catch (paymentError: any) {
+              console.error('[Payment Success] Payment creation error:', paymentError)
+              
               // Check if error is because source was already charged
               if (paymentError.message?.includes('not chargeable') || 
                   paymentError.message?.includes('already been used')) {
-                console.log('Source already charged, marking as paid')
+                console.log('[Payment Success] Source already charged, marking as paid')
                 // Just mark as paid - the payment was already processed
                 await updatePaymentRecord(bookingId, 'paid', paymentRecord.transaction_id)
               } else {
@@ -92,8 +134,14 @@ export default function PaymentSuccessPage() {
               }
             }
           }
+        } else if (isPaymentIntent) {
+          // Payment Intent methods don't need /payments endpoint
+          // Just mark as paid since PayMongo handles it automatically
+          console.log('[Payment Success] Payment Intent method - marking as paid without creating payment')
+          await updatePaymentRecord(bookingId, 'paid', paymentRecord?.transaction_id)
         } else {
-          // Card payment or already processed - just update status
+          // Unknown or already processed
+          console.log('[Payment Success] No payment creation needed, updating status')
           await updatePaymentRecord(bookingId, 'paid')
         }
 
