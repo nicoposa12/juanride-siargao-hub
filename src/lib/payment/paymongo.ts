@@ -56,6 +56,7 @@ export interface PaymentSourceData {
 export interface PaymentMethodData {
   type: PaymentMethodType
   amount: number
+  description: string
   billing: {
     name: string
     email: string
@@ -243,7 +244,7 @@ export async function createPaymentMethodSource(data: PaymentMethodData) {
               },
             },
             currency: 'PHP',
-            description: 'JuanRide Vehicle Rental',
+            description: data.description,
           },
         },
       }),
@@ -517,18 +518,32 @@ export async function createPaymentRecord(
   try {
     const supabase = createClient()
     
+    console.log('[createPaymentRecord] Checking for existing payment:', {
+      bookingId,
+      paymentMethod,
+      amount
+    })
+    
     // Check if payment already exists for this booking
-    const { data: existingPayment } = await supabase
+    // Use .maybeSingle() instead of .single() to avoid 406 error when no records exist
+    const { data: existingPayment, error: fetchError } = await supabase
       .from('payments')
       .select()
       .eq('booking_id', bookingId)
-      .single()
+      .maybeSingle()
+    
+    // Log any fetch errors (but don't throw - just continue to create)
+    if (fetchError) {
+      console.warn('[createPaymentRecord] Error fetching existing payment:', fetchError)
+    }
     
     // If payment exists, return it
     if (existingPayment) {
-      console.log('Payment record already exists for booking:', bookingId)
+      console.log('[createPaymentRecord] Payment record already exists:', existingPayment.id)
       return existingPayment
     }
+    
+    console.log('[createPaymentRecord] Creating new payment record')
     
     // Create new payment record
     const { data, error } = await supabase
@@ -542,11 +557,21 @@ export async function createPaymentRecord(
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('[createPaymentRecord] Insert error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        paymentMethod,
+      })
+      throw error
+    }
 
+    console.log('[createPaymentRecord] Payment record created successfully:', data.id)
     return data
   } catch (error) {
-    console.error('Error creating payment record:', error)
+    console.error('[createPaymentRecord] Exception:', error)
     throw error
   }
 }
