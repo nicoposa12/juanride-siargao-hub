@@ -103,6 +103,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const position = positions[0];
 
     return NextResponse.json({
+      deviceId: position.deviceId,
       position: {
         latitude: position.latitude,
         longitude: position.longitude,
@@ -117,6 +118,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         model: vehicle.model,
         plateNumber: vehicle.plate_number,
       },
+      raw: position.raw || {},
     });
   } catch (error) {
     console.error('[sinotrack] track vehicle (owner) error:', error);

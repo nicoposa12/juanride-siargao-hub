@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,33 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, MapPin, Navigation, RefreshCw, Satellite, Signal, X } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, MapPin, Navigation, RefreshCw, Satellite, Signal, Fuel, Gauge, Thermometer, Battery, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Leaflet to avoid SSR issues
+const MapContainer = dynamic(() => import('react-leaflet').then((mod) => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then((mod) => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then((mod) => mod.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), { ssr: false });
+
+// Import Leaflet CSS
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { useMap } from 'react-leaflet';
+
+// Fix for default marker icon in Next.js
+if (typeof window !== 'undefined') {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  });
+}
 
 interface VehicleTrackingDialogProps {
   vehicleId: string;
@@ -22,7 +47,30 @@ interface VehicleTrackingDialogProps {
   refreshInterval?: number; // in milliseconds
 }
 
+interface RawData {
+  strTEID?: string;
+  nTime?: string | number;
+  dbLon?: string | number;
+  dbLat?: string | number;
+  nDirection?: string | number;
+  nSpeed?: string | number;
+  nGSMSignal?: string | number;
+  nGPSSignal?: string | number;
+  nFuel?: string | number;
+  nMileage?: string | number;
+  nTemp?: string | number;
+  nCarState?: string | number;
+  nTEState?: string | number;
+  nAlarmState?: string | number;
+  strOther?: string;
+  nStartTime?: string | number;
+  nStartMileage?: string | number;
+  nParkTime?: string | number;
+  nRunTime?: string | number;
+}
+
 interface TrackingData {
+  deviceId: string;
   position: {
     latitude: number;
     longitude: number;
@@ -37,6 +85,21 @@ interface TrackingData {
     model: string | null;
     plateNumber: string;
   };
+  raw: RawData;
+}
+
+// Component to update map center when position changes
+// This must be a child of MapContainer
+function MapUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (map && center) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
+
+  return null;
 }
 
 export function VehicleTrackingDialog({
@@ -45,7 +108,7 @@ export function VehicleTrackingDialog({
   open,
   onOpenChange,
   autoRefresh = true,
-  refreshInterval = 30000, // 30 seconds default
+  refreshInterval = 2000, // 2 seconds default
 }: VehicleTrackingDialogProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +116,7 @@ export function VehicleTrackingDialog({
   const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const fetchTrackingData = useCallback(
     async (showLoadingState = true) => {
@@ -92,7 +156,10 @@ export function VehicleTrackingDialog({
   // Initial fetch when dialog opens
   useEffect(() => {
     if (open && vehicleId) {
+      setMapReady(false);
       fetchTrackingData();
+      // Small delay to ensure map container is rendered
+      setTimeout(() => setMapReady(true), 100);
     }
   }, [open, vehicleId, fetchTrackingData]);
 
@@ -123,17 +190,57 @@ export function VehicleTrackingDialog({
     window.open(url, '_blank');
   };
 
+  // Helper function to parse voltage from strOther
+  const parseVoltage = (strOther?: string): number | null => {
+    if (!strOther) return null;
+    const voltageMatch = strOther.match(/Voltages?=([\d.]+)/i);
+    return voltageMatch ? parseFloat(voltageMatch[1]) : null;
+  };
+
+  // Helper function to format state values
+  const formatState = (state: string | number | undefined): string => {
+    if (state === undefined || state === null) return 'N/A';
+    const num = typeof state === 'string' ? parseInt(state, 10) : state;
+    return `0x${num.toString(16).toUpperCase()}`;
+  };
+
+  // Helper function to format time
+  const formatTime = (timestamp: string | number | undefined): string => {
+    if (!timestamp) return 'N/A';
+    const num = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
+    if (num === 0) return 'N/A';
+    return new Date(num * 1000).toLocaleString();
+  };
+
+  if (!open) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Satellite className="h-5 w-5 text-primary" />
-            Live GPS Tracking
-          </DialogTitle>
-          <DialogDescription>
-            {vehicleName || 'Real-time vehicle location'}
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <Satellite className="h-5 w-5 text-primary" />
+                Live GPS Tracking
+              </DialogTitle>
+              <DialogDescription>
+                {vehicleName || 'Real-time vehicle location'}
+              </DialogDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </DialogHeader>
 
         {isLoading ? (
@@ -149,104 +256,236 @@ export function VehicleTrackingDialog({
           </Alert>
         ) : trackingData ? (
           <div className="space-y-4">
-            {/* Map placeholder - you can integrate Google Maps, Mapbox, or Leaflet here */}
-            <div className="relative w-full h-96 bg-muted rounded-lg overflow-hidden border">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center space-y-4 z-10">
-                  <MapPin className="h-16 w-16 text-primary mx-auto animate-pulse" />
-                  <div className="space-y-2">
-                    <p className="text-lg font-semibold">
-                      {trackingData.position.latitude.toFixed(6)}, {trackingData.position.longitude.toFixed(6)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {trackingData.vehicle.plateNumber}
-                    </p>
-                    <Button variant="default" size="sm" onClick={handleOpenInMaps}>
-                      <Navigation className="mr-2 h-4 w-4" />
-                      Open in Google Maps
-                    </Button>
-                  </div>
-                </div>
-                {/* Grid overlay for map-like appearance */}
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: `
-                      linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)
-                    `,
-                    backgroundSize: '40px 40px'
-                  }} />
-                </div>
-              </div>
-            </div>
-
-            {/* GPS Data */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1 p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Speed</p>
-                <p className="text-xl font-semibold">{trackingData.position.speedKph.toFixed(1)} km/h</p>
-              </div>
-              <div className="space-y-1 p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Last Updated</p>
-                <p className="text-sm font-medium">
-                  {new Date(trackingData.position.recordedAt).toLocaleTimeString()}
-                </p>
-                {lastUpdated && (() => {
-                  const timeSinceUpdate = Math.floor(
-                    (lastUpdated.getTime() - new Date(trackingData.position.recordedAt).getTime()) / 1000
-                  );
-                  return timeSinceUpdate > 300 ? (
-                    <p className="text-xs text-amber-600">
-                      Data is {Math.floor(timeSinceUpdate / 60)} min old
-                    </p>
-                  ) : null;
-                })()}
-              </div>
-              <div className="space-y-1 p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Signal className="h-3 w-3" />
-                  GSM Signal
-                </p>
-                <p className="text-sm font-medium">{trackingData.position.gsmSignal}/31</p>
-              </div>
-              <div className="space-y-1 p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Satellite className="h-3 w-3" />
-                  GPS Signal
-                </p>
-                <p className="text-sm font-medium">{trackingData.position.gpsSignal}/31</p>
-              </div>
-            </div>
-
-            {/* Vehicle Info */}
-            <div className="p-4 rounded-lg bg-muted/30 border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Vehicle</p>
-                  <p className="font-semibold">
-                    {trackingData.vehicle.make} {trackingData.vehicle.model}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Plate: {trackingData.vehicle.plateNumber}</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleManualRefresh}
-                  disabled={isRefreshing}
+            {/* Interactive Map */}
+            <div className="relative w-full h-96 rounded-lg overflow-hidden border">
+              {mapReady && trackingData.position.latitude && trackingData.position.longitude ? (
+                <MapContainer
+                  center={[trackingData.position.latitude, trackingData.position.longitude]}
+                  zoom={15}
+                  style={{ height: '100%', width: '100%' }}
+                  scrollWheelZoom={true}
                 >
-                  {isRefreshing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <Marker position={[trackingData.position.latitude, trackingData.position.longitude]}>
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-semibold">{vehicleName || 'Vehicle'}</p>
+                        <p className="text-muted-foreground">{trackingData.vehicle.plateNumber}</p>
+                        <p className="text-xs mt-1">
+                          {trackingData.position.speedKph.toFixed(1)} km/h
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                  <MapUpdater center={[trackingData.position.latitude, trackingData.position.longitude]} />
+                </MapContainer>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+            </div>
+
+            {/* Vehicle Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Vehicle Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Device ID</span>
+                    <span className="text-sm font-medium">{trackingData.deviceId}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Vehicle</span>
+                    <span className="text-sm font-medium">
+                      {trackingData.vehicle.make} {trackingData.vehicle.model}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Plate Number</span>
+                    <span className="text-sm font-medium">{trackingData.vehicle.plateNumber}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Latitude</span>
+                    <span className="text-sm font-mono">{trackingData.position.latitude.toFixed(6)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Longitude</span>
+                    <span className="text-sm font-mono">{trackingData.position.longitude.toFixed(6)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Recorded Time</span>
+                    <span className="text-sm font-medium">
+                      {new Date(trackingData.position.recordedAt).toLocaleString()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Status & Signals */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Status & Signals</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Gauge className="h-4 w-4" />
+                      Speed
+                    </span>
+                    <Badge variant="outline">{trackingData.position.speedKph.toFixed(1)} km/h</Badge>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Signal className="h-4 w-4" />
+                      GSM Signal
+                    </span>
+                    <Badge variant="outline">{trackingData.position.gsmSignal}/31</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Satellite className="h-4 w-4" />
+                      GPS Signal
+                    </span>
+                    <Badge variant="outline">{trackingData.position.gpsSignal}/31</Badge>
+                  </div>
+                  <Separator />
+                  {trackingData.raw.nFuel !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Fuel className="h-4 w-4" />
+                        Fuel
+                      </span>
+                      <span className="text-sm font-medium">{trackingData.raw.nFuel}%</span>
+                    </div>
                   )}
-                </Button>
-              </div>
+                  {trackingData.raw.nMileage !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Gauge className="h-4 w-4" />
+                        Mileage
+                      </span>
+                      <span className="text-sm font-medium">{trackingData.raw.nMileage} km</span>
+                    </div>
+                  )}
+                  {trackingData.raw.nTemp !== undefined && trackingData.raw.nTemp !== 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Thermometer className="h-4 w-4" />
+                        Temperature
+                      </span>
+                      <span className="text-sm font-medium">{trackingData.raw.nTemp}°C</span>
+                    </div>
+                  )}
+                  {parseVoltage(trackingData.raw.strOther) !== null && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Battery className="h-4 w-4" />
+                        Voltage
+                      </span>
+                      <span className="text-sm font-medium">{parseVoltage(trackingData.raw.strOther)}V</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Vehicle States */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Vehicle States</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {trackingData.raw.nCarState !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Car State</span>
+                      <Badge variant="secondary">{formatState(trackingData.raw.nCarState)}</Badge>
+                    </div>
+                  )}
+                  {trackingData.raw.nTEState !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">TE State</span>
+                      <Badge variant="secondary">{formatState(trackingData.raw.nTEState)}</Badge>
+                    </div>
+                  )}
+                  {trackingData.raw.nAlarmState !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <AlertTriangle className="h-4 w-4" />
+                        Alarm State
+                      </span>
+                      <Badge variant={trackingData.raw.nAlarmState === '0' || trackingData.raw.nAlarmState === 0 ? 'default' : 'destructive'}>
+                        {formatState(trackingData.raw.nAlarmState)}
+                      </Badge>
+                    </div>
+                  )}
+                  {trackingData.raw.nDirection !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Direction</span>
+                      <span className="text-sm font-medium">{trackingData.raw.nDirection}°</span>
+                    </div>
+                  )}
+                  {trackingData.raw.nParkTime !== undefined && trackingData.raw.nParkTime !== 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Park Time</span>
+                      <span className="text-sm font-medium">{formatTime(trackingData.raw.nParkTime)}</span>
+                    </div>
+                  )}
+                  {trackingData.raw.nRunTime !== undefined && trackingData.raw.nRunTime !== 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Run Time</span>
+                      <span className="text-sm font-medium">{formatTime(trackingData.raw.nRunTime)}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Additional Data */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Additional Data</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {trackingData.raw.strOther && (
+                    <div>
+                      <span className="text-sm text-muted-foreground">Other Data</span>
+                      <p className="text-sm font-mono mt-1 p-2 bg-muted rounded">{trackingData.raw.strOther}</p>
+                    </div>
+                  )}
+                  {lastUpdated && (
+                    <>
+                      <Separator />
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Last Updated</span>
+                        <span className="text-sm font-medium">{lastUpdated.toLocaleTimeString()}</span>
+                      </div>
+                    </>
+                  )}
+                  <Separator />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleOpenInMaps}
+                  >
+                    <Navigation className="mr-2 h-4 w-4" />
+                    Open in Google Maps
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
 
             {autoRefresh && (
               <Alert>
                 <AlertDescription className="text-xs">
-                  Location updates automatically every {refreshInterval / 1000} seconds
+                  Location updates automatically every {refreshInterval / 1000} second{refreshInterval / 1000 !== 1 ? 's' : ''}
                 </AlertDescription>
               </Alert>
             )}
@@ -256,4 +495,3 @@ export function VehicleTrackingDialog({
     </Dialog>
   );
 }
-

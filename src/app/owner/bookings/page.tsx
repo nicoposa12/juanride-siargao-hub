@@ -517,7 +517,7 @@ function BookingsContent() {
             open={trackingDialogOpen}
             onOpenChange={setTrackingDialogOpen}
             autoRefresh={true}
-            refreshInterval={30000}
+            refreshInterval={2000}
           />
         )}
 
