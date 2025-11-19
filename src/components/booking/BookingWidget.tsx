@@ -24,8 +24,17 @@ interface BookingWidgetProps {
 
 export function BookingWidget({ vehicle, onBook }: BookingWidgetProps) {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { toast } = useToast()
+  
+  // Prevent admin and owner from booking
+  const isAdmin = profile?.role === 'admin'
+  const isOwner = profile?.role === 'owner'
+  const isRenter = profile?.role === 'renter'
+  
+  if (isAdmin || isOwner) {
+    return null // This should not render, but safety check
+  }
   
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
@@ -88,6 +97,25 @@ export function BookingWidget({ vehicle, onBook }: BookingWidgetProps) {
   const handleBooking = async () => {
     if (!user) {
       router.push(`/login?redirect=/vehicles/${vehicle.id}`)
+      return
+    }
+    
+    // Prevent admin and owner from booking
+    if (isAdmin || isOwner) {
+      toast({
+        title: 'Booking Not Allowed',
+        description: 'Only renters can book vehicles. Administrators and owners cannot make bookings.',
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    if (!isRenter) {
+      toast({
+        title: 'Renter Account Required',
+        description: 'You must have a renter account to book vehicles.',
+        variant: 'destructive',
+      })
       return
     }
     

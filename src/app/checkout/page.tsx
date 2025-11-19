@@ -23,7 +23,7 @@ import Image from 'next/image'
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
   
   const vehicleId = searchParams?.get('vehicle')
@@ -38,6 +38,41 @@ function CheckoutContent() {
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [specialRequests, setSpecialRequests] = useState('')
+  
+  useEffect(() => {
+    if (!authLoading) {
+      // Prevent admin and owner from booking
+      if (profile?.role === 'admin') {
+        toast({
+          title: 'Booking Not Allowed',
+          description: 'Administrators cannot book vehicles.',
+          variant: 'destructive',
+        })
+        router.push('/admin/dashboard')
+        return
+      }
+      
+      if (profile?.role === 'owner') {
+        toast({
+          title: 'Booking Not Allowed',
+          description: 'Owners cannot book vehicles.',
+          variant: 'destructive',
+        })
+        router.push('/owner/dashboard')
+        return
+      }
+      
+      if (profile && profile.role !== 'renter') {
+        toast({
+          title: 'Renter Account Required',
+          description: 'Only renters can book vehicles.',
+          variant: 'destructive',
+        })
+        router.push('/vehicles')
+        return
+      }
+    }
+  }, [profile, authLoading, router, toast])
   
   useEffect(() => {
     if (!vehicleId || !startDate || !endDate) {
@@ -112,6 +147,31 @@ function CheckoutContent() {
       const redirectUrl = `/checkout?${currentParams.toString()}`
       
       router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`)
+      return
+    }
+    
+    // Prevent admin and owner from booking
+    if (profile?.role === 'admin' || profile?.role === 'owner') {
+      toast({
+        title: 'Booking Not Allowed',
+        description: 'Only renters can book vehicles.',
+        variant: 'destructive',
+      })
+      if (profile?.role === 'admin') {
+        router.push('/admin/dashboard')
+      } else {
+        router.push('/owner/dashboard')
+      }
+      return
+    }
+    
+    if (profile && profile.role !== 'renter') {
+      toast({
+        title: 'Renter Account Required',
+        description: 'You must have a renter account to book vehicles.',
+        variant: 'destructive',
+      })
+      router.push('/vehicles')
       return
     }
     
