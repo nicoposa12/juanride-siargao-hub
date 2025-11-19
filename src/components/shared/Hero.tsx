@@ -1,15 +1,32 @@
 'use client';
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { getDashboardRoute, type UserRole } from "@/lib/rbac/config";
 import heroImage from "@/assets/hero-siargao.jpg";
 
 const Hero = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
+
+  // CRITICAL: Additional client-side redirect for Admin and Owner
+  // This ensures they cannot view the homepage even if middleware is bypassed
+  useEffect(() => {
+    if (!loading && user && profile) {
+      const userRole = (profile.role === 'pending' ? null : profile.role) as UserRole;
+      
+      // Admin and Owner cannot access homepage - redirect immediately
+      if (userRole === 'admin' || userRole === 'owner') {
+        const dashboardUrl = getDashboardRoute(userRole);
+        console.log('🚫 Hero component: Redirecting', userRole, 'to', dashboardUrl);
+        router.replace(dashboardUrl);
+      }
+    }
+  }, [user, profile, loading, router]);
 
   const handleOwnerButton = () => {
     if (user && profile) {

@@ -66,6 +66,22 @@ export async function GET(request: NextRequest) {
             console.log('User requires onboarding, redirecting to:', onboardingUrl.toString())
             return NextResponse.redirect(onboardingUrl)
           }
+
+          // If no explicit redirect param, use role-based redirect
+          if (next === '/vehicles' && profile?.role) {
+            let roleBasedRedirect: string
+            if (profile.role === 'admin') {
+              roleBasedRedirect = '/admin/dashboard'
+            } else if (profile.role === 'owner') {
+              roleBasedRedirect = '/owner/dashboard'
+            } else if (profile.role === 'renter') {
+              roleBasedRedirect = '/dashboard/bookings'
+            } else {
+              roleBasedRedirect = next // Keep default for pending/unknown
+            }
+            console.log('Role-based redirect:', profile.role, '→', roleBasedRedirect)
+            return NextResponse.redirect(new URL(roleBasedRedirect, request.url))
+          }
         } catch (profileError) {
           console.warn('Unable to fetch profile during callback:', profileError)
           // If we cannot confirm onboarding state, fall back to next
