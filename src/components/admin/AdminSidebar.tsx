@@ -42,67 +42,45 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
+import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation/config'
 
-const adminNavItems = [
-  {
-    title: 'Dashboard',
-    href: '/admin/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Users',
-    href: '/admin/users',
-    icon: Users,
-  },
-  {
-    title: 'Vehicles',
-    href: '/admin/listings',
-    icon: Car,
-  },
-  {
-    title: 'Bookings',
-    href: '/admin/bookings',
-    icon: Calendar,
-  },
-  {
-    title: 'Payments',
-    href: '/admin/transactions',
-    icon: CreditCard,
-  },
-  {
-    title: 'Maintenance',
-    href: '/admin/maintenance',
-    icon: Wrench,
-  },
-  {
-    title: 'Reports',
-    href: '/admin/reports',
-    icon: FileText,
-  },
-  {
-    title: 'Feedback',
-    href: '/admin/feedback',
-    icon: MessageSquare,
-  },
-  {
-    title: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
-  },
-]
+// Icon mapping for admin navigation items
+const adminIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  '/admin/dashboard': LayoutDashboard,
+  '/admin/users': Users,
+  '/admin/listings': Car,
+  '/admin/bookings': Calendar,
+  '/admin/transactions': CreditCard,
+  '/admin/maintenance': Wrench,
+  '/admin/reports': FileText,
+  '/admin/feedback': MessageSquare,
+  '/admin/settings': Settings,
+  '/admin/support': HelpCircle,
+}
 
-const adminBottomNavItems = [
-  {
-    title: 'Support',
-    href: '/admin/support',
-    icon: HelpCircle,
-  },
-]
+// Get admin navigation items from centralized config
+function getAdminNavItems() {
+  const adminItems = getNavItemsForRole('admin')
+    .filter(item => item.href.startsWith('/admin'))
+    .map(item => ({
+      ...item,
+      icon: adminIconMap[item.href] || LayoutDashboard,
+    }))
+  
+  // Separate main items and bottom items (Support)
+  const mainItems = adminItems.filter(item => item.href !== '/admin/support')
+  const bottomItems = adminItems.filter(item => item.href === '/admin/support')
+  
+  return { mainItems, bottomItems }
+}
 
 export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { profile, signOut } = useAuth()
+
+  // Get admin navigation items from centralized config
+  const { mainItems: adminNavItems, bottomItems: adminBottomNavItems } = getAdminNavItems()
 
   const handleSignOut = async () => {
     await signOut()
@@ -131,14 +109,15 @@ export function AdminSidebar() {
 
       <SidebarContent className="flex flex-col bg-gradient-to-b from-white via-primary-50/30 to-white">
         <SidebarMenu className="flex-1 px-3 py-3 space-y-1.5">
-          {adminNavItems.map((item, index) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+          {adminNavItems.map((item) => {
+            const isActive = isNavItemActive(item, pathname)
+            const Icon = item.icon || LayoutDashboard
             return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton 
                   asChild 
                   isActive={isActive}
-                  tooltip={item.title}
+                  tooltip={item.name}
                   className={cn(
                     "group relative overflow-hidden transition-all duration-300 rounded-xl",
                     isActive 
@@ -157,7 +136,7 @@ export function AdminSidebar() {
                         ? "bg-white/20 text-white shadow-lg backdrop-blur-sm" 
                         : "bg-primary-100/50 text-primary-700 group-hover:bg-primary-200 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-md"
                     )}>
-                      <item.icon className={cn(
+                      <Icon className={cn(
                         "h-5 w-5 transition-all duration-300",
                         isActive ? "" : "group-hover:scale-110 group-hover:-rotate-6"
                       )} />
@@ -165,7 +144,7 @@ export function AdminSidebar() {
                     <span className={cn(
                       "font-semibold transition-all duration-300 relative z-10",
                       isActive ? "text-white" : "text-primary-800 group-hover:text-primary-700 group-hover:translate-x-1"
-                    )}>{item.title}</span>
+                    )}>{item.name}</span>
                     {isActive && (
                       <>
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-10 bg-gradient-to-b from-white/50 via-white to-white/50 rounded-r-full shadow-lg"></div>
@@ -182,13 +161,14 @@ export function AdminSidebar() {
         {/* Bottom Navigation Items */}
         <SidebarMenu className="mt-auto pt-3 border-t-2 border-primary-100/50 px-3 pb-3 space-y-1.5 bg-gradient-to-t from-primary-50/30 to-transparent">
           {adminBottomNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            const isActive = isNavItemActive(item, pathname)
+            const Icon = item.icon || HelpCircle
             return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton 
                   asChild 
                   isActive={isActive}
-                  tooltip={item.title}
+                  tooltip={item.name}
                   className={cn(
                     "group transition-all duration-300 rounded-xl",
                     isActive 
@@ -203,12 +183,12 @@ export function AdminSidebar() {
                         ? "bg-white/20 text-white shadow-md backdrop-blur-sm" 
                         : "bg-primary-100/50 text-primary-700 group-hover:bg-primary-200 group-hover:scale-110 group-hover:rotate-12"
                     )}>
-                      <item.icon className="h-5 w-5 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
+                      <Icon className="h-5 w-5 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
                     </div>
                     <span className={cn(
                       "font-semibold transition-all duration-300",
                       isActive ? "text-white" : "text-primary-800 group-hover:text-primary-700 group-hover:translate-x-1"
-                    )}>{item.title}</span>
+                    )}>{item.name}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

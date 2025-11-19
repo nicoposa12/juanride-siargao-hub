@@ -2,17 +2,21 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Car, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { getNavItemsForRole, isNavItemActive, type NavItem } from "@/lib/navigation/config";
+import { canSeeNavItem } from "@/lib/navigation/permissions";
+import { cn } from "@/lib/utils";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,51 +42,24 @@ const Navigation = () => {
     }
   };
 
-  // Role-based navigation links
-  const getNavLinks = () => {
-    if (!profile) return [];
-
-    const role = profile.role;
-
-    // Owner navigation
-    if (role === 'owner') {
-      return [
-        { name: "Home", href: "/" },
-        { name: "Dashboard", href: "/owner/dashboard" },
-        { name: "My Vehicles", href: "/owner/vehicles" },
-        { name: "Bookings", href: "/owner/bookings" },
-        { name: "Earnings", href: "/owner/earnings" },
-        { name: "Maintenance", href: "/owner/maintenance" },
-        { name: "Support", href: "/support" },
-        { name: "Profile", href: "/profile" },
-      ];
+  // Get navigation items based on user role
+  // Note: Admins should use AdminSidebar, not this navigation
+  // So we filter out admin-specific items from main nav
+  // Normalize 'pending' role to null since pending users are in onboarding
+  const userRole: 'renter' | 'owner' | 'admin' | null = 
+    profile?.role === 'pending' ? null : (profile?.role || null);
+  const allNavItems = getNavItemsForRole(userRole);
+  
+  // Filter out admin-specific routes from main navigation
+  // Admins should use the AdminSidebar component instead
+  const navItems: NavItem[] = allNavItems.filter(item => {
+    // Don't show admin routes in main nav (they have their own sidebar)
+    if (item.href.startsWith('/admin')) {
+      return false;
     }
-
-    // Admin navigation
-    if (role === 'admin') {
-      return [
-        { name: "Home", href: "/" },
-        { name: "Dashboard", href: "/admin/dashboard" },
-        { name: "Users", href: "/admin/users" },
-        { name: "Listings", href: "/admin/listings" },
-        { name: "Bookings", href: "/admin/bookings" },
-        { name: "Profile", href: "/profile" },
-      ];
-    }
-
-    // Renter navigation (default)
-    return [
-      { name: "Home", href: "/" },
-      { name: "Browse Vehicles", href: "/vehicles" },
-      { name: "My Rentals", href: "/dashboard/bookings" },
-      { name: "Favorites", href: "/favorites" },
-      { name: "Reviews", href: "/dashboard/reviews" },
-      { name: "Support", href: "/support" },
-      { name: "Profile", href: "/profile" },
-    ];
-  };
-
-  const navLinks = getNavLinks();
+    // Only show items the user can actually access
+    return canSeeNavItem(item.href, userRole);
+  });
 
   return (
     <nav
@@ -104,18 +81,29 @@ const Navigation = () => {
           <div className="hidden md:flex items-center gap-6">
             {user && profile ? (
               <>
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.name}
-                    href={link.href}
-                    className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-primary-50/50"
-                  >
-                    <span className="relative z-10 group-hover:font-semibold transition-all">
-                      {link.name}
-                    </span>
-                    <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 group-hover:w-full transition-all duration-300 rounded-full shadow-sm"></span>
-                  </Link>
-                ))}
+                {navItems.map((item) => {
+                  const isActive = isNavItemActive(item, pathname);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg",
+                        isActive
+                          ? "text-primary-600 bg-primary-50/80 font-semibold"
+                          : "text-foreground hover:text-primary-600 hover:bg-primary-50/50"
+                      )}
+                    >
+                      <span className="relative z-10 group-hover:font-semibold transition-all">
+                        {item.name}
+                      </span>
+                      <span className={cn(
+                        "absolute -bottom-0.5 left-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 transition-all duration-300 rounded-full shadow-sm",
+                        isActive ? "w-full" : "w-0 group-hover:w-full"
+                      )}></span>
+                    </Link>
+                  );
+                })}
                 <NotificationCenter />
                 <Button 
                   onClick={handleSignOut}
@@ -129,14 +117,29 @@ const Navigation = () => {
               </>
             ) : (
               <>
-                <Link href="/" className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-primary-50/50">
-                  <span className="relative z-10 group-hover:font-semibold">Home</span>
-                  <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 group-hover:w-full transition-all duration-300 rounded-full shadow-sm"></span>
-                </Link>
-                <Link href="/vehicles" className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-primary-50/50">
-                  <span className="relative z-10 group-hover:font-semibold">Browse Vehicles</span>
-                  <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 group-hover:w-full transition-all duration-300 rounded-full shadow-sm"></span>
-                </Link>
+                {navItems.map((item) => {
+                  const isActive = isNavItemActive(item, pathname);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "transition-all duration-300 font-medium relative group px-3 py-2 rounded-lg",
+                        isActive
+                          ? "text-primary-600 bg-primary-50/80 font-semibold"
+                          : "text-foreground hover:text-primary-600 hover:bg-primary-50/50"
+                      )}
+                    >
+                      <span className="relative z-10 group-hover:font-semibold">
+                        {item.name}
+                      </span>
+                      <span className={cn(
+                        "absolute -bottom-0.5 left-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-400 transition-all duration-300 rounded-full shadow-sm",
+                        isActive ? "w-full" : "w-0 group-hover:w-full"
+                      )}></span>
+                    </Link>
+                  );
+                })}
                 <Link href="/login">
                   <Button 
                     variant="outline"
@@ -168,18 +171,26 @@ const Navigation = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden mt-4 pb-4 animate-fade-in">
             <div className="flex flex-col gap-4">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  className="text-foreground hover:text-primary-600 transition-all duration-300 font-medium p-3 rounded-lg hover:bg-primary-50 border border-transparent hover:border-primary-200 hover:shadow-sm group relative"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <span className="group-hover:font-semibold group-hover:translate-x-1 inline-block transition-all duration-300">
-                    {link.name}
-                  </span>
-                </a>
-              ))}
+              {navItems.map((item) => {
+                const isActive = isNavItemActive(item, pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "transition-all duration-300 font-medium p-3 rounded-lg border hover:shadow-sm group relative",
+                      isActive
+                        ? "text-primary-600 bg-primary-50 border-primary-200 font-semibold shadow-sm"
+                        : "text-foreground hover:text-primary-600 hover:bg-primary-50 border-transparent hover:border-primary-200"
+                    )}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <span className="group-hover:font-semibold group-hover:translate-x-1 inline-block transition-all duration-300">
+                      {item.name}
+                    </span>
+                  </Link>
+                );
+              })}
               {user && profile ? (
                 <>
                   <div className="flex justify-center">

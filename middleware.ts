@@ -3,6 +3,16 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { Database } from '@/types/database.types'
 import { getCachedUserRole } from '@/lib/cache/role-cache'
+import { 
+  canAccessRoute, 
+  isPublicRoute, 
+  isSharedRoute,
+  isAdminRoute,
+  isOwnerRoute,
+  isRenterRoute,
+  getDashboardRoute,
+  type UserRole 
+} from '@/lib/rbac/config'
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
@@ -14,28 +24,22 @@ export async function middleware(req: NextRequest) {
 
   const path = req.nextUrl.pathname
 
-  // Public routes that don't need authentication
-  const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/auth/callback', '/vehicles', '/checkout', '/booking-confirmation']
-  const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith('/vehicles/') || path.startsWith('/checkout') || path.startsWith('/booking-confirmation'))
-
-  // Protected renter routes (any authenticated user) - but exclude booking-specific routes that have their own access control
-  const renterRoutes = ['/dashboard', '/messages', '/profile']
-  const isRenterRoute = renterRoutes.some(route => path.startsWith(route)) && !path.startsWith('/dashboard/bookings/')
-
-  // Owner-only routes
-  const isOwnerRoute = path.startsWith('/owner')
-
-  // Admin-only routes
-  const isAdminRoute = path.startsWith('/admin')
-
-  // Booking-specific routes that need authentication but have their own access control
-  const isBookingRoute = path.startsWith('/dashboard/bookings/')
-
   // Onboarding routes
   const isOnboardingRoute = path.startsWith('/onboarding')
 
   // Redirect to login if accessing protected route without session
-  if (!session && (isRenterRoute || isOwnerRoute || isAdminRoute || isBookingRoute || isOnboardingRoute)) {
+  if (!session) {
+    // Allow public routes
+    if (isPublicRoute(path)) {
+      return res
+    }
+    
+    // Allow unauthorized page (for displaying errors)
+    if (path === '/unauthorized') {
+      return res
+    }
+
+    // Redirect to login for all other protected routes
     const redirectUrl = new URL('/login', req.url)
     redirectUrl.searchParams.set('redirect', path)
     return NextResponse.redirect(redirectUrl)
@@ -89,49 +93,42 @@ export async function middleware(req: NextRequest) {
     }
 
     if (!needsOnboarding && userRole !== 'pending' && isOnboardingRoute) {
-      const destination = userRole === 'admin'
-        ? '/admin/dashboard'
-        : userRole === 'owner'
-          ? '/owner/dashboard'
-          : '/vehicles'
+      const destination = getDashboardRoute(userRole as UserRole)
       return NextResponse.redirect(new URL(destination, req.url))
     }
 
-    // Check owner routes
-    if (isOwnerRoute) {
-      if (userRole !== 'owner' && userRole !== 'admin') {
-        return NextResponse.redirect(new URL('/unauthorized', req.url))
-      }
-    }
-
-    // Check admin routes
-    if (isAdminRoute) {
-      if (userRole !== 'admin') {
-        return NextResponse.redirect(new URL('/unauthorized', req.url))
-      }
+    // CRITICAL: Redirect admin and owner from home page IMMEDIATELY
+    // This must happen BEFORE RBAC check to prevent any access to homepage
+    // Admin and Owner users CANNOT access the homepage - they are always redirected to their dashboards
+    if (path === '/' && (userRole === 'admin' || userRole === 'owner')) {
+      console.log('🚫 BLOCKING', userRole, 'from accessing homepage - redirecting to dashboard')
+      const dashboardUrl = getDashboardRoute(userRole as UserRole)
+      return NextResponse.redirect(new URL(dashboardUrl, req.url))
     }
 
     // Redirect authenticated users away from auth pages
     if (path.startsWith('/login') || path.startsWith('/signup')) {
-      // Redirect based on role
+      // Redirect based on role using centralized function
       console.log('🚀 Middleware - Redirecting user with role:', userRole)
-      if (userRole === 'admin') {
-        console.log('🔑 Redirecting admin to /admin/dashboard')
-        return NextResponse.redirect(new URL('/admin/dashboard', req.url))
-      } else if (userRole === 'owner') {
-        console.log('🔑 Redirecting owner to /owner/dashboard')
-        return NextResponse.redirect(new URL('/owner/dashboard', req.url))
-      } else {
-        console.log('🔑 Redirecting renter to /')
-        return NextResponse.redirect(new URL('/', req.url))
-      }
+      const dashboardUrl = getDashboardRoute(userRole as UserRole)
+      console.log(`🔑 Redirecting ${userRole} to ${dashboardUrl}`)
+      return NextResponse.redirect(new URL(dashboardUrl, req.url))
     }
 
-    // Redirect admins and owners from home page to their dashboards
-    if (path === '/' && (userRole === 'admin' || userRole === 'owner')) {
-      console.log('🏠 Redirecting', userRole, 'from home to dashboard')
-      const dashboardUrl = userRole === 'admin' ? '/admin/dashboard' : '/owner/dashboard'
-      return NextResponse.redirect(new URL(dashboardUrl, req.url))
+    // STRICT RBAC: Check route access based on role
+    // Admin CANNOT access owner or renter routes
+    // Owner CANNOT access admin or renter routes
+    // Renter CANNOT access admin or owner routes
+    // Note: Homepage (/) is handled above - admin/owner are redirected before reaching this check
+    const accessCheck = canAccessRoute(path, userRole as UserRole)
+    
+    if (!accessCheck.allowed) {
+      console.log(`🚫 Access denied for ${userRole} to ${path}: ${accessCheck.reason}`)
+      // Return 403 Forbidden response
+      const unauthorizedUrl = new URL('/unauthorized', req.url)
+      unauthorizedUrl.searchParams.set('reason', accessCheck.reason || 'Access denied')
+      unauthorizedUrl.searchParams.set('path', path)
+      return NextResponse.redirect(unauthorizedUrl)
     }
   }
 

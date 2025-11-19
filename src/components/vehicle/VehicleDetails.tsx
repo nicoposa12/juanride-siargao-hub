@@ -65,6 +65,9 @@ export function VehicleDetails({ vehicle }: VehicleDetailsProps) {
   }
   
   const isOwner = profile?.id === vehicle.owner_id
+  const isAdmin = profile?.role === 'admin'
+  const isRenter = profile?.role === 'renter'
+  const canBook = isRenter && !isOwner
   
   return (
     <div className="min-h-screen pb-12">
@@ -343,8 +346,40 @@ export function VehicleDetails({ vehicle }: VehicleDetailsProps) {
                     </Button>
                   </CardFooter>
                 </Card>
-              ) : (
+              ) : isAdmin ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Admin Access</CardTitle>
+                    <CardDescription>
+                      Administrators cannot book vehicles. Use the admin dashboard to manage bookings.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardFooter>
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/admin/dashboard">
+                        Go to Admin Dashboard
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ) : canBook ? (
                 <BookingWidget vehicle={vehicle} onBook={handleBookNow} />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Booking Unavailable</CardTitle>
+                    <CardDescription>
+                      Only renters can book vehicles. Please sign in with a renter account to make a booking.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardFooter>
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/login">
+                        Sign In
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
               )}
               
               {/* Trust & Safety */}

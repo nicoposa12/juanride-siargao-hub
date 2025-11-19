@@ -56,6 +56,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check user role - only renters can create bookings
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !userProfile) {
+      return NextResponse.json({ error: 'Failed to verify user role' }, { status: 500 })
+    }
+
+    if (userProfile.role === 'admin' || userProfile.role === 'owner') {
+      return NextResponse.json(
+        { error: 'Only renters can create bookings. Administrators and owners cannot book vehicles.' },
+        { status: 403 }
+      )
+    }
+
+    if (userProfile.role !== 'renter') {
+      return NextResponse.json(
+        { error: 'Renter account required to create bookings' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { vehicle_id, start_date, end_date, pickup_time, special_requests } = body
 

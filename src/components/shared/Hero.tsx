@@ -1,29 +1,33 @@
 'use client';
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, LayoutDashboard } from "lucide-react";
+import { ArrowRight, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { getDashboardRoute, type UserRole } from "@/lib/rbac/config";
 import heroImage from "@/assets/hero-siargao.jpg";
 
 const Hero = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
-  const handleOwnerButton = () => {
-    if (user && profile) {
-      // Already logged in - go to dashboard
-      if (profile.role === 'owner') {
-        router.push('/owner/dashboard');
-      } else {
-        router.push('/vehicles');
+  // CRITICAL: Additional client-side redirect for Admin and Owner
+  // This ensures they cannot view the homepage even if middleware is bypassed
+  useEffect(() => {
+    if (!loading && user && profile) {
+      const userRole = (profile.role === 'pending' ? null : profile.role) as UserRole;
+      
+      // Admin and Owner cannot access homepage - redirect immediately
+      if (userRole === 'admin' || userRole === 'owner') {
+        const dashboardUrl = getDashboardRoute(userRole);
+        console.log('🚫 Hero component: Redirecting', userRole, 'to', dashboardUrl);
+        router.replace(dashboardUrl);
       }
-    } else {
-      // Not logged in - go to signup
-      router.push('/signup');
     }
-  };
+  }, [user, profile, loading, router]);
+
 
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
@@ -59,24 +63,16 @@ const Hero = () => {
                 Book Now <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Button 
-              onClick={handleOwnerButton}
-              size="lg" 
-              variant="outline" 
-              className="bg-white/10 text-white border-2 border-white/40 hover:bg-white/20 hover:border-white/60 backdrop-blur-md shadow-layered-md hover:shadow-layered-lg transition-all text-lg px-8 py-6 font-semibold"
-            >
-              {user && profile ? (
-                <>
-                  <LayoutDashboard className="mr-2 h-5 w-5" />
-                  {profile.role === 'owner' ? 'Go to Dashboard' : 'Browse Vehicles'}
-                </>
-              ) : (
-                <>
-                  <Users className="mr-2 h-5 w-5" />
-                  For Vehicle Owners
-                </>
-              )}
-            </Button>
+            <Link href="/vehicles">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="bg-white/10 text-white border-2 border-white/40 hover:bg-white/20 hover:border-white/60 backdrop-blur-md shadow-layered-md hover:shadow-layered-lg transition-all text-lg px-8 py-6 font-semibold"
+              >
+                <Users className="mr-2 h-5 w-5" />
+                Browse Vehicles
+              </Button>
+            </Link>
           </div>
 
           {/* Stats */}

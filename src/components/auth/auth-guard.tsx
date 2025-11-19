@@ -1,9 +1,10 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { canAccessRoute, type UserRole } from '@/lib/rbac/config'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -20,6 +21,7 @@ export function AuthGuard({
 }: AuthGuardProps) {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     if (!loading) {
@@ -34,16 +36,30 @@ export function AuthGuard({
         return
       }
 
-      // Check role requirements
+      // STRICT RBAC: Use centralized RBAC system for route access
+      if (pathname) {
+        const userRole = (profile.role === 'pending' ? null : profile.role) as UserRole
+        const accessCheck = canAccessRoute(pathname, userRole)
+        
+        if (!accessCheck.allowed) {
+          const unauthorizedUrl = `/unauthorized?reason=${encodeURIComponent(accessCheck.reason || 'Access denied')}&path=${encodeURIComponent(pathname)}`
+          router.push(unauthorizedUrl)
+          return
+        }
+      }
+
+      // Legacy role check (for backward compatibility)
       if (requiredRole) {
-        const hasRequiredRole = profile.role === requiredRole || profile.role === 'admin'
-        if (!hasRequiredRole) {
-          router.push('/unauthorized')
+        // STRICT: Admin cannot access owner or renter routes
+        // Only exact role match is allowed
+        if (profile.role !== requiredRole) {
+          const unauthorizedUrl = `/unauthorized?reason=${encodeURIComponent(`This page requires ${requiredRole} access. Your role: ${profile.role}`)}&path=${encodeURIComponent(pathname || '')}`
+          router.push(unauthorizedUrl)
           return
         }
       }
     }
-  }, [user, profile, loading, requiredRole, router, redirectTo])
+  }, [user, profile, loading, requiredRole, router, redirectTo, pathname])
 
   // Show loading state
   if (loading) {
@@ -82,16 +98,35 @@ export function AuthGuard({
     )
   }
 
-  // Check role requirements
-  if (requiredRole) {
-    const hasRequiredRole = profile.role === requiredRole || profile.role === 'admin'
-    if (!hasRequiredRole) {
+  // STRICT RBAC: Check route access using centralized system
+  if (pathname) {
+    const userRole = (profile.role === 'pending' ? null : profile.role) as UserRole
+    const accessCheck = canAccessRoute(pathname, userRole)
+    
+    if (!accessCheck.allowed) {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
             <h1 className="text-2xl font-bold">Access Denied</h1>
             <p className="text-muted-foreground">
-              You don't have permission to access this page.
+              {accessCheck.reason || 'You don\'t have permission to access this page.'}
+            </p>
+          </div>
+        </div>
+      )
+    }
+  }
+
+  // Legacy role check (for backward compatibility)
+  if (requiredRole) {
+    // STRICT: Only exact role match allowed
+    if (profile.role !== requiredRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold">Access Denied</h1>
+            <p className="text-muted-foreground">
+              This page requires {requiredRole} access. Your role: {profile.role}
             </p>
           </div>
         </div>

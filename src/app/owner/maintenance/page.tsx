@@ -90,7 +90,7 @@ export default function OwnerMaintenancePage() {
   useEffect(() => {
     if (!authLoading) {
       if (!user || (profile && profile.role !== 'owner')) {
-        router.push('/')
+        router.push('/unauthorized?reason=' + encodeURIComponent('Owner access required') + '&path=' + encodeURIComponent('/owner/maintenance'))
         return
       }
       loadData()

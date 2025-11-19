@@ -56,8 +56,8 @@ export default function OwnerDashboardPage() {
   
   useEffect(() => {
     if (!authLoading) {
-      if (!user || (profile && profile.role !== 'owner' && profile.role !== 'admin')) {
-        router.push('/')
+      if (!user || (profile && profile.role !== 'owner')) {
+        router.push('/unauthorized?reason=' + encodeURIComponent('Owner access required') + '&path=' + encodeURIComponent('/owner/dashboard'))
         return
       }
       loadDashboardData()

@@ -93,14 +93,23 @@ export default function LoginPage() {
 
         // Check for redirect parameter first
         const redirectParam = searchParams?.get('redirect') ?? null
-        let redirectPath = redirectParam ?? '/vehicles' // Default to vehicles (renter)
         
-        // Override with role-based redirect only if no redirect param
-        if (!redirectParam) {
-        if (userProfile.role === 'admin') {
-          redirectPath = '/admin/dashboard'
-        } else if (userProfile.role === 'owner') {
-          redirectPath = '/owner/dashboard'
+        // Determine redirect path based on role
+        let redirectPath: string
+        if (redirectParam) {
+          // Respect explicit redirect parameter
+          redirectPath = redirectParam
+        } else {
+          // Role-based dashboard redirect
+          if (userProfile.role === 'admin') {
+            redirectPath = '/admin/dashboard'
+          } else if (userProfile.role === 'owner') {
+            redirectPath = '/owner/dashboard'
+          } else if (userProfile.role === 'renter') {
+            redirectPath = '/dashboard/bookings' // Renter dashboard
+          } else {
+            // Pending or unknown role - default to vehicles
+            redirectPath = '/vehicles'
           }
         }
         
