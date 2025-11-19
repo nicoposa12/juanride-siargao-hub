@@ -28,7 +28,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useMap } from 'react-leaflet';
 
-// Fix for default marker icon in Next.js
+// Fix for default marker icon in Next.js - restore standard pin icon
 if (typeof window !== 'undefined') {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -257,26 +257,119 @@ export function VehicleTrackingDialog({
         ) : trackingData ? (
           <div className="space-y-4">
             {/* Interactive Map */}
-            <div className="relative w-full h-96 rounded-lg overflow-hidden border">
+            <div className="relative w-full h-96 rounded-lg overflow-hidden border shadow-lg">
+              <style dangerouslySetInnerHTML={{__html: `
+                /* Google Maps-like muted color scheme */
+                .google-maps-style .leaflet-container {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                  background-color: #f5f5f5;
+                }
+                
+                /* Mute colors to match Google Maps exactly - reduce saturation significantly */
+                .google-maps-style .leaflet-tile-container img {
+                  image-rendering: -webkit-optimize-contrast;
+                  image-rendering: crisp-edges;
+                  filter: contrast(0.9) saturate(0.6) brightness(1.08) hue-rotate(-3deg);
+                  opacity: 0.99;
+                }
+                
+                /* Ensure normal blend mode for accurate color rendering */
+                .google-maps-style .leaflet-tile-container img {
+                  mix-blend-mode: normal;
+                }
+                
+                /* Custom popup styling - Google Maps-like */
+                .custom-popup .leaflet-popup-content-wrapper {
+                  border-radius: 8px;
+                  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                  padding: 0;
+                  background: white;
+                  border: none;
+                }
+                
+                .custom-popup .leaflet-popup-content {
+                  margin: 12px;
+                  font-size: 14px;
+                  line-height: 1.5;
+                  color: #333;
+                }
+                
+                .custom-popup .leaflet-popup-tip {
+                  background: white;
+                  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+                
+                /* Standard marker icon styling - subtle shadow */
+                .google-maps-style .leaflet-marker-icon {
+                  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+                }
+                
+                /* Google Maps-like controls */
+                .google-maps-style .leaflet-control-zoom a {
+                  background-color: white;
+                  color: #333;
+                  border: 1px solid #ccc;
+                  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+                  font-size: 18px;
+                  font-weight: bold;
+                  width: 34px;
+                  height: 34px;
+                  line-height: 34px;
+                }
+                
+                .google-maps-style .leaflet-control-zoom a:hover {
+                  background-color: #f4f4f4;
+                  color: #333;
+                }
+                
+                /* Attribution styling - Google Maps-like */
+                .google-maps-style .leaflet-control-attribution {
+                  background-color: rgba(255, 255, 255, 0.9);
+                  color: #666;
+                  font-size: 11px;
+                  padding: 4px 8px;
+                  border-radius: 4px;
+                }
+                
+                .google-maps-style .leaflet-control-attribution a {
+                  color: #666;
+                }
+                
+                /* Enhance readability of place names */
+                .google-maps-style .leaflet-tile-container {
+                  font-weight: 500;
+                }
+              `}} />
               {mapReady && trackingData.position.latitude && trackingData.position.longitude ? (
                 <MapContainer
                   center={[trackingData.position.latitude, trackingData.position.longitude]}
-                  zoom={15}
+                  zoom={18}
+                  minZoom={10}
+                  maxZoom={19}
                   style={{ height: '100%', width: '100%' }}
                   scrollWheelZoom={true}
+                  className="google-maps-style"
                 >
+                  {/* Vibrant OpenStreetMap tiles for colorful, Google Maps-like appearance */}
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    maxZoom={19}
+                    subdomains="abc"
                   />
-                  <Marker position={[trackingData.position.latitude, trackingData.position.longitude]}>
-                    <Popup>
-                      <div className="text-sm">
-                        <p className="font-semibold">{vehicleName || 'Vehicle'}</p>
-                        <p className="text-muted-foreground">{trackingData.vehicle.plateNumber}</p>
-                        <p className="text-xs mt-1">
-                          {trackingData.position.speedKph.toFixed(1)} km/h
-                        </p>
+                  <Marker 
+                    position={[trackingData.position.latitude, trackingData.position.longitude]}
+                  >
+                    <Popup className="custom-popup" maxWidth={220}>
+                      <div className="space-y-1.5">
+                        <p className="font-semibold text-base text-gray-900">{vehicleName || 'Vehicle'}</p>
+                        <p className="text-sm text-gray-600">{trackingData.vehicle.plateNumber}</p>
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+                          <Gauge className="h-4 w-4 text-gray-700" />
+                          <p className="text-sm font-medium text-gray-700">
+                            {trackingData.position.speedKph.toFixed(1)} km/h
+                          </p>
+                        </div>
                       </div>
                     </Popup>
                   </Marker>
