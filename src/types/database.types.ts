@@ -76,6 +76,9 @@ export interface Database {
           rental_terms: string | null
           is_approved: boolean
           admin_notes: string | null
+          sinotrack_device_id: string | null
+          sinotrack_account: string | null
+          sinotrack_password: string | null
           created_at: string
           updated_at: string
         }
@@ -98,6 +101,9 @@ export interface Database {
           rental_terms?: string | null
           is_approved?: boolean
           admin_notes?: string | null
+          sinotrack_device_id?: string | null
+          sinotrack_account?: string | null
+          sinotrack_password?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -120,6 +126,9 @@ export interface Database {
           rental_terms?: string | null
           is_approved?: boolean
           admin_notes?: string | null
+          sinotrack_device_id?: string | null
+          sinotrack_account?: string | null
+          sinotrack_password?: string | null
           created_at?: string
           updated_at?: string
         }
