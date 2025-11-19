@@ -37,6 +37,7 @@ import {
   Filter,
   Loader2,
   Eye,
+  Satellite,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -52,6 +53,7 @@ import {
   type BookingWithDetails,
 } from '@/lib/supabase/queries/bookings'
 import { BookingDetailsDialog } from '@/components/booking/BookingDetailsDialog'
+import { VehicleTrackingDialog } from '@/components/owner/VehicleTrackingDialog'
 
 function BookingsContent() {
   const router = useRouter()
@@ -67,6 +69,9 @@ function BookingsContent() {
   const [activeTab, setActiveTab] = useState('all')
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [trackingDialogOpen, setTrackingDialogOpen] = useState(false)
+  const [trackingVehicleId, setTrackingVehicleId] = useState<string | null>(null)
+  const [trackingVehicleName, setTrackingVehicleName] = useState<string>('')
   const [actionDialog, setActionDialog] = useState<{
     open: boolean
     action: 'confirm' | 'activate' | 'complete' | 'cancel' | null
@@ -217,6 +222,24 @@ function BookingsContent() {
       default:
         return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const hasSinotrackEnabled = (booking: BookingWithDetails) => {
+    const vehicle = booking.vehicle as any
+    return (
+      vehicle?.sinotrack_device_id &&
+      vehicle?.sinotrack_account &&
+      vehicle?.sinotrack_password
+    )
+  }
+
+  const handleTrackVehicle = (booking: BookingWithDetails) => {
+    const vehicle = booking.vehicle as any
+    setTrackingVehicleId(vehicle?.id || null)
+    setTrackingVehicleName(
+      `${vehicle?.make || ''} ${vehicle?.model || ''}`.trim() || 'Vehicle'
+    )
+    setTrackingDialogOpen(true)
   }
   
   if (authLoading || loading) {
@@ -438,6 +461,17 @@ function BookingsContent() {
                             </Button>
                           )}
                           
+                          {hasSinotrackEnabled(booking) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleTrackVehicle(booking)}
+                              className="border-primary/20 hover:bg-primary/10 hover:border-primary/40"
+                            >
+                              <Satellite className="h-4 w-4 mr-2" />
+                              Track Vehicle
+                            </Button>
+                          )}
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/messages?booking=${booking.id}`}>
                               <MessageSquare className="h-4 w-4 mr-2" />
@@ -475,6 +509,18 @@ function BookingsContent() {
           onBookingUpdate={() => loadBookings(true)}
         />
         
+        {/* Vehicle Tracking Dialog */}
+        {trackingVehicleId && (
+          <VehicleTrackingDialog
+            vehicleId={trackingVehicleId}
+            vehicleName={trackingVehicleName}
+            open={trackingDialogOpen}
+            onOpenChange={setTrackingDialogOpen}
+            autoRefresh={true}
+            refreshInterval={30000}
+          />
+        )}
+
         {/* Action Confirmation Dialog */}
         <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog({ ...actionDialog, open })}>
           <DialogContent>

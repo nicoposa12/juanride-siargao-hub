@@ -161,7 +161,14 @@ export const callSinoTrack = async (
 };
 
 export const fetchLatestPositions = async (
-  options: Required<SinoTrackOptions> & { deviceId?: string },
+  options: {
+    server: string;
+    account: string;
+    password: string;
+    pageSize?: number;
+    absolutePage?: number;
+    deviceId?: string;
+  },
 ): Promise<SinoTrackPosition[]> => {
   if (!options.password) {
     throw new Error('SinoTrack password is required');

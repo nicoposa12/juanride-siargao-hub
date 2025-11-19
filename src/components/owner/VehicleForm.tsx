@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ImageUpload } from './ImageUpload'
+import { SinoTrackCredentials } from './SinoTrackCredentials'
 import { Save, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -48,6 +49,11 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
   const [pricePerMonth, setPricePerMonth] = useState(initialData?.price_per_month?.toString() || '')
   const [rentalTerms, setRentalTerms] = useState(initialData?.rental_terms || '')
   const [imageUrls, setImageUrls] = useState<string[]>(initialData?.image_urls || [])
+  
+  // SinoTrack GPS tracking credentials
+  const [sinotrackDeviceId, setSinotrackDeviceId] = useState(initialData?.sinotrack_device_id || '')
+  const [sinotrackAccount, setSinotrackAccount] = useState(initialData?.sinotrack_account || '')
+  const [sinotrackPassword, setSinotrackPassword] = useState(initialData?.sinotrack_password || '')
   
   // Features
   const [features, setFeatures] = useState<Record<string, boolean>>(
@@ -167,6 +173,9 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
     setPricePerMonth('')
     setRentalTerms('')
     setImageUrls([])
+    setSinotrackDeviceId('')
+    setSinotrackAccount('')
+    setSinotrackPassword('')
     setFeatures({
       helmet_included: false,
       phone_holder: false,
@@ -221,6 +230,19 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
     try {
       const supabase = createClient()
       
+      // Validate SinoTrack fields consistency
+      const hasSinotrackFields = sinotrackDeviceId || sinotrackAccount || sinotrackPassword
+      const hasAllSinotrackFields = sinotrackDeviceId && sinotrackAccount && sinotrackPassword
+      
+      if (hasSinotrackFields && !hasAllSinotrackFields) {
+        toast({
+          title: 'Incomplete GPS Tracking Setup',
+          description: 'Please fill in all SinoTrack fields (Device ID, Account, Password) or leave them all empty.',
+          variant: 'destructive',
+        })
+        return
+      }
+      
       const vehicleData = {
         owner_id: user.id,
         type,
@@ -236,6 +258,9 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
         rental_terms: rentalTerms || null,
         image_urls: imageUrls,
         features,
+        sinotrack_device_id: sinotrackDeviceId || null,
+        sinotrack_account: sinotrackAccount || null,
+        sinotrack_password: sinotrackPassword || null,
         status: 'available',
         is_approved: false, // Requires admin approval
       }
@@ -598,6 +623,16 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
           />
         </CardContent>
       </Card>
+      
+      {/* SinoTrack GPS Tracking */}
+      <SinoTrackCredentials
+        deviceId={sinotrackDeviceId}
+        account={sinotrackAccount}
+        password={sinotrackPassword}
+        onDeviceIdChange={setSinotrackDeviceId}
+        onAccountChange={setSinotrackAccount}
+        onPasswordChange={setSinotrackPassword}
+      />
       
       {/* Rental Terms */}
       <Card>

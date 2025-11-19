@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { fetchLatestPositions } from '@/lib/sinotrack/client';
 
-const { SINOTRACK_SERVER, SINOTRACK_ACCOUNT, SINOTRACK_PASSWORD, SINOTRACK_DEVICE_ID } = process.env;
+// Test credentials for the /sinotrack-test page
+const { 
+  SINOTRACK_SERVER,
+  SINOTRACK_TEST_ACCOUNT, 
+  SINOTRACK_TEST_PASSWORD, 
+  SINOTRACK_TEST_DEVICE_ID 
+} = process.env;
 
 const assertEnv = () => {
-  if (!SINOTRACK_SERVER || !SINOTRACK_ACCOUNT || !SINOTRACK_PASSWORD) {
-    throw new Error('Sinotrack environment variables are not fully configured');
+  if (!SINOTRACK_SERVER || !SINOTRACK_TEST_ACCOUNT || !SINOTRACK_TEST_PASSWORD) {
+    throw new Error('SinoTrack test environment variables are not fully configured');
   }
 };
 
@@ -16,11 +22,11 @@ export async function GET(request: NextRequest) {
   try {
     assertEnv();
     const { searchParams } = new URL(request.url);
-    const deviceId = searchParams.get('deviceId') ?? SINOTRACK_DEVICE_ID ?? undefined;
+    const deviceId = searchParams.get('deviceId') ?? SINOTRACK_TEST_DEVICE_ID ?? undefined;
     const devices = await fetchLatestPositions({
       server: SINOTRACK_SERVER!,
-      account: SINOTRACK_ACCOUNT!,
-      password: SINOTRACK_PASSWORD!,
+      account: SINOTRACK_TEST_ACCOUNT!,
+      password: SINOTRACK_TEST_PASSWORD!,
       deviceId,
     });
 
