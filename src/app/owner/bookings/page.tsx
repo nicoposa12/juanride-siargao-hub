@@ -53,7 +53,13 @@ import {
   type BookingWithDetails,
 } from '@/lib/supabase/queries/bookings'
 import { BookingDetailsDialog } from '@/components/booking/BookingDetailsDialog'
-import { VehicleTrackingDialog } from '@/components/owner/VehicleTrackingDialog'
+import dynamic from 'next/dynamic'
+
+// Dynamically import VehicleTrackingDialog to avoid SSR issues with Leaflet
+const VehicleTrackingDialog = dynamic(
+  () => import('@/components/owner/VehicleTrackingDialog').then((mod) => mod.VehicleTrackingDialog),
+  { ssr: false }
+)
 
 function BookingsContent() {
   const router = useRouter()

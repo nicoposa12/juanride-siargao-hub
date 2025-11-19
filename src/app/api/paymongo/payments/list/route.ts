@@ -5,6 +5,8 @@ import { listPayments } from '@/lib/paymongo/service'
 import { retrievePaymentListSchema } from '@/lib/paymongo/schemas'
 import { requireUser } from '../../_utils'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     await requireUser()
