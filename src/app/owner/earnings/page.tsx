@@ -38,7 +38,7 @@ interface VehicleEarnings {
 
 export default function OwnerEarningsPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const [stats, setStats] = useState<EarningsStats>({
     totalEarnings: 0,
     monthlyEarnings: 0,
@@ -53,12 +53,16 @@ export default function OwnerEarningsPage() {
   const itemsPerPage = 15
 
   useEffect(() => {
-    if (!authLoading && (!user || user.user_metadata?.role !== 'owner')) {
-      router.push('/')
-    } else if (user) {
-      fetchEarningsData()
+    if (!authLoading) {
+      if (!user || (profile && profile.role !== 'owner')) {
+        router.push('/unauthorized?reason=' + encodeURIComponent('Owner access required') + '&path=' + encodeURIComponent('/owner/earnings'))
+        return
+      }
+      if (user) {
+        fetchEarningsData()
+      }
     }
-  }, [user, authLoading])
+  }, [user, profile, authLoading, router])
 
   const fetchEarningsData = async () => {
     const supabase = createClient()

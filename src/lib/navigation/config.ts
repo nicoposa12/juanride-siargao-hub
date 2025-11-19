@@ -231,9 +231,9 @@ export function canAccessRoute(route: string, role: UserRole): boolean {
     return role === 'admin'
   }
 
-  // Owner routes
+  // Owner routes - ONLY owner can access (admin CANNOT access)
   if (route.startsWith('/owner')) {
-    return role === 'owner' || role === 'admin'
+    return role === 'owner'
   }
 
   // Renter routes (authenticated users)

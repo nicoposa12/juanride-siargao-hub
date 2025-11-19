@@ -5,14 +5,15 @@
  * Ensures front-end visibility rules align with back-end access control.
  */
 
-import type { UserRole } from './config'
-import { canAccessRoute } from './config'
+import type { UserRole } from '@/lib/rbac/config'
+import { canAccessRoute } from '@/lib/rbac/config'
 
 /**
  * Check if a user can access a specific route
  */
 export function hasRouteAccess(route: string, role: UserRole): boolean {
-  return canAccessRoute(route, role)
+  const accessCheck = canAccessRoute(route, role)
+  return accessCheck.allowed
 }
 
 /**
@@ -46,12 +47,12 @@ export function validateRoleForRoute(route: string, userRole: UserRole): {
     return { allowed: true }
   }
 
-  // Owner routes
+  // Owner routes - ONLY owner can access (admin CANNOT access)
   if (route.startsWith('/owner')) {
-    if (userRole !== 'owner' && userRole !== 'admin') {
+    if (userRole !== 'owner') {
       return {
         allowed: false,
-        reason: 'Owner or admin access required'
+        reason: 'Owner access required. Owner users cannot access admin or renter pages.'
       }
     }
     return { allowed: true }
