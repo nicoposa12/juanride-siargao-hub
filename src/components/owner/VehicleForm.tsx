@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ImageUpload } from './ImageUpload'
 import { SinoTrackCredentials } from './SinoTrackCredentials'
+import { DocumentUpload } from './DocumentUpload'
 import { Save, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -54,6 +56,12 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
   const [sinotrackDeviceId, setSinotrackDeviceId] = useState(initialData?.sinotrack_device_id || '')
   const [sinotrackAccount, setSinotrackAccount] = useState(initialData?.sinotrack_account || '')
   const [sinotrackPassword, setSinotrackPassword] = useState(initialData?.sinotrack_password || '')
+  
+  // Vehicle Documents (Required for approval)
+  const [registrationDocUrl, setRegistrationDocUrl] = useState(initialData?.registration_document_url || null)
+  const [insuranceDocUrl, setInsuranceDocUrl] = useState(initialData?.insurance_document_url || null)
+  const [ownershipDocUrl, setOwnershipDocUrl] = useState(initialData?.proof_of_ownership_url || null)
+  const [inspectionDocUrl, setInspectionDocUrl] = useState(initialData?.inspection_certificate_url || null)
   
   // Features
   const [features, setFeatures] = useState<Record<string, boolean>>(
@@ -225,6 +233,16 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
       return
     }
     
+    // Validate required documents
+    if (!registrationDocUrl || !insuranceDocUrl || !ownershipDocUrl) {
+      toast({
+        title: 'Documents Required',
+        description: 'Please upload all required documents (Registration, Insurance, Proof of Ownership).',
+        variant: 'destructive',
+      })
+      return
+    }
+    
     setSubmitting(true)
     
     try {
@@ -261,6 +279,10 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
         sinotrack_device_id: sinotrackDeviceId || null,
         sinotrack_account: sinotrackAccount || null,
         sinotrack_password: sinotrackPassword || null,
+        registration_document_url: registrationDocUrl,
+        insurance_document_url: insuranceDocUrl,
+        proof_of_ownership_url: ownershipDocUrl,
+        inspection_certificate_url: inspectionDocUrl || null,
         status: 'available',
         is_approved: false, // Requires admin approval
       }
@@ -620,6 +642,65 @@ export function VehicleForm({ initialData, isEditing = false }: VehicleFormProps
             onChange={setImageUrls}
             maxImages={20}
             minImages={3}
+          />
+        </CardContent>
+      </Card>
+      
+      {/* Vehicle Documents */}
+      <Card className="border-orange-200 bg-orange-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Vehicle Documents *
+            <Badge variant="destructive" className="ml-auto">Required for Approval</Badge>
+          </CardTitle>
+          <CardDescription>
+            Upload official documents to verify vehicle ownership and compliance. All documents are required before your listing can be approved by admin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Alert className="border-orange-300 bg-orange-50">
+            <AlertCircle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-sm text-orange-900">
+              <strong>Important:</strong> All document uploads are mandatory. Your vehicle cannot be approved without these documents.
+            </AlertDescription>
+          </Alert>
+          
+          <DocumentUpload
+            label="Vehicle Registration (OR/CR)"
+            description="Upload your Official Receipt and Certificate of Registration"
+            documentUrl={registrationDocUrl}
+            onChange={setRegistrationDocUrl}
+            required={true}
+          />
+          
+          <Separator />
+          
+          <DocumentUpload
+            label="Insurance Certificate"
+            description="Upload proof of valid vehicle insurance coverage"
+            documentUrl={insuranceDocUrl}
+            onChange={setInsuranceDocUrl}
+            required={true}
+          />
+          
+          <Separator />
+          
+          <DocumentUpload
+            label="Proof of Ownership"
+            description="Upload deed of sale, transfer documents, or other proof of ownership"
+            documentUrl={ownershipDocUrl}
+            onChange={setOwnershipDocUrl}
+            required={true}
+          />
+          
+          <Separator />
+          
+          <DocumentUpload
+            label="Vehicle Inspection Certificate (Optional)"
+            description="Upload LTO inspection certificate or emission test results (recommended)"
+            documentUrl={inspectionDocUrl}
+            onChange={setInspectionDocUrl}
+            required={false}
           />
         </CardContent>
       </Card>

@@ -130,34 +130,28 @@ export const NAV_ITEMS: NavItem[] = [
     order: 5,
   },
   {
-    name: 'Maintenance',
-    href: '/admin/maintenance',
-    roles: ['admin'],
-    order: 6,
-  },
-  {
     name: 'Reports',
     href: '/admin/reports',
     roles: ['admin'],
-    order: 7,
+    order: 6,
   },
   {
     name: 'Feedback',
     href: '/admin/feedback',
     roles: ['admin'],
-    order: 8,
+    order: 7,
   },
   {
     name: 'Settings',
     href: '/admin/settings',
     roles: ['admin'],
-    order: 9,
+    order: 8,
   },
   {
     name: 'Support',
     href: '/admin/support',
     roles: ['admin'],
-    order: 10,
+    order: 9,
   },
 
   // Shared authenticated items

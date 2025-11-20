@@ -28,6 +28,8 @@ import {
   Search,
   Eye,
   Loader2,
+  FileText,
+  ExternalLink,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -51,6 +53,10 @@ export default function AdminListingsPage() {
     action: 'approve' | 'reject' | null
     processing: boolean
   }>({ open: false, action: null, processing: false })
+  const [documentsDialog, setDocumentsDialog] = useState<{
+    open: boolean
+    vehicle: any | null
+  }>({ open: false, vehicle: null })
   const [adminNotes, setAdminNotes] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
@@ -327,12 +333,22 @@ export default function AdminListingsPage() {
                         </Alert>
                       )}
                       
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Button variant="outline" size="sm" asChild className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn">
                           <a href={`/vehicles/${vehicle.id}`} target="_blank">
                             <Eye className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
                             View Listing
                           </a>
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setDocumentsDialog({ open: true, vehicle })}
+                          className="hover:bg-blue-50 hover:border-blue-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn"
+                        >
+                          <FileText className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
+                          View Documents
                         </Button>
                         
                         {vehicle.approval_status === 'pending' && (
@@ -463,6 +479,232 @@ export default function AdminListingsPage() {
                 ) : (
                   actionDialog.action === 'approve' ? 'Approve' : 'Reject'
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Vehicle Documents Dialog */}
+        <Dialog open={documentsDialog.open} onOpenChange={(open) => setDocumentsDialog({ open, vehicle: documentsDialog.vehicle })}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Vehicle Documents</DialogTitle>
+              <DialogDescription>
+                Review uploaded documents for {documentsDialog.vehicle?.make} {documentsDialog.vehicle?.model}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {documentsDialog.vehicle && (
+              <div className="space-y-6">
+                {/* Registration Document */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Vehicle Registration (OR/CR)</Label>
+                    {documentsDialog.vehicle.registration_document_url ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Uploaded
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">Missing</Badge>
+                    )}
+                  </div>
+                  {documentsDialog.vehicle.registration_document_url ? (
+                    <Card className="border-green-200 bg-green-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-8 w-8 text-green-600" />
+                            <div>
+                              <p className="font-medium">Registration Document</p>
+                              <p className="text-xs text-muted-foreground">Click to view or download</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="hover:bg-green-100"
+                          >
+                            <a href={documentsDialog.vehicle.registration_document_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Open
+                            </a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Alert variant="destructive">
+                      <AlertDescription>Registration document not uploaded</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+                
+                {/* Insurance Document */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Insurance Certificate</Label>
+                    {documentsDialog.vehicle.insurance_document_url ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Uploaded
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">Missing</Badge>
+                    )}
+                  </div>
+                  {documentsDialog.vehicle.insurance_document_url ? (
+                    <Card className="border-green-200 bg-green-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-8 w-8 text-green-600" />
+                            <div>
+                              <p className="font-medium">Insurance Certificate</p>
+                              <p className="text-xs text-muted-foreground">Click to view or download</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="hover:bg-green-100"
+                          >
+                            <a href={documentsDialog.vehicle.insurance_document_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Open
+                            </a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Alert variant="destructive">
+                      <AlertDescription>Insurance document not uploaded</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+                
+                {/* Proof of Ownership */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Proof of Ownership</Label>
+                    {documentsDialog.vehicle.proof_of_ownership_url ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Uploaded
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">Missing</Badge>
+                    )}
+                  </div>
+                  {documentsDialog.vehicle.proof_of_ownership_url ? (
+                    <Card className="border-green-200 bg-green-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-8 w-8 text-green-600" />
+                            <div>
+                              <p className="font-medium">Proof of Ownership</p>
+                              <p className="text-xs text-muted-foreground">Click to view or download</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="hover:bg-green-100"
+                          >
+                            <a href={documentsDialog.vehicle.proof_of_ownership_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Open
+                            </a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Alert variant="destructive">
+                      <AlertDescription>Proof of ownership not uploaded</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+                
+                {/* Inspection Certificate (Optional) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Vehicle Inspection Certificate</Label>
+                    {documentsDialog.vehicle.inspection_certificate_url ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Uploaded
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Optional</Badge>
+                    )}
+                  </div>
+                  {documentsDialog.vehicle.inspection_certificate_url ? (
+                    <Card className="border-green-200 bg-green-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-8 w-8 text-green-600" />
+                            <div>
+                              <p className="font-medium">Inspection Certificate</p>
+                              <p className="text-xs text-muted-foreground">Click to view or download</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="hover:bg-green-100"
+                          >
+                            <a href={documentsDialog.vehicle.inspection_certificate_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Open
+                            </a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No inspection certificate uploaded (optional)</p>
+                  )}
+                </div>
+                
+                {/* Document Summary */}
+                <Alert className={
+                  documentsDialog.vehicle.registration_document_url && 
+                  documentsDialog.vehicle.insurance_document_url && 
+                  documentsDialog.vehicle.proof_of_ownership_url
+                    ? "border-green-300 bg-green-50"
+                    : "border-orange-300 bg-orange-50"
+                }>
+                  <AlertDescription className="text-sm">
+                    {documentsDialog.vehicle.registration_document_url && 
+                     documentsDialog.vehicle.insurance_document_url && 
+                     documentsDialog.vehicle.proof_of_ownership_url ? (
+                      <span className="text-green-900">
+                        <strong>✓ All required documents uploaded.</strong> This vehicle can be approved.
+                      </span>
+                    ) : (
+                      <span className="text-orange-900">
+                        <strong>⚠ Missing required documents.</strong> Request the owner to upload all required documents before approval.
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDocumentsDialog({ open: false, vehicle: null })}
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -32,12 +32,14 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Wrench, Calendar, DollarSign, Loader2, Trash2, Edit } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import Navigation from '@/components/shared/Navigation'
+import { format, parseISO, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays, startOfYear, endOfYear, subYears } from 'date-fns'
 
 interface MaintenanceLog {
   id: string
@@ -69,6 +71,7 @@ export default function OwnerMaintenancePage() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedLog, setSelectedLog] = useState<MaintenanceLog | null>(null)
+  const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly')
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -293,6 +296,14 @@ export default function OwnerMaintenancePage() {
     return logs.length
   }
 
+  const getCompletedCount = () => {
+    return logs.filter(log => log.status === 'completed').length
+  }
+
+  const getScheduledCount = () => {
+    return logs.filter(log => log.status === 'scheduled').length
+  }
+
   const getRecentServices = () => {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -320,6 +331,87 @@ export default function OwnerMaintenancePage() {
       </Badge>
     )
   }
+
+  // Calculate chart data based on selected time period
+  const getChartData = () => {
+    switch (timePeriod) {
+      case 'daily': {
+        // Last 7 days
+        return Array.from({ length: 7 }, (_, i) => {
+          const date = subDays(new Date(), 6 - i)
+          const label = format(date, 'EEE') // Mon, Tue, etc.
+          const dayStart = startOfDay(date)
+          const dayEnd = endOfDay(date)
+          
+          const cost = logs
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= dayStart && serviceDate <= dayEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+      case 'weekly': {
+        // Last 8 weeks
+        return Array.from({ length: 8 }, (_, i) => {
+          const date = subWeeks(new Date(), 7 - i)
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 }) // Monday
+          const weekEnd = endOfWeek(date, { weekStartsOn: 1 })
+          const label = `W${format(weekStart, 'w')}`
+          
+          const cost = logs
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= weekStart && serviceDate <= weekEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+      case 'yearly': {
+        // Last 5 years
+        return Array.from({ length: 5 }, (_, i) => {
+          const date = subYears(new Date(), 4 - i)
+          const label = format(date, 'yyyy')
+          const yearStart = startOfYear(date)
+          const yearEnd = endOfYear(date)
+          
+          const cost = logs
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= yearStart && serviceDate <= yearEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+      default: {
+        // Monthly - Last 6 months
+        return Array.from({ length: 6 }, (_, i) => {
+          const date = subMonths(new Date(), 5 - i)
+          const label = format(date, 'MMM')
+          const monthStart = startOfMonth(date)
+          const monthEnd = endOfMonth(date)
+          
+          const cost = logs
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= monthStart && serviceDate <= monthEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+    }
+  }
+
+  const chartData = getChartData()
+  const maxCost = Math.max(...chartData.map(d => d.cost), 1)
 
   if (authLoading || loading) {
     return (
@@ -415,6 +507,69 @@ export default function OwnerMaintenancePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Maintenance Costs Chart */}
+        <Card className="card-gradient shadow-layered-md border-border/50 mb-8">
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <CardTitle className="text-primary-700">
+                {timePeriod === 'daily' && 'Daily Maintenance Costs'}
+                {timePeriod === 'weekly' && 'Weekly Maintenance Costs'}
+                {timePeriod === 'monthly' && 'Monthly Maintenance Costs'}
+                {timePeriod === 'yearly' && 'Yearly Maintenance Costs'}
+              </CardTitle>
+              <Tabs value={timePeriod} onValueChange={(value) => setTimePeriod(value as any)}>
+                <TabsList className="shadow-sm">
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="yearly">Yearly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 relative">
+              {/* Grid lines */}
+              <div className="absolute inset-0 flex flex-col justify-between py-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="border-t border-gray-200" />
+                ))}
+              </div>
+              
+              {/* Chart bars */}
+              <div className="relative h-full flex items-end gap-4 pb-4">
+                {chartData.map((data, index) => {
+                  const heightPercentage = maxCost > 0 ? (data.cost / maxCost) * 100 : 0
+                  const barHeight = heightPercentage > 0 ? Math.max(heightPercentage, 5) : 0
+                  
+                  return (
+                    <div key={index} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                      <div className="w-full relative group flex items-end" style={{ height: '200px' }}>
+                        {barHeight > 0 ? (
+                          <div
+                            className="w-full bg-gradient-to-t from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 transition-colors rounded-t cursor-pointer relative shadow-sm hover:shadow-md"
+                            style={{
+                              height: `${barHeight}%`,
+                              minHeight: '10px'
+                            }}
+                          >
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                              {formatCurrency(data.cost)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-1 bg-gray-200 rounded" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground font-medium">{data.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Maintenance Logs Table */}
         <Card className="card-gradient shadow-layered-md border-border/50">
