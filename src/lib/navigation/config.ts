@@ -91,12 +91,6 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['owner'],
     order: 7,
   },
-  {
-    name: 'Identity Verifications',
-    href: '/owner/identity',
-    roles: ['owner'],
-    order: 8,
-  },
 
   // Admin-specific items (shown in sidebar, not main nav)
   {
@@ -124,34 +118,40 @@ export const NAV_ITEMS: NavItem[] = [
     order: 4,
   },
   {
+    name: 'ID Verifications',
+    href: '/admin/verifications',
+    roles: ['admin'],
+    order: 5,
+  },
+  {
     name: 'Payments',
     href: '/admin/transactions',
     roles: ['admin'],
-    order: 5,
+    order: 6,
   },
   {
     name: 'Reports',
     href: '/admin/reports',
     roles: ['admin'],
-    order: 6,
+    order: 7,
   },
   {
     name: 'Feedback',
     href: '/admin/feedback',
     roles: ['admin'],
-    order: 7,
+    order: 8,
   },
   {
     name: 'Settings',
     href: '/admin/settings',
     roles: ['admin'],
-    order: 8,
+    order: 9,
   },
   {
     name: 'Support',
     href: '/admin/support',
     roles: ['admin'],
-    order: 9,
+    order: 10,
   },
 
   // Shared authenticated items

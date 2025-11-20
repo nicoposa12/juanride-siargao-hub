@@ -53,12 +53,12 @@ interface BookingDetails {
     sinotrack_device_id: string | null;
     sinotrack_account: string | null;
     sinotrack_password: string | null;
-  };
-  owner: {
-    id: string;
-    full_name: string | null;
-    email: string;
-    phone_number: string | null;
+    owner: {
+      id: string;
+      full_name: string | null;
+      email: string;
+      phone_number: string | null;
+    };
   };
   payment: {
     id: string;
@@ -74,6 +74,8 @@ const getStatusColor = (status: string) => {
       return 'bg-blue-100 text-blue-800';
     case 'active':
       return 'bg-green-100 text-green-800';
+    case 'ongoing':
+      return 'bg-purple-100 text-purple-800';
     case 'completed':
       return 'bg-gray-100 text-gray-800';
     case 'cancelled':
@@ -112,7 +114,7 @@ export default function RenterBookingDetailsPage() {
         .select(
           `
           *,
-          vehicle:vehicles (
+          vehicle:vehicles!vehicle_id (
             id,
             make,
             model,
@@ -123,13 +125,13 @@ export default function RenterBookingDetailsPage() {
             image_urls,
             sinotrack_device_id,
             sinotrack_account,
-            sinotrack_password
-          ),
-          owner:users!owner_id (
-            id,
-            full_name,
-            email,
-            phone_number
+            sinotrack_password,
+            owner:users!vehicles_owner_id_fkey (
+              id,
+              full_name,
+              email,
+              phone_number
+            )
           ),
           payment:payments (
             id,
@@ -195,7 +197,7 @@ export default function RenterBookingDetailsPage() {
     booking.vehicle.sinotrack_account &&
     booking.vehicle.sinotrack_password;
 
-  const isActiveBooking = booking.status === 'confirmed' || booking.status === 'active';
+  const isActiveBooking = booking.status === 'confirmed' || booking.status === 'active' || booking.status === 'ongoing';
 
   const vehicleName = `${booking.vehicle.make} ${booking.vehicle.model}`.trim() || 'Vehicle';
 
@@ -311,16 +313,16 @@ export default function RenterBookingDetailsPage() {
               <CardContent className="space-y-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-semibold">{booking.owner.full_name || 'Not provided'}</p>
+                  <p className="font-semibold">{booking.vehicle.owner.full_name || 'Not provided'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{booking.owner.email}</p>
+                  <p className="font-medium">{booking.vehicle.owner.email}</p>
                 </div>
-                {booking.owner.phone_number && (
+                {booking.vehicle.owner.phone_number && (
                   <div>
                     <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{booking.owner.phone_number}</p>
+                    <p className="font-medium">{booking.vehicle.owner.phone_number}</p>
                   </div>
                 )}
                 <Button variant="outline" className="w-full mt-4" asChild>

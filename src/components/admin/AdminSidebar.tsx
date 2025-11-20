@@ -15,7 +15,8 @@ import {
   LogOut,
   Search,
   User,
-  ChevronDown
+  ChevronDown,
+  ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ const adminIconMap: Record<string, React.ComponentType<{ className?: string }>> 
   '/admin/users': Users,
   '/admin/listings': Car,
   '/admin/bookings': Calendar,
+  '/admin/verifications': ShieldCheck,
   '/admin/transactions': CreditCard,
   '/admin/reports': FileText,
   '/admin/feedback': MessageSquare,

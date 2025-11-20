@@ -31,7 +31,6 @@ import {
   getRenterBookings,
   getUpcomingBookings,
   getPastBookings,
-  cancelBooking,
   type BookingWithDetails,
 } from '@/lib/supabase/queries/bookings'
 import Navigation from '@/components/shared/Navigation'
@@ -47,7 +46,6 @@ export default function RenterBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('upcoming')
-  const [cancelling, setCancelling] = useState<string | null>(null)
   const [upcomingPage, setUpcomingPage] = useState(1)
   const [pastPage, setPastPage] = useState(1)
   const [allPage, setAllPage] = useState(1)
@@ -85,36 +83,6 @@ export default function RenterBookingsPage() {
     }
   }
   
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) {
-      return
-    }
-    
-    setCancelling(bookingId)
-    try {
-      const result = await cancelBooking(bookingId)
-      
-      if (result.success) {
-        toast({
-          title: 'Booking Cancelled',
-          description: 'Your booking has been cancelled successfully.',
-        })
-        await loadBookings()
-      } else {
-        throw new Error(result.error?.message || 'Failed to cancel booking')
-      }
-    } catch (error: any) {
-      console.error('Error cancelling booking:', error)
-      toast({
-        title: 'Cancellation Failed',
-        description: error.message || 'Failed to cancel booking.',
-        variant: 'destructive',
-      })
-    } finally {
-      setCancelling(null)
-    }
-  }
-  
   const filterBookings = (bookings: BookingWithDetails[]) => {
     if (!searchQuery) return bookings
     
@@ -135,6 +103,8 @@ export default function RenterBookingsPage() {
         return 'bg-green-100 text-green-800'
       case 'active':
         return 'bg-blue-100 text-blue-800'
+      case 'ongoing':
+        return 'bg-purple-100 text-purple-800'
       case 'completed':
         return 'bg-gray-100 text-gray-800'
       case 'cancelled':
@@ -146,7 +116,6 @@ export default function RenterBookingsPage() {
   
   const renderBookingCard = (booking: BookingWithDetails) => {
     const payment = Array.isArray(booking.payment) ? booking.payment[0] : booking.payment
-    const canCancel = booking.status === 'pending' || booking.status === 'confirmed'
     const canReview = booking.status === 'completed'
     
     return (
@@ -239,17 +208,6 @@ export default function RenterBookingsPage() {
                     Message Owner
                   </Link>
                 </Button>
-                
-                {canCancel && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleCancelBooking(booking.id)}
-                    disabled={cancelling === booking.id}
-                  >
-                    {cancelling === booking.id ? 'Cancelling...' : 'Cancel Booking'}
-                  </Button>
-                )}
               </div>
             </div>
             

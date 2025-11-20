@@ -184,6 +184,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
+      // CRITICAL: Check for pending verification status (for renters)
+      if (data.account_verification_status === 'pending_verification') {
+        console.warn('⏳ User account pending verification, forcing sign out...')
+        await supabase.auth.signOut()
+        setProfile(null)
+        setUser(null)
+        window.location.href = '/login?message=Your+account+is+pending+verification.+Please+wait+for+admin+approval.'
+        return null
+      }
+
+      // Check for rejected accounts
+      if (data.account_verification_status === 'rejected') {
+        console.warn('❌ User account rejected, forcing sign out...')
+        await supabase.auth.signOut()
+        setProfile(null)
+        setUser(null)
+        const reason = data.account_status_reason ? `+Reason:+${encodeURIComponent(data.account_status_reason)}` : ''
+        window.location.href = `/login?message=Your+account+has+been+rejected.${reason}`
+        return null
+      }
+
+      // Check for suspended accounts
+      if (data.account_verification_status === 'suspended') {
+        console.warn('🚫 User account suspended, forcing sign out...')
+        await supabase.auth.signOut()
+        setProfile(null)
+        setUser(null)
+        const reason = data.account_status_reason ? `+Reason:+${encodeURIComponent(data.account_status_reason)}` : ''
+        window.location.href = `/login?message=Your+account+has+been+suspended.${reason}`
+        return null
+      }
+
       // Cache the profile
       profileCache.set(userId, data)
       

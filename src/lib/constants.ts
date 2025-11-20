@@ -28,6 +28,7 @@ export const BOOKING_STATUSES = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   ACTIVE: 'active',
+  ONGOING: 'ongoing',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
 } as const
@@ -37,6 +38,7 @@ export const BOOKING_STATUS_LABELS = {
   paid: 'Payment Completed',
   confirmed: 'Confirmed',
   active: 'Active',
+  ongoing: 'Ongoing',
   completed: 'Completed',
   cancelled: 'Cancelled',
 } as const

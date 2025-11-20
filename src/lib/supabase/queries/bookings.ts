@@ -235,16 +235,16 @@ export async function getBookingById(bookingId: string): Promise<BookingWithDeta
     .from('bookings')
     .select(`
       *,
-      vehicle:vehicles (
+      vehicle:vehicles!vehicle_id (
         *,
-        owner:users!owner_id (
+        owner:users!vehicles_owner_id_fkey (
           id,
           full_name,
           profile_image_url,
           phone_number
         )
       ),
-      renter:users!renter_id (
+      renter:users!bookings_renter_id_fkey (
         id,
         full_name,
         profile_image_url,
@@ -274,9 +274,9 @@ export async function getRenterBookings(renterId: string): Promise<BookingWithDe
     .from('bookings')
     .select(`
       *,
-      vehicle:vehicles (
+      vehicle:vehicles!vehicle_id (
         *,
-        owner:users!owner_id (
+        owner:users!vehicles_owner_id_fkey (
           id,
           full_name,
           profile_image_url
@@ -324,15 +324,15 @@ export async function getOwnerBookings(ownerId: string): Promise<BookingWithDeta
     .from('bookings')
     .select(`
       *,
-      vehicle:vehicles (
+      vehicle:vehicles!vehicle_id (
         *,
-        owner:users!owner_id (
+        owner:users!vehicles_owner_id_fkey (
           id,
           full_name,
           profile_image_url
         )
       ),
-      renter:users!renter_id (
+      renter:users!bookings_renter_id_fkey (
         id,
         full_name,
         profile_image_url,
@@ -356,7 +356,7 @@ export async function getOwnerBookings(ownerId: string): Promise<BookingWithDeta
  */
 export async function updateBookingStatus(
   bookingId: string,
-  status: 'pending' | 'paid' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+  status: 'pending' | 'paid' | 'confirmed' | 'active' | 'ongoing' | 'completed' | 'cancelled'
 ): Promise<{ success: boolean; error: any }> {
   const supabase = createClient()
 
@@ -413,9 +413,9 @@ export async function getUpcomingBookings(renterId: string): Promise<BookingWith
     .from('bookings')
     .select(`
       *,
-      vehicle:vehicles (
+      vehicle:vehicles!vehicle_id (
         *,
-        owner:users!owner_id (
+        owner:users!vehicles_owner_id_fkey (
           id,
           full_name,
           profile_image_url
@@ -424,7 +424,7 @@ export async function getUpcomingBookings(renterId: string): Promise<BookingWith
       payment:payments (*)
     `)
     .eq('renter_id', renterId)
-    .in('status', ['confirmed', 'active'])
+    .in('status', ['confirmed', 'active', 'ongoing'])
     .gte('start_date', new Date().toISOString().split('T')[0])
     .order('start_date', { ascending: true })
 
@@ -446,9 +446,9 @@ export async function getPastBookings(renterId: string): Promise<BookingWithDeta
     .from('bookings')
     .select(`
       *,
-      vehicle:vehicles (
+      vehicle:vehicles!vehicle_id (
         *,
-        owner:users!owner_id (
+        owner:users!vehicles_owner_id_fkey (
           id,
           full_name,
           profile_image_url

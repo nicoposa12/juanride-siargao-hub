@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       .from('vehicles')
       .select(`
         *,
-        owner:users!owner_id (
+        owner:users!vehicles_owner_id_fkey (
           id,
           full_name,
           profile_image_url

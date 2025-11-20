@@ -50,14 +50,14 @@ interface BookingDetails {
     price_per_day: number
     location: string
     image_urls: string[]
+    owner: {
+      id: string
+      full_name: string
+      email: string
+      phone_number: string | null
+    }
   }
   renter: {
-    id: string
-    full_name: string
-    email: string
-    phone_number: string | null
-  }
-  owner: {
     id: string
     full_name: string
     email: string
@@ -93,7 +93,7 @@ export default function AdminBookingDetailsPage() {
         .from('bookings')
         .select(`
           *,
-          vehicle:vehicles (
+          vehicle:vehicles!vehicle_id (
             id,
             make,
             model,
@@ -101,15 +101,15 @@ export default function AdminBookingDetailsPage() {
             plate_number,
             price_per_day,
             location,
-            image_urls
+            image_urls,
+            owner:users!vehicles_owner_id_fkey (
+              id,
+              full_name,
+              email,
+              phone_number
+            )
           ),
-          renter:users!renter_id (
-            id,
-            full_name,
-            email,
-            phone_number
-          ),
-          owner:users!owner_id (
+          renter:users!bookings_renter_id_fkey (
             id,
             full_name,
             email,
@@ -392,23 +392,23 @@ export default function AdminBookingDetailsPage() {
           <CardContent className="space-y-3">
             <div>
               <p className="text-sm text-muted-foreground">Name</p>
-              <p className="font-semibold">{booking.owner.full_name}</p>
+              <p className="font-semibold">{booking.vehicle.owner.full_name}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-semibold">{booking.owner.email}</p>
+              <p className="font-semibold">{booking.vehicle.owner.email}</p>
             </div>
-            {booking.owner.phone_number && (
+            {booking.vehicle.owner.phone_number && (
               <div>
                 <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-semibold">{booking.owner.phone_number}</p>
+                <p className="font-semibold">{booking.vehicle.owner.phone_number}</p>
               </div>
             )}
             <Button
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => router.push(`/profile/${booking.owner.id}`)}
+              onClick={() => router.push(`/profile/${booking.vehicle.owner.id}`)}
             >
               View User Profile
             </Button>

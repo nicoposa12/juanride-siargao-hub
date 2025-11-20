@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react'
+import { Mail, Lock, LogIn, AlertCircle, Clock, XCircle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -21,14 +22,36 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
-  // Check for deactivation message
+  // Check for auth status messages
   useEffect(() => {
     const message = searchParams?.get('message')
-    if (message === 'Your account has been deactivated') {
+    if (message) {
+      // Decode the URL-encoded message
+      const decodedMessage = decodeURIComponent(message.replace(/\+/g, ' '))
+      
+      // Determine the type of message
+      let title = 'Notice'
+      let variant: 'default' | 'destructive' = 'default'
+      
+      if (decodedMessage.includes('deactivated')) {
+        title = 'Account Deactivated'
+        variant = 'destructive'
+      } else if (decodedMessage.includes('pending verification') || decodedMessage.includes('pending approval')) {
+        title = 'Account Pending Approval'
+        variant = 'default'
+      } else if (decodedMessage.includes('rejected')) {
+        title = 'Account Rejected'
+        variant = 'destructive'
+      } else if (decodedMessage.includes('suspended')) {
+        title = 'Account Suspended'
+        variant = 'destructive'
+      }
+      
       toast({
-        title: 'Account Deactivated',
-        description: 'Your account has been deactivated by an administrator. Please contact support for assistance.',
-        variant: 'destructive',
+        title,
+        description: decodedMessage,
+        variant,
+        duration: 8000, // Show longer for important messages
       })
     }
   }, [searchParams, toast])
@@ -182,19 +205,61 @@ export default function LoginPage() {
           <CardDescription className="text-center">
             Sign in to your JuanRide account
           </CardDescription>
-          {searchParams?.get('message') === 'Your account has been deactivated' && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <p className="text-sm text-red-800 font-medium">
-                  Account Deactivated
-                </p>
+          {searchParams?.get('message') && (() => {
+            const message = decodeURIComponent(searchParams.get('message')!.replace(/\+/g, ' '))
+            
+            // Determine alert style based on message type
+            let bgColor = 'bg-blue-50'
+            let borderColor = 'border-blue-200'
+            let textColor = 'text-blue-800'
+            let iconColor = 'text-blue-600'
+            let Icon = AlertCircle
+            let title = 'Notice'
+            
+            if (message.includes('pending')) {
+              bgColor = 'bg-yellow-50'
+              borderColor = 'border-yellow-200'
+              textColor = 'text-yellow-800'
+              iconColor = 'text-yellow-600'
+              Icon = Clock
+              title = 'Account Pending Approval'
+            } else if (message.includes('rejected')) {
+              bgColor = 'bg-red-50'
+              borderColor = 'border-red-200'
+              textColor = 'text-red-800'
+              iconColor = 'text-red-600'
+              Icon = XCircle
+              title = 'Account Rejected'
+            } else if (message.includes('suspended') || message.includes('deactivated')) {
+              bgColor = 'bg-red-50'
+              borderColor = 'border-red-200'
+              textColor = 'text-red-800'
+              iconColor = 'text-red-600'
+              Icon = AlertCircle
+              title = message.includes('suspended') ? 'Account Suspended' : 'Account Deactivated'
+            }
+            
+            return (
+              <div className={`${bgColor} border ${borderColor} rounded-md p-3 mt-4`}>
+                <div className="flex items-start space-x-2">
+                  <Icon className={`h-4 w-4 ${iconColor} mt-0.5`} />
+                  <div className="flex-1">
+                    <p className={`text-sm ${textColor} font-medium`}>
+                      {title}
+                    </p>
+                    <p className={`text-xs ${textColor} mt-1 opacity-90`}>
+                      {message}
+                    </p>
+                    {message.includes('pending') && (
+                      <p className={`text-xs ${textColor} mt-2 opacity-75`}>
+                        You'll receive an email notification once your account is approved. This usually takes 24-48 hours.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-red-700 mt-1">
-                Your account has been deactivated. Please contact support for assistance.
-              </p>
-            </div>
-          )}
+            )
+          })()}
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleEmailLogin} className="space-y-4">
