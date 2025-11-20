@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -24,13 +25,27 @@ interface VehicleFiltersProps {
   }
 }
 
+const PRICE_MIN = 0
+const PRICE_MAX = 10000
+
 export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   
   const selectedTypes = initialFilters.type ? initialFilters.type.split(',') : []
-  const minPrice = initialFilters.minPrice ? parseInt(initialFilters.minPrice) : 0
-  const maxPrice = initialFilters.maxPrice ? parseInt(initialFilters.maxPrice) : 5000
+  
+  // Use state for reactive price slider
+  const [priceRange, setPriceRange] = useState<[number, number]>([
+    initialFilters.minPrice ? parseInt(initialFilters.minPrice) : PRICE_MIN,
+    initialFilters.maxPrice ? parseInt(initialFilters.maxPrice) : PRICE_MAX
+  ])
+  
+  // Sync state with URL params when they change
+  useEffect(() => {
+    const newMin = initialFilters.minPrice ? parseInt(initialFilters.minPrice) : PRICE_MIN
+    const newMax = initialFilters.maxPrice ? parseInt(initialFilters.maxPrice) : PRICE_MAX
+    setPriceRange([newMin, newMax])
+  }, [initialFilters.minPrice, initialFilters.maxPrice])
   
   const handleTypeToggle = (type: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
@@ -54,9 +69,23 @@ export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
   }
   
   const handlePriceChange = (values: number[]) => {
+    setPriceRange([values[0], values[1]])
+    
     const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('minPrice', values[0].toString())
-    params.set('maxPrice', values[1].toString())
+    
+    // Only set price params if they differ from defaults
+    if (values[0] > PRICE_MIN) {
+      params.set('minPrice', values[0].toString())
+    } else {
+      params.delete('minPrice')
+    }
+    
+    if (values[1] < PRICE_MAX) {
+      params.set('maxPrice', values[1].toString())
+    } else {
+      params.delete('maxPrice')
+    }
+    
     params.delete('page')
     router.push(`/vehicles?${params.toString()}`)
   }
@@ -78,7 +107,7 @@ export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
     router.push(`/vehicles?${newParams.toString()}`)
   }
   
-  const activeFilterCount = selectedTypes.length + (minPrice > 0 || maxPrice < 5000 ? 1 : 0)
+  const activeFilterCount = selectedTypes.length + (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX ? 1 : 0)
   
   return (
     <Card>
@@ -124,20 +153,21 @@ export function VehicleFilters({ initialFilters = {} }: VehicleFiltersProps) {
           <div className="flex items-center justify-between">
             <Label className="text-sm font-semibold">Price per Day</Label>
             <span className="text-sm text-muted-foreground">
-              ₱{minPrice} - ₱{maxPrice}
+              ₱{priceRange[0].toLocaleString()} - ₱{priceRange[1].toLocaleString()}
             </span>
           </div>
           <Slider
-            min={0}
-            max={5000}
+            min={PRICE_MIN}
+            max={PRICE_MAX}
             step={100}
-            value={[minPrice, maxPrice]}
+            value={priceRange}
+            onValueChange={(values) => setPriceRange([values[0], values[1]])}
             onValueCommit={handlePriceChange}
             className="w-full"
           />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>₱0</span>
-            <span>₱5,000+</span>
+            <span>₱{PRICE_MIN.toLocaleString()}</span>
+            <span>₱{(PRICE_MAX / 1000).toFixed(0)}k+</span>
           </div>
         </div>
         
