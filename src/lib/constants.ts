@@ -14,13 +14,13 @@ export const VEHICLE_TYPE_LABELS = {
 
 export const VEHICLE_STATUSES = {
   AVAILABLE: 'available',
-  UNAVAILABLE: 'unavailable',
+  INACTIVE: 'inactive',
   MAINTENANCE: 'maintenance',
 } as const
 
 export const VEHICLE_STATUS_LABELS = {
   available: 'Available',
-  unavailable: 'Unavailable',
+  inactive: 'Unavailable',
   maintenance: 'Under Maintenance',
 } as const
 
@@ -34,6 +34,7 @@ export const BOOKING_STATUSES = {
 
 export const BOOKING_STATUS_LABELS = {
   pending: 'Pending',
+  paid: 'Payment Completed',
   confirmed: 'Confirmed',
   active: 'Active',
   completed: 'Completed',
@@ -79,6 +80,41 @@ export const USER_ROLE_LABELS = {
   owner: 'Vehicle Owner',
   admin: 'Administrator',
 } as const
+
+export const ID_DOCUMENT_TYPES = [
+  'drivers_license',
+  'passport',
+  'umid',
+  'sss',
+  'philhealth',
+  'postal',
+  'voters',
+  'national_id',
+  'prc',
+  'school_id',
+] as const
+
+export const ID_DOCUMENT_TYPE_LABELS: Record<(typeof ID_DOCUMENT_TYPES)[number], string> = {
+  drivers_license: "Driver's License",
+  passport: 'Passport',
+  umid: 'UMID',
+  sss: 'SSS ID',
+  philhealth: 'PhilHealth ID',
+  postal: 'Postal ID',
+  voters: "Voter's ID",
+  national_id: 'National ID (PhilSys)',
+  prc: 'PRC ID',
+  school_id: 'School ID (with supporting documents)',
+}
+
+export const ID_DOCUMENT_STATUS_LABELS = {
+  pending_review: 'Pending Review',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  expired: 'Expired',
+} as const
+
+export const VEHICLE_TYPES_REQUIRING_ID: (keyof typeof VEHICLE_TYPE_LABELS)[] = ['motorcycle', 'car']
 
 export const SIARGAO_LOCATIONS = [
   'General Luna',

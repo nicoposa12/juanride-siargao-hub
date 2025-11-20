@@ -11,22 +11,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Camera, 
-  Save, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Progress } from '@/components/ui/progress'
+import {
+  User,
+  Mail,
+  Phone,
+  Camera,
+  Save,
   Loader2,
   ShieldCheck,
   Lock,
   AlertCircle,
+  IdCard,
+  FileUp,
+  Eye,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
-import { USER_ROLE_LABELS } from '@/lib/constants'
+import {
+  USER_ROLE_LABELS,
+  ID_DOCUMENT_TYPES,
+  ID_DOCUMENT_TYPE_LABELS,
+  ID_DOCUMENT_STATUS_LABELS,
+} from '@/lib/constants'
 import Navigation from '@/components/shared/Navigation'
+import { uploadIdDocument, getIdDocumentSignedUrl } from '@/lib/supabase/storage'
+import type { Database } from '@/types/database.types'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -37,6 +55,12 @@ export default function ProfilePage() {
   const [updating, setUpdating] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [identityDocs, setIdentityDocs] = useState<Database['public']['Tables']['id_documents']['Row'][]>([])
+  const [identityDocsLoading, setIdentityDocsLoading] = useState(true)
+  const [identityUploadInProgress, setIdentityUploadInProgress] = useState(false)
+  const [selectedDocType, setSelectedDocType] = useState<typeof ID_DOCUMENT_TYPES[number] | ''>('')
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
   
   // Profile form state
   const [fullName, setFullName] = useState('')
@@ -61,6 +85,56 @@ export default function ProfilePage() {
       setProfileImageUrl(profile.profile_image_url || '')
     }
   }, [profile])
+
+  useEffect(() => {
+    const fetchIdentityDocuments = async () => {
+      if (!user) return
+      setIdentityDocsLoading(true)
+      const { data, error } = await supabase
+        .from('id_documents')
+        .select('*')
+        .eq('renter_id', user.id)
+        .order('submitted_at', { ascending: false })
+
+      if (error) {
+        console.error('Error loading identity documents:', error)
+        toast({
+          title: 'Unable to load documents',
+          description: error.message,
+          variant: 'destructive',
+        })
+      } else {
+        setIdentityDocs(data || [])
+      }
+
+      setIdentityDocsLoading(false)
+    }
+
+    if (user) {
+      fetchIdentityDocuments()
+    }
+  }, [supabase, toast, user])
+
+  const refreshIdentityDocs = async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('id_documents')
+      .select('*')
+      .eq('renter_id', user.id)
+      .order('submitted_at', { ascending: false })
+
+    if (error) {
+      console.error('Error refreshing identity documents:', error)
+      toast({
+        title: 'Failed to refresh documents',
+        description: error.message,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIdentityDocs(data || [])
+  }
   
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -135,6 +209,106 @@ export default function ProfilePage() {
       })
     } finally {
       setUploadingImage(false)
+    }
+  }
+  
+  const handleIdentityFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: 'Unsupported file type',
+        description: 'Please upload a JPG, PNG, GIF, or PDF file.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Maximum allowed size is 10MB.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSelectedDocFile(file)
+  }
+
+  const handleIdentityUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !selectedDocType || !selectedDocFile) {
+      toast({
+        title: 'Missing information',
+        description: 'Select an ID type and file before uploading.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setIdentityUploadInProgress(true)
+      setUploadProgress(20)
+
+      const { filePath } = await uploadIdDocument(selectedDocFile, user.id, selectedDocType)
+      setUploadProgress(65)
+
+      const { error } = await supabase.from('id_documents').insert({
+        renter_id: user.id,
+        document_type: selectedDocType,
+        file_url: filePath,
+        file_path: filePath,
+        status: 'pending_review',
+      })
+
+      if (error) throw error
+
+      setUploadProgress(100)
+      await refreshIdentityDocs()
+      setSelectedDocType('')
+      setSelectedDocFile(null)
+      toast({
+        title: 'Document submitted',
+        description: 'Your ID has been sent for owner review.',
+      })
+    } catch (error: any) {
+      console.error('Identity upload failed:', error)
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'Unable to submit ID document.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIdentityUploadInProgress(false)
+      setUploadProgress(0)
+    }
+  }
+
+  const handleViewDocument = async (
+    doc: Database['public']['Tables']['id_documents']['Row']
+  ) => {
+    try {
+      const signedUrl = await getIdDocumentSignedUrl(doc.file_path)
+      if (!signedUrl) {
+        toast({
+          title: 'Unable to open document',
+          description: 'Please try again shortly.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (error: any) {
+      console.error('Unable to open ID document:', error)
+      toast({
+        title: 'Failed to open document',
+        description: error.message || 'Please try again later.',
+        variant: 'destructive',
+      })
     }
   }
   
@@ -233,6 +407,8 @@ export default function ProfilePage() {
       </div>
     )
   }
+
+  const ensuredProfile = profile
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -246,9 +422,10 @@ export default function ProfilePage() {
         </div>
         
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="identity">Identity Docs</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
           
@@ -432,6 +609,174 @@ export default function ProfilePage() {
             </Card>
           </TabsContent>
           
+          {/* Identity Tab */}
+          <TabsContent value="identity">
+            <Card>
+              <CardHeader>
+                <CardTitle>Identity Verification</CardTitle>
+                <CardDescription>
+                  Upload any government-issued ID to speed up bookings for cars and motorcycles.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <Alert>
+                    <IdCard className="h-4 w-4" />
+                    <AlertDescription>
+                      Accepted IDs: Driver's License, Passport, UMID, SSS, PhilHealth, Postal, Voter's, National ID, PRC, or School ID
+                      (students must attach supporting documents). Only approved IDs can be used for bookings.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+
+                <form onSubmit={handleIdentityUpload} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Document Type</Label>
+                      <Select
+                        value={selectedDocType}
+                        onValueChange={(value) => setSelectedDocType(value as typeof ID_DOCUMENT_TYPES[number])}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select ID" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ID_DOCUMENT_TYPES.map((docType) => (
+                            <SelectItem key={docType} value={docType}>
+                              {ID_DOCUMENT_TYPE_LABELS[docType]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Upload File</Label>
+                      <Input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={handleIdentityFileChange}
+                        disabled={identityUploadInProgress}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG, GIF, or PDF — Max size 10MB
+                      </p>
+                    </div>
+                  </div>
+
+                  {identityUploadInProgress && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Uploading...</Label>
+                      <Progress value={uploadProgress} className="mt-1" />
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full md:w-auto"
+                    disabled={identityUploadInProgress || !selectedDocType || !selectedDocFile}
+                  >
+                    {identityUploadInProgress ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <FileUp className="mr-2 h-4 w-4" />
+                        Submit for Review
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Your Documents</h3>
+                    <Button variant="ghost" size="sm" onClick={refreshIdentityDocs} disabled={identityDocsLoading}>
+                      Refresh
+                    </Button>
+                  </div>
+
+                  {identityDocsLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading documents...
+                    </div>
+                  ) : identityDocs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      You haven’t uploaded any ID yet. Upload now to avoid delays when booking.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {identityDocs.map((doc) => (
+                        <Card key={doc.id} className="border border-muted">
+                          <CardContent className="py-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <p className="font-semibold">
+                                  {ID_DOCUMENT_TYPE_LABELS[doc.document_type as keyof typeof ID_DOCUMENT_TYPE_LABELS]}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Submitted {new Date(doc.submitted_at).toLocaleDateString()}
+                                </p>
+                                {doc.reviewed_at && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Reviewed {new Date(doc.reviewed_at).toLocaleDateString()}
+                                  </p>
+                                )}
+                                {doc.rejection_reason && (
+                                  <p className="text-sm text-destructive mt-1">
+                                    Reason: {doc.rejection_reason}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-2 md:items-end">
+                                <Badge
+                                  variant={
+                                    doc.status === 'approved'
+                                      ? 'default'
+                                      : doc.status === 'pending_review'
+                                      ? 'secondary'
+                                      : 'destructive'
+                                  }
+                                >
+                                  {ID_DOCUMENT_STATUS_LABELS[doc.status as keyof typeof ID_DOCUMENT_STATUS_LABELS]}
+                                </Badge>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewDocument(doc)}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" /> View
+                                  </Button>
+                                  {doc.status === 'rejected' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedDocType(doc.document_type as typeof ID_DOCUMENT_TYPES[number])
+                                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                                      }}
+                                    >
+                                      Re-upload
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Account Tab */}
           <TabsContent value="account">
             <Card>
@@ -447,11 +792,11 @@ export default function ProfilePage() {
                     <div>
                       <Label className="text-muted-foreground">Account Role</Label>
                       <p className="font-medium mt-1">
-                        {USER_ROLE_LABELS[profile.role as keyof typeof USER_ROLE_LABELS]}
+                        {USER_ROLE_LABELS[ensuredProfile.role as keyof typeof USER_ROLE_LABELS]}
                       </p>
                     </div>
                     <Badge variant="outline" className="capitalize">
-                      {profile.role}
+                      {ensuredProfile.role}
                     </Badge>
                   </div>
                   
@@ -461,11 +806,11 @@ export default function ProfilePage() {
                     <div>
                       <Label className="text-muted-foreground">Account Status</Label>
                       <p className="font-medium mt-1">
-                        {profile.is_active ? 'Active' : 'Inactive'}
+                        {ensuredProfile.is_active ? 'Active' : 'Inactive'}
                       </p>
                     </div>
-                    <Badge variant={profile.is_active ? 'default' : 'secondary'}>
-                      {profile.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={ensuredProfile.is_active ? 'default' : 'secondary'}>
+                      {ensuredProfile.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
                   
@@ -475,11 +820,11 @@ export default function ProfilePage() {
                     <div>
                       <Label className="text-muted-foreground">Verification Status</Label>
                       <p className="font-medium mt-1">
-                        {profile.is_verified ? 'Verified' : 'Not Verified'}
+                        {ensuredProfile.is_verified ? 'Verified' : 'Not Verified'}
                       </p>
                     </div>
-                    <Badge variant={profile.is_verified ? 'default' : 'secondary'}>
-                      {profile.is_verified ? 'Verified' : 'Pending'}
+                    <Badge variant={ensuredProfile.is_verified ? 'default' : 'secondary'}>
+                      {ensuredProfile.is_verified ? 'Verified' : 'Pending'}
                     </Badge>
                   </div>
                   
@@ -488,7 +833,7 @@ export default function ProfilePage() {
                   <div>
                     <Label className="text-muted-foreground">Member Since</Label>
                     <p className="font-medium mt-1">
-                      {new Date(profile.created_at).toLocaleDateString('en-US', {
+                      {new Date(ensuredProfile.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
@@ -497,7 +842,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 
-                {!profile.is_verified && (
+                {!ensuredProfile.is_verified && (
                   <Alert className="border-yellow-200 bg-yellow-50">
                     <AlertCircle className="h-4 w-4 text-yellow-600" />
                     <AlertDescription className="text-yellow-800">

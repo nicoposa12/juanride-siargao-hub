@@ -5,6 +5,31 @@ type Booking = Database['public']['Tables']['bookings']['Row']
 type BookingInsert = Database['public']['Tables']['bookings']['Insert']
 type BookingUpdate = Database['public']['Tables']['bookings']['Update']
 
+const normalizeSingle = <T>(value: T | T[] | null): T | null => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? (value[0] as T) : null
+  }
+  return value ?? null
+}
+
+export type BookingWithDetails = Booking & {
+  vehicle?: any
+  renter?: any
+  payment?: any
+}
+
+export interface IdentityDocumentWithBooking {
+  id_document: Database['public']['Tables']['id_documents']['Row']
+  renter: {
+    id: string
+    full_name: string | null
+    email: string | null
+    phone_number: string | null
+    profile_image_url: string | null
+  } | null
+  booking: BookingWithDetails
+}
+
 export interface CreateBookingData {
   vehicle_id: string
   start_date: string
@@ -15,11 +40,162 @@ export interface CreateBookingData {
   special_requests?: string
 }
 
-export interface BookingWithDetails extends Booking {
-  vehicle?: any
-  renter?: any
-  payment?: any
+/**
+ * Get all identity documents for owner review (not booking-specific)
+ * Used for the owner identity verification dashboard
+ */
+export async function getAllIdentityDocumentsForOwner(
+  statusFilter: ('pending_review' | 'approved' | 'rejected' | 'expired')[] = ['pending_review']
+) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('id_documents')
+    .select(`
+      *,
+      renter:users!id_documents_renter_id_fkey (
+        id,
+        full_name,
+        email,
+        phone_number,
+        profile_image_url
+      )
+    `)
+    .in('status', statusFilter)
+    .order('submitted_at', { ascending: true })
+
+  if (error || !data) {
+    console.error('Error loading identity documents:', error)
+    return []
+  }
+
+  return data.map((row) => ({
+    id_document: row,
+    renter: normalizeSingle(row.renter),
+  }))
 }
+
+export async function getOwnerIdentityDocuments(
+  ownerId: string,
+  statusFilter: ('pending_review' | 'approved' | 'rejected' | 'expired')[] = ['pending_review']
+): Promise<IdentityDocumentWithBooking[]> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(`
+      id,
+      status,
+      start_date,
+      end_date,
+      identity_requirement_status,
+      identity_document_id,
+      renter:users!bookings_renter_id_fkey (
+        id,
+        full_name,
+        email,
+        phone_number,
+        profile_image_url
+      ),
+      vehicle:vehicles (
+        id,
+        owner_id,
+        make,
+        model,
+        type,
+        image_urls,
+        plate_number
+      ),
+      identity_document:id_documents (* )
+    `)
+    .eq('vehicle.owner_id', ownerId)
+    .not('identity_document_id', 'is', null)
+    .in('identity_document.status', statusFilter)
+    .order('identity_document.submitted_at', { ascending: true })
+
+  if (error || !data) {
+    console.error('Error loading owner identity documents:', error)
+    return []
+  }
+
+  return data
+    .map((row) => {
+      const identityDocument = normalizeSingle(row.identity_document)
+      if (!identityDocument) {
+        return null
+      }
+
+      const renterRaw = normalizeSingle(row.renter)
+      const vehicleRaw = normalizeSingle(row.vehicle)
+
+      const { identity_document: _doc, renter: _renter, vehicle: _vehicle, ...bookingRest } = row as any
+
+      const normalizedBooking: BookingWithDetails = {
+        ...(bookingRest as Booking),
+        renter: renterRaw ?? undefined,
+        vehicle: vehicleRaw ?? undefined,
+      }
+
+      const renter: IdentityDocumentWithBooking['renter'] = renterRaw
+        ? {
+            id: renterRaw.id ?? '',
+            full_name: renterRaw.full_name ?? null,
+            email: renterRaw.email ?? null,
+            phone_number: renterRaw.phone_number ?? null,
+            profile_image_url: renterRaw.profile_image_url ?? null,
+          }
+        : null
+
+      return {
+        id_document: identityDocument as Database['public']['Tables']['id_documents']['Row'],
+        renter,
+        booking: normalizedBooking,
+      }
+    })
+    .filter((entry): entry is IdentityDocumentWithBooking => entry !== null)
+}
+
+export async function reviewIdentityDocument(
+  documentId: string,
+  status: 'approved' | 'rejected',
+  reviewerId: string,
+  options?: { rejectionReason?: string; ownerNotes?: string; bookingId?: string }
+) {
+  const supabase = createClient()
+
+  const { error: docError } = await supabase
+    .from('id_documents')
+    .update({
+      status: status,
+      reviewer_id: reviewerId,
+      reviewed_at: new Date().toISOString(),
+      rejection_reason: status === 'rejected' ? options?.rejectionReason ?? null : null,
+      owner_notes: options?.ownerNotes,
+    })
+    .eq('id', documentId)
+
+  if (docError) {
+    console.error('Error updating identity document:', docError)
+    return { success: false, error: docError }
+  }
+
+  // If a booking ID is provided, update the booking's identity requirement status
+  if (options?.bookingId) {
+    const { error: bookingError } = await supabase
+      .from('bookings')
+      .update({ identity_requirement_status: status === 'approved' ? 'approved' : 'rejected' })
+      .eq('id', options.bookingId)
+
+    if (bookingError) {
+      console.error('Error updating booking identity status:', bookingError)
+      return { success: false, error: bookingError }
+    }
+  }
+
+  return { success: true }
+}
+
+// (types defined near top)
 
 /**
  * Create a new booking
@@ -180,7 +356,7 @@ export async function getOwnerBookings(ownerId: string): Promise<BookingWithDeta
  */
 export async function updateBookingStatus(
   bookingId: string,
-  status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+  status: 'pending' | 'paid' | 'confirmed' | 'active' | 'completed' | 'cancelled'
 ): Promise<{ success: boolean; error: any }> {
   const supabase = createClient()
 
@@ -204,6 +380,13 @@ export async function cancelBooking(bookingId: string): Promise<{ success: boole
  */
 export async function confirmBooking(bookingId: string): Promise<{ success: boolean; error: any }> {
   return updateBookingStatus(bookingId, 'confirmed')
+}
+
+/**
+ * Mark booking as paid (payment completed, awaiting owner confirmation)
+ */
+export async function markBookingPaid(bookingId: string): Promise<{ success: boolean; error: any }> {
+  return updateBookingStatus(bookingId, 'paid')
 }
 
 /**

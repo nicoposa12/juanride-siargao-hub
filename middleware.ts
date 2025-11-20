@@ -57,13 +57,35 @@ export async function middleware(req: NextRequest) {
       try {
         const { data: user } = await supabase
           .from('users')
-          .select('role, needs_onboarding')
+          .select('role, needs_onboarding, is_active')
           .eq('id', session.user.id)
           .single()
 
         userRole = user?.role || null
         needsOnboarding = (user?.needs_onboarding ?? (userRole === null)) || userRole === 'pending'
-        console.log('🔍 Direct DB query result:', userRole, 'needs onboarding:', needsOnboarding)
+        console.log('🔍 Direct DB query result:', userRole, 'needs onboarding:', needsOnboarding, 'is_active:', user?.is_active)
+        
+        // CRITICAL: Block deactivated users immediately
+        if (user && user.is_active === false) {
+          console.log('🚫 BLOCKING deactivated user:', session.user.email)
+          // Clear the session for deactivated users
+          await supabase.auth.signOut()
+          const unauthorizedUrl = new URL('/login', req.url)
+          unauthorizedUrl.searchParams.set('message', 'Your account has been deactivated')
+          return NextResponse.redirect(unauthorizedUrl)
+        }
+        
+        // If user exists in Auth but not in DB (or RLS blocks access), treat as unauthorized/deactivated
+        if (!user && session) {
+           console.log('⚠️ User has session but no profile found (RLS blocked or deleted):', session.user.email)
+           // Only force logout if we are sure it's not a temporary glitch
+           // But for security, if we can't verify is_active, we shouldn't let them in.
+           // Let's try to be safe:
+           await supabase.auth.signOut()
+           const unauthorizedUrl = new URL('/login', req.url)
+           unauthorizedUrl.searchParams.set('message', 'Account verification failed. Please log in again.')
+           return NextResponse.redirect(unauthorizedUrl)
+        }
 
         // Cache the result for next time
         if (userRole) {
@@ -75,14 +97,33 @@ export async function middleware(req: NextRequest) {
       }
     } else {
       try {
-        const { data: onboardingData } = await supabase
+        const { data: userData } = await supabase
           .from('users')
-          .select('needs_onboarding')
+          .select('needs_onboarding, is_active')
           .eq('id', session.user.id)
           .single()
-        needsOnboarding = (onboardingData?.needs_onboarding ?? false) || userRole === 'pending'
+        needsOnboarding = (userData?.needs_onboarding ?? false) || userRole === 'pending'
+        
+        // CRITICAL: Block deactivated users immediately
+        if (userData && userData.is_active === false) {
+          console.log('🚫 BLOCKING deactivated user:', session.user.email)
+          // Clear the session for deactivated users
+          await supabase.auth.signOut()
+          const unauthorizedUrl = new URL('/login', req.url)
+          unauthorizedUrl.searchParams.set('message', 'Your account has been deactivated')
+          return NextResponse.redirect(unauthorizedUrl)
+        }
+        
+        // If user exists in Auth but not in DB (or RLS blocks access), treat as unauthorized
+        if (!userData && session) {
+           console.log('⚠️ User has session but no profile found (RLS blocked or deleted):', session.user.email)
+           await supabase.auth.signOut()
+           const unauthorizedUrl = new URL('/login', req.url)
+           unauthorizedUrl.searchParams.set('message', 'Account verification failed. Please log in again.')
+           return NextResponse.redirect(unauthorizedUrl)
+        }
       } catch (dbError) {
-        console.error('❌ Failed to fetch onboarding state:', dbError)
+        console.error('❌ Failed to fetch user data:', dbError)
         needsOnboarding = userRole === 'pending'
       }
     }

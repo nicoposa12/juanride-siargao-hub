@@ -29,6 +29,19 @@ export function VehicleCard({ vehicle, onFavoriteChange }: VehicleCardProps) {
 
   const imageUrl = vehicle.image_urls?.[0] || '/placeholder.svg'
   const vehicleType = VEHICLE_TYPE_LABELS[vehicle.type as keyof typeof VEHICLE_TYPE_LABELS] || vehicle.type
+  
+  // Extract stats from vehicle object
+  const stats = vehicle.stats?.[0] || vehicle.stats
+  const rating = stats?.average_rating || 0
+  const bookingCount = stats?.total_bookings || 0
+  
+  // Format booking count (e.g., 1000 => 1K+, 1500 => 1.5K+)
+  const formatBookingCount = (count: number): string => {
+    if (count === 0) return '0 bookings'
+    if (count < 1000) return `${count} booked`
+    if (count < 10000) return `${(count / 1000).toFixed(1).replace('.0', '')}K+ booked`
+    return `${Math.floor(count / 1000)}K+ booked`
+  }
 
   // Load existing favorite status on mount
   useEffect(() => {
@@ -185,15 +198,16 @@ export function VehicleCard({ vehicle, onFavoriteChange }: VehicleCardProps) {
               </div>
             )}
 
-            {vehicle.average_rating !== undefined && (
-              <div className="flex items-center text-sm">
-                <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{vehicle.average_rating.toFixed(1)}</span>
-                <span className="text-muted-foreground ml-1">
-                  ({vehicle.total_reviews || 0} reviews)
-                </span>
-              </div>
-            )}
+            {/* Rating and Booking Count Badge */}
+            <div className="flex items-center gap-1 text-sm">
+              <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+              <span className="font-semibold text-foreground">
+                {rating > 0 ? rating.toFixed(1) : 'New'}
+              </span>
+              <span className="text-muted-foreground font-medium">
+                {formatBookingCount(bookingCount)}
+              </span>
+            </div>
           </div>
         </CardContent>
 

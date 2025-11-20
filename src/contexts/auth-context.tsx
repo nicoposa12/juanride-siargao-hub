@@ -173,6 +173,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('✅ Profile loaded successfully:', data.email, '- Role:', data.role)
       console.log('🔍 Full profile data:', JSON.stringify(data, null, 2))
       
+      // CRITICAL: Check for deactivated status on client side
+      if (data.is_active === false) {
+        console.warn('🚫 User is deactivated, forcing sign out...')
+        await supabase.auth.signOut()
+        setProfile(null)
+        setUser(null)
+        // Optional: Redirect to login with message (handled by router usually)
+        window.location.href = '/login?message=Your+account+has+been+deactivated'
+        return null
+      }
+
       // Cache the profile
       profileCache.set(userId, data)
       

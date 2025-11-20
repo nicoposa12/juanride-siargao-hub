@@ -54,6 +54,8 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'paid':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'confirmed':
         return 'bg-green-100 text-green-800 border-green-200'
       case 'active':
@@ -97,10 +99,24 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
             </>
           )}
           
+          {booking.status === 'paid' && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Clock className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold mb-2">Payment Successful!</h1>
+              <p className="text-muted-foreground">Awaiting owner confirmation of your booking.</p>
+            </>
+          )}
+          
           {booking.status === 'confirmed' && (
             <>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-green-100 p-3 rounded-full">
+                  <CheckCircle2 className="h-8 w-8 text-green-600" />
+                </div>
               </div>
               <h1 className="text-3xl font-bold mb-2">Booking Confirmed!</h1>
               <p className="text-muted-foreground">Your booking has been confirmed by the owner.</p>
@@ -149,8 +165,18 @@ export function BookingConfirmation({ booking }: BookingConfirmationProps) {
           </Alert>
         )}
         
+        {booking.status === 'paid' && (
+          <Alert className="bg-blue-50 border-blue-200">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Payment Completed</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              Your payment has been processed successfully. The vehicle owner will review and confirm your booking shortly.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {booking.status === 'confirmed' && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
+          <Alert className="bg-green-50 border-green-200">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertTitle className="text-green-800">Confirmed</AlertTitle>
             <AlertDescription className="text-green-700">

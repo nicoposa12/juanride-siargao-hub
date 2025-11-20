@@ -36,7 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     name: 'Browse Vehicles',
     href: '/vehicles',
-    roles: [null, 'renter', 'owner', 'admin'],
+    roles: [null, 'renter', 'admin'],
     order: 2,
   },
 
@@ -90,6 +90,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/owner/maintenance',
     roles: ['owner'],
     order: 7,
+  },
+  {
+    name: 'Identity Verifications',
+    href: '/owner/identity',
+    roles: ['owner'],
+    order: 8,
   },
 
   // Admin-specific items (shown in sidebar, not main nav)
@@ -159,13 +165,13 @@ export const NAV_ITEMS: NavItem[] = [
     name: 'Support',
     href: '/support',
     roles: ['renter', 'owner'],
-    order: 8,
+    order: 9,
   },
   {
     name: 'Profile',
     href: '/profile',
     roles: ['renter', 'owner', 'admin'],
-    order: 9,
+    order: 10,
   },
 ]
 

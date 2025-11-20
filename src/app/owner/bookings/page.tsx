@@ -302,6 +302,9 @@ function BookingsContent() {
             <TabsTrigger value="pending">
               Pending ({bookings.filter(b => b.status === 'pending').length})
             </TabsTrigger>
+            <TabsTrigger value="paid">
+              Awaiting Confirmation ({bookings.filter(b => b.status === 'paid').length})
+            </TabsTrigger>
             <TabsTrigger value="confirmed">
               Confirmed ({bookings.filter(b => b.status === 'confirmed').length})
             </TabsTrigger>
@@ -415,7 +418,7 @@ function BookingsContent() {
                         </div>
                         
                         <div className="flex gap-2 flex-wrap">
-                          {booking.status === 'pending' && (
+                          {(booking.status === 'pending' || booking.status === 'paid') && (
                             <>
                               <Button
                                 variant="outline"
@@ -436,7 +439,7 @@ function BookingsContent() {
                                 }}
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Confirm
+                                {booking.status === 'paid' ? 'Confirm Booking' : 'Confirm'}
                               </Button>
                             </>
                           )}
@@ -538,7 +541,11 @@ function BookingsContent() {
                 {actionDialog.action === 'cancel' && 'Cancel Booking'}
               </DialogTitle>
               <DialogDescription>
-                {actionDialog.action === 'confirm' && 'Are you sure you want to confirm this booking? The renter will be notified.'}
+                {actionDialog.action === 'confirm' && (
+                  selectedBooking?.status === 'paid' 
+                    ? 'Payment has been completed. Confirm this booking to proceed with the rental. The renter will be notified.'
+                    : 'Are you sure you want to confirm this booking? The renter will be notified.'
+                )}
                 {actionDialog.action === 'activate' && 'Confirm that the renter has picked up the vehicle?'}
                 {actionDialog.action === 'complete' && 'Confirm that the vehicle has been returned in good condition?'}
                 {actionDialog.action === 'cancel' && 'Are you sure you want to decline this booking? This action cannot be undone.'}

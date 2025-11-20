@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -51,13 +51,14 @@ import { formatDate } from '@/lib/utils/format'
 
 export default function AdminUsersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, profile, loading: authLoading } = useAuth()
   const { toast } = useToast()
   
   const [users, setUsers] = useState<any[]>([])
   const [filteredUsers, setFilteredUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get('search') || '')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedUser, setSelectedUser] = useState<any>(null)
@@ -70,6 +71,8 @@ export default function AdminUsersPage() {
     role: '',
     is_active: true,
     is_verified: false,
+    newPassword: '',
+    changePassword: false,
   })
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [userToDelete, setUserToDelete] = useState<any>(null)
@@ -147,6 +150,8 @@ export default function AdminUsersPage() {
       role: user.role,
       is_active: user.is_active,
       is_verified: user.is_verified,
+      newPassword: '',
+      changePassword: false,
     })
     setEditDialog(true)
   }
@@ -178,6 +183,26 @@ export default function AdminUsersPage() {
     try {
       const supabase = createClient()
       
+      // Handle password change first if requested
+      if (editForm.changePassword && editForm.newPassword.trim()) {
+        const passwordResponse = await fetch('/api/admin/users/update-password', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            newPassword: editForm.newPassword.trim(),
+          }),
+        })
+        
+        const passwordResult = await passwordResponse.json()
+        
+        if (!passwordResponse.ok) {
+          throw new Error(passwordResult.error || 'Failed to update password')
+        }
+      }
+      
       // Build update object only with changed fields
       const updateData: any = {
         updated_at: new Date().toISOString(),
@@ -193,21 +218,28 @@ export default function AdminUsersPage() {
         updateData.is_verified = editForm.is_verified
       }
       
-      const { error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('id', selectedUser.id)
-      
-      if (error) throw error
+      // Only update profile if there are changes
+      if (Object.keys(updateData).length > 1) {
+        const { error } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('id', selectedUser.id)
+        
+        if (error) throw error
+      }
       
       // Log role change for admin tracking
       if (updateData.role) {
         console.log(`Admin ${profile?.email} changed user ${selectedUser.email} role from ${selectedUser.role} to ${updateData.role}`)
       }
       
+      const updateMessages = []
+      if (Object.keys(updateData).length > 1) updateMessages.push('profile')
+      if (editForm.changePassword && editForm.newPassword.trim()) updateMessages.push('password')
+      
       toast({
         title: 'User Updated',
-        description: 'User information has been updated successfully.',
+        description: `User ${updateMessages.join(' and ')} updated successfully.`,
       })
       
       await loadUsers()
@@ -238,9 +270,33 @@ export default function AdminUsersPage() {
       
       if (error) throw error
       
+      // If deactivating user, invalidate their sessions to force logout
+      if (currentStatus) { // currentStatus is true, so we're deactivating
+        try {
+          const sessionResponse = await fetch('/api/admin/users/invalidate-sessions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+          })
+          
+          const sessionResult = await sessionResponse.json()
+          
+          if (sessionResponse.ok) {
+            console.log('Sessions invalidated for deactivated user:', sessionResult.message)
+          } else {
+            console.warn('Session invalidation failed:', sessionResult.error)
+          }
+        } catch (sessionError) {
+          console.warn('Error invalidating sessions:', sessionError)
+          // Don't fail the deactivation if session invalidation fails
+        }
+      }
+      
       toast({
         title: 'Status Updated',
-        description: `User has been ${!currentStatus ? 'activated' : 'deactivated'}.`,
+        description: `User has been ${!currentStatus ? 'activated' : 'deactivated'}${!currentStatus ? '' : ' and logged out'}.`,
       })
       
       await loadUsers()
@@ -568,6 +624,36 @@ export default function AdminUsersPage() {
                 <Label htmlFor="is_verified" className="font-normal">
                   Verified User
                 </Label>
+              </div>
+              
+              <div className="border-t pt-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="change_password"
+                    checked={editForm.changePassword}
+                    onChange={(e) => setEditForm({ ...editForm, changePassword: e.target.checked, newPassword: '' })}
+                    className="rounded"
+                  />
+                  <Label htmlFor="change_password" className="font-normal">
+                    Change Password
+                  </Label>
+                </div>
+                
+                {editForm.changePassword && (
+                  <div>
+                    <Label htmlFor="new_password">New Password</Label>
+                    <Input
+                      id="new_password"
+                      type="password"
+                      value={editForm.newPassword}
+                      onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                      placeholder="Enter new password (min 6 characters)"
+                      className="mt-1"
+                      minLength={6}
+                    />
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>

@@ -374,7 +374,7 @@ export default function AdminBookingDetailsPage() {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => router.push(`/admin/users`)}
+              onClick={() => router.push(`/profile/${booking.renter.id}`)}
             >
               View User Profile
             </Button>
@@ -408,7 +408,7 @@ export default function AdminBookingDetailsPage() {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => router.push(`/admin/users`)}
+              onClick={() => router.push(`/profile/${booking.owner.id}`)}
             >
               View User Profile
             </Button>

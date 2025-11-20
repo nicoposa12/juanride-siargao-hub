@@ -5,7 +5,7 @@ export type VehicleInsert = Database['public']['Tables']['vehicles']['Insert']
 export type VehicleUpdate = Database['public']['Tables']['vehicles']['Update']
 
 export type VehicleType = 'scooter' | 'motorcycle' | 'car' | 'van'
-export type VehicleStatus = 'available' | 'unavailable' | 'maintenance'
+export type VehicleStatus = 'available' | 'inactive' | 'maintenance' | 'rented'
 
 export interface VehicleWithOwner extends Vehicle {
   owner: {

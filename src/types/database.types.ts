@@ -69,16 +69,15 @@ export interface Database {
           price_per_day: number
           price_per_week: number | null
           price_per_month: number | null
-          status: 'available' | 'unavailable' | 'maintenance'
+          status: 'available' | 'rented' | 'maintenance' | 'inactive'
           location: string | null
           image_urls: string[]
           features: Json
           rental_terms: string | null
           is_approved: boolean
+          approval_status: 'pending' | 'approved' | 'rejected'
           admin_notes: string | null
-          sinotrack_device_id: string | null
-          sinotrack_account: string | null
-          sinotrack_password: string | null
+          rejected_at: string | null
           created_at: string
           updated_at: string
         }
@@ -94,16 +93,15 @@ export interface Database {
           price_per_day: number
           price_per_week?: number | null
           price_per_month?: number | null
-          status?: 'available' | 'unavailable' | 'maintenance'
+          status?: 'available' | 'rented' | 'maintenance' | 'inactive'
           location?: string | null
           image_urls?: string[]
           features?: Json
           rental_terms?: string | null
           is_approved?: boolean
+          approval_status?: 'pending' | 'approved' | 'rejected'
           admin_notes?: string | null
-          sinotrack_device_id?: string | null
-          sinotrack_account?: string | null
-          sinotrack_password?: string | null
+          rejected_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -119,16 +117,15 @@ export interface Database {
           price_per_day?: number
           price_per_week?: number | null
           price_per_month?: number | null
-          status?: 'available' | 'unavailable' | 'maintenance'
+          status?: 'available' | 'rented' | 'maintenance' | 'inactive'
           location?: string | null
           image_urls?: string[]
           features?: Json
           rental_terms?: string | null
           is_approved?: boolean
+          approval_status?: 'pending' | 'approved' | 'rejected'
           admin_notes?: string | null
-          sinotrack_device_id?: string | null
-          sinotrack_account?: string | null
-          sinotrack_password?: string | null
+          rejected_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -141,7 +138,7 @@ export interface Database {
           start_date: string
           end_date: string
           total_price: number
-          status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+          status: 'pending' | 'paid' | 'confirmed' | 'active' | 'completed' | 'cancelled'
           pickup_location: string | null
           pickup_time: string | null
           return_location: string | null
@@ -149,6 +146,8 @@ export interface Database {
           special_requests: string | null
           renter_notes: string | null
           owner_notes: string | null
+          identity_document_id: string | null
+          identity_requirement_status: 'not_required' | 'pending' | 'approved' | 'rejected'
           created_at: string
           updated_at: string
         }
@@ -159,7 +158,7 @@ export interface Database {
           start_date: string
           end_date: string
           total_price: number
-          status?: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+          status?: 'pending' | 'paid' | 'confirmed' | 'active' | 'completed' | 'cancelled'
           pickup_location?: string | null
           pickup_time?: string | null
           return_location?: string | null
@@ -167,6 +166,8 @@ export interface Database {
           special_requests?: string | null
           renter_notes?: string | null
           owner_notes?: string | null
+          identity_document_id?: string | null
+          identity_requirement_status?: 'not_required' | 'pending' | 'approved' | 'rejected'
           created_at?: string
           updated_at?: string
         }
@@ -177,13 +178,98 @@ export interface Database {
           start_date?: string
           end_date?: string
           total_price?: number
-          status?: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+          status?: 'pending' | 'paid' | 'confirmed' | 'active' | 'completed' | 'cancelled'
           pickup_location?: string | null
           pickup_time?: string | null
           return_location?: string | null
           return_time?: string | null
           special_requests?: string | null
           renter_notes?: string | null
+          owner_notes?: string | null
+          identity_document_id?: string | null
+          identity_requirement_status?: 'not_required' | 'pending' | 'approved' | 'rejected'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      id_documents: {
+        Row: {
+          id: string
+          renter_id: string
+          document_type:
+            | 'drivers_license'
+            | 'passport'
+            | 'umid'
+            | 'sss'
+            | 'philhealth'
+            | 'postal'
+            | 'voters'
+            | 'national_id'
+            | 'prc'
+            | 'school_id'
+          status: 'pending_review' | 'approved' | 'rejected' | 'expired'
+          file_url: string
+          file_path: string
+          preview_url: string | null
+          submitted_at: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          rejection_reason: string | null
+          expires_at: string | null
+          owner_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          renter_id: string
+          document_type:
+            | 'drivers_license'
+            | 'passport'
+            | 'umid'
+            | 'sss'
+            | 'philhealth'
+            | 'postal'
+            | 'voters'
+            | 'national_id'
+            | 'prc'
+            | 'school_id'
+          status?: 'pending_review' | 'approved' | 'rejected' | 'expired'
+          file_url: string
+          file_path: string
+          preview_url?: string | null
+          submitted_at?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          rejection_reason?: string | null
+          expires_at?: string | null
+          owner_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          renter_id?: string
+          document_type?:
+            | 'drivers_license'
+            | 'passport'
+            | 'umid'
+            | 'sss'
+            | 'philhealth'
+            | 'postal'
+            | 'voters'
+            | 'national_id'
+            | 'prc'
+            | 'school_id'
+          status?: 'pending_review' | 'approved' | 'rejected' | 'expired'
+          file_url?: string
+          file_path?: string
+          preview_url?: string | null
+          submitted_at?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          rejection_reason?: string | null
+          expires_at?: string | null
           owner_notes?: string | null
           created_at?: string
           updated_at?: string
@@ -194,8 +280,8 @@ export interface Database {
           id: string
           booking_id: string
           amount: number
-          payment_method: 'gcash' | 'maya' | 'card' | 'bank_transfer'
-          status: 'pending' | 'paid' | 'failed' | 'refunded'
+          payment_method: 'gcash' | 'maya' | 'paymaya' | 'card' | 'bank_transfer' | 'qrph' | 'grab_pay' | 'billease'
+          status: 'pending' | 'processing' | 'paid' | 'failed' | 'refunded'
           transaction_id: string | null
           gateway_response: Json | null
           refund_amount: number
@@ -207,8 +293,8 @@ export interface Database {
           id?: string
           booking_id: string
           amount: number
-          payment_method: 'gcash' | 'maya' | 'card' | 'bank_transfer'
-          status?: 'pending' | 'paid' | 'failed' | 'refunded'
+          payment_method: 'gcash' | 'maya' | 'paymaya' | 'card' | 'bank_transfer' | 'qrph' | 'grab_pay' | 'billease'
+          status?: 'pending' | 'processing' | 'paid' | 'failed' | 'refunded'
           transaction_id?: string | null
           gateway_response?: Json | null
           refund_amount?: number
@@ -220,8 +306,8 @@ export interface Database {
           id?: string
           booking_id?: string
           amount?: number
-          payment_method?: 'gcash' | 'maya' | 'card' | 'bank_transfer'
-          status?: 'pending' | 'paid' | 'failed' | 'refunded'
+          payment_method?: 'gcash' | 'maya' | 'paymaya' | 'card' | 'bank_transfer' | 'qrph' | 'grab_pay' | 'billease'
+          status?: 'pending' | 'processing' | 'paid' | 'failed' | 'refunded'
           transaction_id?: string | null
           gateway_response?: Json | null
           refund_amount?: number
@@ -416,7 +502,15 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      vehicle_stats: {
+        Row: {
+          vehicle_id: string
+          average_rating: number
+          total_reviews: number
+          total_bookings: number
+          all_bookings_count: number
+        }
+      }
     }
     Functions: {
       [_ in never]: never
@@ -424,10 +518,10 @@ export interface Database {
     Enums: {
       user_role: 'pending' | 'renter' | 'owner' | 'admin'
       vehicle_type: 'scooter' | 'motorcycle' | 'car' | 'van'
-      vehicle_status: 'available' | 'unavailable' | 'maintenance'
-      booking_status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
-      payment_status: 'pending' | 'paid' | 'failed' | 'refunded'
-      payment_method: 'gcash' | 'maya' | 'card' | 'bank_transfer'
+      vehicle_status: 'available' | 'inactive' | 'maintenance' | 'rented'
+      booking_status: 'pending' | 'paid' | 'confirmed' | 'active' | 'completed' | 'cancelled'
+      payment_status: 'pending' | 'processing' | 'paid' | 'failed' | 'refunded'
+      payment_method: 'gcash' | 'maya' | 'paymaya' | 'card' | 'bank_transfer' | 'qrph' | 'grab_pay' | 'billease'
     }
     CompositeTypes: {
       [_ in never]: never

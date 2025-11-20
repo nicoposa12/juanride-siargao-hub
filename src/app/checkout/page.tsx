@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { ArrowLeft, Calendar, MapPin, CreditCard, Smartphone, Wallet, Loader2, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Loader2, CheckCircle2, IdCard, Eye } from 'lucide-react'
 import { formatCurrency, formatDate, calculateDays } from '@/lib/utils/format'
 import { getVehicleById } from '@/lib/supabase/queries/vehicles'
 import { createBooking } from '@/lib/supabase/queries/bookings'
@@ -19,6 +19,9 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import { VEHICLE_TYPES_REQUIRING_ID, ID_DOCUMENT_TYPE_LABELS } from '@/lib/constants'
+import type { Database } from '@/types/database.types'
+import { getIdDocumentSignedUrl } from '@/lib/supabase/storage'
 
 function CheckoutContent() {
   const router = useRouter()
@@ -33,6 +36,10 @@ function CheckoutContent() {
   const [vehicle, setVehicle] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
+  const [identityDocs, setIdentityDocs] = useState<Database['public']['Tables']['id_documents']['Row'][]>([])
+  const [identityDocsLoading, setIdentityDocsLoading] = useState(false)
+  const [selectedIdentityDocId, setSelectedIdentityDocId] = useState<string | null>(null)
+  const [identityRequirementError, setIdentityRequirementError] = useState<string | null>(null)
   
   // Form state
   const [pickupLocation, setPickupLocation] = useState('')
@@ -87,6 +94,46 @@ function CheckoutContent() {
     
     loadVehicle()
   }, [vehicleId, startDate, endDate])
+
+  useEffect(() => {
+    if (!user) {
+      setIdentityDocs([])
+      return
+    }
+
+    const fetchIdentityDocs = async () => {
+      setIdentityDocsLoading(true)
+      const { data, error } = await createClient()
+        .from('id_documents')
+        .select('*')
+        .eq('renter_id', user.id)
+        .eq('status', 'approved')
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Failed to load identity documents:', error)
+        toast({
+          title: 'Unable to load identity documents',
+          description: error.message,
+          variant: 'destructive',
+        })
+        setIdentityDocs([])
+      } else {
+        setIdentityDocs(data ?? [])
+      }
+
+      setIdentityDocsLoading(false)
+    }
+
+    fetchIdentityDocs()
+  }, [toast, user])
+
+  useEffect(() => {
+    if (selectedIdentityDocId) return
+    if (identityDocs.length > 0) {
+      setSelectedIdentityDocId(identityDocs[0].id)
+    }
+  }, [identityDocs, selectedIdentityDocId])
   
   const loadVehicle = async () => {
     if (!vehicleId) return
@@ -137,6 +184,29 @@ function CheckoutContent() {
     return { days, subtotal, serviceFee, total }
   }
   
+  const requiresIdentity = Boolean(
+    vehicle?.type && VEHICLE_TYPES_REQUIRING_ID.includes(
+      vehicle.type as (typeof VEHICLE_TYPES_REQUIRING_ID)[number]
+    )
+  )
+
+  const handleViewIdentityDocument = async (docId: string) => {
+    const doc = identityDocs.find((d) => d.id === docId)
+    if (!doc) return
+
+    try {
+      const signedUrl = await getIdDocumentSignedUrl(doc.file_path)
+      if (!signedUrl) throw new Error('Unable to generate secure link')
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (error: any) {
+      toast({
+        title: 'Unable to open document',
+        description: error.message || 'Try again later.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const handleBooking = async () => {
     // Check authentication first
     if (!user) {
@@ -186,6 +256,33 @@ function CheckoutContent() {
       return
     }
     
+    if (requiresIdentity) {
+      if (identityDocsLoading) {
+        toast({
+          title: 'Loading ID documents',
+          description: 'Please wait for your approved ID list to load.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const selectedDoc = selectedIdentityDocId
+        ? identityDocs.find((doc) => doc.id === selectedIdentityDocId)
+        : null
+
+      if (!selectedDoc) {
+        toast({
+          title: 'Approved ID required',
+          description: 'Upload and select an approved ID before booking this vehicle.',
+          variant: 'destructive',
+        })
+        setIdentityRequirementError('An approved ID is required for this booking.')
+        return
+      }
+
+      setIdentityRequirementError(null)
+    }
+
     setProcessing(true)
     
     try {
@@ -359,6 +456,88 @@ function CheckoutContent() {
                 </div>
               </CardContent>
             </Card>
+
+            {requiresIdentity && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Identity Verification</CardTitle>
+                  <CardDescription>
+                    Upload and select an approved government ID before booking cars or motorcycles.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-900">
+                    <IdCard className="h-4 w-4" />
+                    <AlertDescription>
+                      Only verified IDs can be used for these vehicles. Manage IDs from your profile if needed.
+                    </AlertDescription>
+                  </Alert>
+
+                  {identityDocsLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading approved IDs...
+                    </div>
+                  ) : identityDocs.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      No approved IDs found. Visit your profile’s Identity tab to upload and get approved, then return here.
+                      <div className="mt-3">
+                        <Button variant="ghost" size="sm" onClick={() => router.push('/profile?tab=identity')}>
+                          Manage IDs
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">Select approved ID</span>
+                        <Button variant="ghost" size="sm" onClick={() => router.push('/profile?tab=identity')}>
+                          Manage IDs
+                        </Button>
+                      </div>
+                      <RadioGroup
+                        value={selectedIdentityDocId ?? undefined}
+                        onValueChange={setSelectedIdentityDocId}
+                        className="space-y-2"
+                      >
+                        {identityDocs.map((doc) => (
+                          <label
+                            key={doc.id}
+                            className="flex items-center justify-between rounded-md border p-3 text-sm"
+                          >
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value={doc.id} />
+                              <div>
+                                <p className="font-medium">
+                                  {ID_DOCUMENT_TYPE_LABELS[doc.document_type] || doc.document_type}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Approved {doc.reviewed_at ? new Date(doc.reviewed_at).toLocaleDateString() : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleViewIdentityDocument(doc.id)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" /> View
+                            </Button>
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  )}
+
+                  {identityRequirementError && (
+                    <p className="text-sm text-destructive">{identityRequirementError}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
           
           {/* Sidebar - Price Summary */}
@@ -399,7 +578,10 @@ function CheckoutContent() {
                   )}
                   <Button
                     onClick={handleBooking}
-                    disabled={processing}
+                    disabled={
+                      processing ||
+                      (requiresIdentity && (identityDocsLoading || !selectedIdentityDocId || identityDocs.length === 0))
+                    }
                     className="w-full"
                     size="lg"
                   >
@@ -420,6 +602,11 @@ function CheckoutContent() {
                       </>
                     )}
                   </Button>
+                  {requiresIdentity && (!selectedIdentityDocId || identityDocs.length === 0) && !identityDocsLoading && (
+                    <p className="mt-2 text-xs text-destructive text-center">
+                      Select an approved ID before continuing.
+                    </p>
+                  )}
                 </CardFooter>
               </Card>
             </div>

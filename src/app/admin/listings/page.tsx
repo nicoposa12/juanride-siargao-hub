@@ -107,9 +107,11 @@ export default function AdminListingsPage() {
     
     // Filter by approval status
     if (activeTab === 'pending') {
-      filtered = filtered.filter(v => !v.is_approved)
+      filtered = filtered.filter(v => v.approval_status === 'pending')
     } else if (activeTab === 'approved') {
-      filtered = filtered.filter(v => v.is_approved)
+      filtered = filtered.filter(v => v.approval_status === 'approved')
+    } else if (activeTab === 'rejected') {
+      filtered = filtered.filter(v => v.approval_status === 'rejected')
     }
     
     // Filter by search query
@@ -139,6 +141,8 @@ export default function AdminListingsPage() {
           .from('vehicles')
           .update({
             is_approved: true,
+            approval_status: 'approved',
+            status: 'available',
             admin_notes: adminNotes || null,
             updated_at: new Date().toISOString(),
           })
@@ -155,7 +159,8 @@ export default function AdminListingsPage() {
           .from('vehicles')
           .update({
             is_approved: false,
-            status: 'unavailable',
+            approval_status: 'rejected',
+            status: 'inactive',
             admin_notes: adminNotes,
             updated_at: new Date().toISOString(),
           })
@@ -227,10 +232,13 @@ export default function AdminListingsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="pending">
-              Pending ({vehicles.filter(v => !v.is_approved).length})
+              Pending ({vehicles.filter(v => v.approval_status === 'pending').length})
             </TabsTrigger>
             <TabsTrigger value="approved">
-              Approved ({vehicles.filter(v => v.is_approved).length})
+              Approved ({vehicles.filter(v => v.approval_status === 'approved').length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Rejected ({vehicles.filter(v => v.approval_status === 'rejected').length})
             </TabsTrigger>
             <TabsTrigger value="all">
               All ({vehicles.length})
@@ -275,8 +283,18 @@ export default function AdminListingsPage() {
                             <h3 className="text-xl font-bold text-primary-700 group-hover:text-primary-600 transition-colors">
                               {vehicle.make} {vehicle.model}
                             </h3>
-                            <Badge className={vehicle.is_approved ? 'bg-green-100 text-green-800 border border-green-200 shadow-sm' : 'bg-yellow-100 text-yellow-800 border border-yellow-200 shadow-sm pulse-glow'}>
-                              {vehicle.is_approved ? 'Approved' : 'Pending'}
+                            <Badge className={
+                              vehicle.approval_status === 'approved' 
+                                ? 'bg-green-100 text-green-800 border border-green-200 shadow-sm'
+                                : vehicle.approval_status === 'rejected'
+                                ? 'bg-red-100 text-red-800 border border-red-200 shadow-sm'
+                                : 'bg-yellow-100 text-yellow-800 border border-yellow-200 shadow-sm pulse-glow'
+                            }>
+                              {vehicle.approval_status === 'approved' 
+                                ? 'Approved' 
+                                : vehicle.approval_status === 'rejected'
+                                ? 'Rejected'
+                                : 'Pending'}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
@@ -317,7 +335,7 @@ export default function AdminListingsPage() {
                           </a>
                         </Button>
                         
-                        {!vehicle.is_approved && (
+                        {vehicle.approval_status === 'pending' && (
                           <>
                             <Button
                               size="sm"
@@ -345,7 +363,7 @@ export default function AdminListingsPage() {
                           </>
                         )}
                         
-                        {vehicle.is_approved && (
+                        {vehicle.approval_status === 'approved' && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -356,6 +374,20 @@ export default function AdminListingsPage() {
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             Revoke Approval
+                          </Button>
+                        )}
+                        
+                        {vehicle.approval_status === 'rejected' && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedVehicle(vehicle)
+                              setActionDialog({ open: true, action: 'approve', processing: false })
+                            }}
+                            className="shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2 group-hover/btn:scale-110 group-hover/btn:rotate-12 transition-all" />
+                            Approve
                           </Button>
                         )}
                       </div>

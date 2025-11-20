@@ -53,7 +53,7 @@ export async function searchVehicles(
         profile_image_url
       )
     `, { count: 'exact' })
-    .eq('is_approved', true)
+    .eq('approval_status', 'approved')
     .eq('status', 'available')
 
   // Apply filters
@@ -91,12 +91,41 @@ export async function searchVehicles(
     throw error
   }
 
+  // Fetch stats for all vehicles
+  let vehiclesWithStats = vehicles || []
+  
+  if (vehicles && vehicles.length > 0) {
+    const vehicleIds = vehicles.map(v => v.id)
+    
+    const { data: stats, error: statsError } = await supabase
+      .from('vehicle_stats')
+      .select('*')
+      .in('vehicle_id', vehicleIds)
+    
+    if (!statsError && stats) {
+      // Merge stats with vehicles
+      vehiclesWithStats = vehicles.map(vehicle => {
+        const vehicleStats = stats.find(s => s.vehicle_id === vehicle.id)
+        return {
+          ...vehicle,
+          stats: vehicleStats || {
+            vehicle_id: vehicle.id,
+            average_rating: 0,
+            total_reviews: 0,
+            total_bookings: 0,
+            all_bookings_count: 0
+          }
+        }
+      })
+    }
+  }
+
   // If date filters are provided, check availability
-  let availableVehicles = vehicles || []
+  let availableVehicles = vehiclesWithStats
   
   if (filters.startDate && filters.endDate) {
     availableVehicles = await filterByAvailability(
-      vehicles || [],
+      vehiclesWithStats,
       filters.startDate,
       filters.endDate
     )
@@ -375,7 +404,7 @@ export async function getFeaturedVehicles(limit: number = 6) {
         profile_image_url
       )
     `)
-    .eq('is_approved', true)
+    .eq('approval_status', 'approved')
     .eq('status', 'available')
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -414,7 +443,7 @@ export async function getSimilarVehicles(
       )
     `)
     .eq('type', type)
-    .eq('is_approved', true)
+    .eq('approval_status', 'approved')
     .eq('status', 'available')
     .neq('id', vehicleId)
     .gte('price_per_day', minPrice)
@@ -434,7 +463,7 @@ export async function getSimilarVehicles(
  */
 export async function updateVehicleStatus(
   vehicleId: string, 
-  status: 'available' | 'unavailable' | 'maintenance'
+  status: 'available' | 'inactive' | 'maintenance' | 'rented'
 ) {
   const supabase = createClient()
 
@@ -461,8 +490,8 @@ export async function updateVehicleStatus(
  */
 export const VEHICLE_STATUS_OPTIONS = [
   { value: 'available', label: 'Available', description: 'Ready for bookings' },
-  { value: 'unavailable', label: 'Unavailable', description: 'Not available for bookings' },
+  { value: 'inactive', label: 'Unavailable', description: 'Not available for bookings' },
   { value: 'maintenance', label: 'Under Maintenance', description: 'Being serviced or repaired' },
 ] as const
 
-export type VehicleStatus = typeof VEHICLE_STATUS_OPTIONS[number]['value']
+export type VehicleStatus = 'available' | 'inactive' | 'maintenance' | 'rented'

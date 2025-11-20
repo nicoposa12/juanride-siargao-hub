@@ -32,7 +32,7 @@ export function useVehicleStats() {
       const { data: vehicles, error } = await supabase
         .from('vehicles')
         .select('type')
-        .eq('is_approved', true)
+        .eq('approval_status', 'approved')
         .eq('status', 'available')
       
       if (error) throw error

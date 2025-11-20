@@ -49,6 +49,15 @@ export function VehicleStatusSelector({
 
   const getStatusDisplay = (status: VehicleStatus) => {
     const option = VEHICLE_STATUS_OPTIONS.find(opt => opt.value === status)
+    
+    if (status === 'rented') {
+      return { 
+        label: 'Rented', 
+        icon: CheckCircle2, 
+        color: 'bg-blue-100 text-blue-800' 
+      }
+    }
+
     if (!option) return { label: status, icon: AlertCircle, color: 'bg-gray-100 text-gray-800' }
     
     switch (status) {
@@ -58,7 +67,7 @@ export function VehicleStatusSelector({
           icon: CheckCircle2, 
           color: 'bg-green-100 text-green-800' 
         }
-      case 'unavailable':
+      case 'inactive':
         return { 
           label: option.label, 
           icon: AlertCircle, 

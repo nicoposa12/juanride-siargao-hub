@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   Star, 
   Users, 
@@ -17,6 +19,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/format'
+import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays, startOfYear, endOfYear, subYears } from 'date-fns'
 import {
   LineChart,
   Line,
@@ -30,8 +33,8 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-interface MonthlyData {
-  month: string
+interface PeriodData {
+  label: string
   revenue: number
   bookings: number
 }
@@ -39,6 +42,7 @@ interface MonthlyData {
 interface TopVehicle {
   id: string
   name: string
+  type: string
   bookings: number
   revenue: number
   rating: number
@@ -59,11 +63,13 @@ export default function ReportsPage() {
   const [activeRenters, setActiveRenters] = useState(0)
   const [vehicleUtilization, setVehicleUtilization] = useState(0)
   const [revenueGrowth, setRevenueGrowth] = useState(0)
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
+  const [periodData, setPeriodData] = useState<PeriodData[]>([])
   const [topVehicles, setTopVehicles] = useState<TopVehicle[]>([])
   const [topLocations, setTopLocations] = useState<TopLocation[]>([])
   const [totalReviews, setTotalReviews] = useState(0)
   const [responseRate, setResponseRate] = useState(0)
+  const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly')
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('all')
 
   useEffect(() => {
     if (!authLoading) {
@@ -75,6 +81,12 @@ export default function ReportsPage() {
     }
   }, [user, profile, authLoading, router])
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      loadPeriodData()
+    }
+  }, [timePeriod])
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -83,7 +95,7 @@ export default function ReportsPage() {
         loadActiveRenters(),
         loadVehicleUtilization(),
         loadRevenueGrowth(),
-        loadMonthlyTrends(),
+        loadPeriodData(),
         loadTopVehicles(),
         loadTopLocations(),
         loadCustomerSatisfaction()
@@ -194,39 +206,112 @@ export default function ReportsPage() {
     }
   }
 
-  const loadMonthlyTrends = async () => {
+  const loadPeriodData = async () => {
     try {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-      const data: MonthlyData[] = []
+      let data: PeriodData[] = []
 
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date()
-        date.setMonth(date.getMonth() - i)
-        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1)
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+      switch (timePeriod) {
+        case 'daily': {
+          // Last 7 days
+          for (let i = 6; i >= 0; i--) {
+            const date = subDays(new Date(), i)
+            const label = format(date, 'EEE') // Mon, Tue, etc.
+            const dayStart = startOfDay(date)
+            const dayEnd = endOfDay(date)
 
-        const { data: bookings, error } = await supabase
-          .from('bookings')
-          .select('total_price')
-          .gte('created_at', monthStart.toISOString())
-          .lte('created_at', monthEnd.toISOString())
-          .eq('status', 'completed')
+            const { data: bookings, error } = await supabase
+              .from('bookings')
+              .select('total_price')
+              .gte('created_at', dayStart.toISOString())
+              .lte('created_at', dayEnd.toISOString())
+              .eq('status', 'completed')
 
-        if (error) throw error
+            if (error) throw error
 
-        const revenue = bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0
-        const bookingCount = bookings?.length || 0
+            const revenue = bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0
+            const bookingCount = bookings?.length || 0
 
-        data.push({
-          month: months[date.getMonth()],
-          revenue,
-          bookings: bookingCount
-        })
+            data.push({ label, revenue, bookings: bookingCount })
+          }
+          break
+        }
+        case 'weekly': {
+          // Last 8 weeks
+          for (let i = 7; i >= 0; i--) {
+            const date = subWeeks(new Date(), i)
+            const weekStart = startOfWeek(date, { weekStartsOn: 1 }) // Monday
+            const weekEnd = endOfWeek(date, { weekStartsOn: 1 })
+            const label = `W${format(weekStart, 'w')}`
+
+            const { data: bookings, error } = await supabase
+              .from('bookings')
+              .select('total_price')
+              .gte('created_at', weekStart.toISOString())
+              .lte('created_at', weekEnd.toISOString())
+              .eq('status', 'completed')
+
+            if (error) throw error
+
+            const revenue = bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0
+            const bookingCount = bookings?.length || 0
+
+            data.push({ label, revenue, bookings: bookingCount })
+          }
+          break
+        }
+        case 'yearly': {
+          // Last 5 years
+          for (let i = 4; i >= 0; i--) {
+            const date = subYears(new Date(), i)
+            const label = format(date, 'yyyy')
+            const yearStart = startOfYear(date)
+            const yearEnd = endOfYear(date)
+
+            const { data: bookings, error } = await supabase
+              .from('bookings')
+              .select('total_price')
+              .gte('created_at', yearStart.toISOString())
+              .lte('created_at', yearEnd.toISOString())
+              .eq('status', 'completed')
+
+            if (error) throw error
+
+            const revenue = bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0
+            const bookingCount = bookings?.length || 0
+
+            data.push({ label, revenue, bookings: bookingCount })
+          }
+          break
+        }
+        default: {
+          // Monthly - Last 6 months
+          for (let i = 5; i >= 0; i--) {
+            const date = subMonths(new Date(), i)
+            const label = format(date, 'MMM')
+            const monthStart = startOfMonth(date)
+            const monthEnd = endOfMonth(date)
+
+            const { data: bookings, error } = await supabase
+              .from('bookings')
+              .select('total_price')
+              .gte('created_at', monthStart.toISOString())
+              .lte('created_at', monthEnd.toISOString())
+              .eq('status', 'completed')
+
+            if (error) throw error
+
+            const revenue = bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0
+            const bookingCount = bookings?.length || 0
+
+            data.push({ label, revenue, bookings: bookingCount })
+          }
+          break
+        }
       }
 
-      setMonthlyData(data)
+      setPeriodData(data)
     } catch (error) {
-      console.error('Error loading monthly trends:', error)
+      console.error('Error loading period data:', error)
     }
   }
 
@@ -240,7 +325,8 @@ export default function ReportsPage() {
           vehicle:vehicles (
             id,
             make,
-            model
+            model,
+            type
           )
         `)
         .in('status', ['confirmed', 'active', 'completed'])
@@ -248,7 +334,7 @@ export default function ReportsPage() {
       if (error) throw error
 
       // Group by vehicle
-      const vehicleMap = new Map<string, { name: string; bookings: number; revenue: number }>()
+      const vehicleMap = new Map<string, { name: string; type: string; bookings: number; revenue: number }>()
 
       bookings?.forEach((booking: any) => {
         const vehicle = booking.vehicle
@@ -256,6 +342,7 @@ export default function ReportsPage() {
 
         const vehicleId = vehicle.id
         const vehicleName = `${vehicle.make} ${vehicle.model}`
+        const vehicleType = vehicle.type
         
         if (vehicleMap.has(vehicleId)) {
           const existing = vehicleMap.get(vehicleId)!
@@ -264,6 +351,7 @@ export default function ReportsPage() {
         } else {
           vehicleMap.set(vehicleId, {
             name: vehicleName,
+            type: vehicleType,
             bookings: 1,
             revenue: booking.total_price || 0
           })
@@ -299,15 +387,16 @@ export default function ReportsPage() {
         topVehiclesData.push({
           id,
           name: data.name,
+          type: data.type,
           bookings: data.bookings,
           revenue: data.revenue,
           rating: parseFloat(avgRating.toFixed(1))
         })
       }
 
-      // Sort by bookings and take top 5
+      // Sort by bookings descending
       topVehiclesData.sort((a, b) => b.bookings - a.bookings)
-      setTopVehicles(topVehiclesData.slice(0, 5))
+      setTopVehicles(topVehiclesData)
     } catch (error) {
       console.error('Error loading top vehicles:', error)
     }
@@ -318,7 +407,7 @@ export default function ReportsPage() {
       const { data: vehicles, error } = await supabase
         .from('vehicles')
         .select('location')
-        .eq('is_approved', true)
+        .eq('approval_status', 'approved')
         .not('location', 'is', null)
 
       if (error) throw error
@@ -363,7 +452,7 @@ export default function ReportsPage() {
       const { data: vehicles } = await supabase
         .from('vehicles')
         .select('id')
-        .eq('is_approved', true)
+        .eq('approval_status', 'approved')
       
       if (vehicles && vehicles.length > 0) {
         // Count vehicles with reviews
@@ -406,19 +495,24 @@ export default function ReportsPage() {
     csvData.push(['Revenue Growth', `${revenueGrowth}%`])
     csvData.push([])
     
-    // Monthly Trends
-    csvData.push(['Monthly Revenue & Booking Trends'])
-    csvData.push(['Month', 'Revenue (₱)', 'Bookings'])
-    monthlyData.forEach(m => {
-      csvData.push([m.month, m.revenue, m.bookings])
+    // Period Trends
+    csvData.push(['Revenue & Booking Trends'])
+    csvData.push(['Period', 'Revenue (₱)', 'Bookings'])
+    periodData.forEach((m: PeriodData) => {
+      csvData.push([m.label, m.revenue, m.bookings])
     })
     csvData.push([])
     
     // Top Vehicles
+    const filteredVehiclesForExport = vehicleTypeFilter === 'all' 
+      ? topVehicles 
+      : topVehicles.filter(v => v.type === vehicleTypeFilter)
+    const top5ForExport = filteredVehiclesForExport.slice(0, 5)
+    
     csvData.push(['Top 5 Most Booked Vehicles'])
-    csvData.push(['Rank', 'Vehicle', 'Bookings', 'Revenue (₱)', 'Rating'])
-    topVehicles.forEach((v, i) => {
-      csvData.push([i + 1, v.name, v.bookings, v.revenue, v.rating])
+    csvData.push(['Rank', 'Vehicle', 'Type', 'Bookings', 'Revenue (₱)', 'Rating'])
+    top5ForExport.forEach((v, i) => {
+      csvData.push([i + 1, v.name, v.type, v.bookings, v.revenue, v.rating])
     })
     csvData.push([])
     
@@ -558,17 +652,32 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      {/* Monthly Revenue & Booking Trends */}
+      {/* Revenue & Booking Trends with Period Selector */}
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Revenue & Booking Trends</CardTitle>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <CardTitle>
+              {timePeriod === 'daily' && 'Daily Revenue & Booking Trends'}
+              {timePeriod === 'weekly' && 'Weekly Revenue & Booking Trends'}
+              {timePeriod === 'monthly' && 'Monthly Revenue & Booking Trends'}
+              {timePeriod === 'yearly' && 'Yearly Revenue & Booking Trends'}
+            </CardTitle>
+            <Tabs value={timePeriod} onValueChange={(value) => setTimePeriod(value as any)}>
+              <TabsList>
+                <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={monthlyData}>
+            <LineChart data={periodData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
-                dataKey="month" 
+                dataKey="label" 
                 stroke="#6b7280"
                 style={{ fontSize: '12px' }}
               />
@@ -620,30 +729,64 @@ export default function ReportsPage() {
       {/* Top 5 Most Booked Vehicles */}
       <Card>
         <CardHeader>
-          <CardTitle>Top 5 Most Booked Vehicles</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle>Top 5 Most Booked Vehicles</CardTitle>
+            <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Vehicles</SelectItem>
+                <SelectItem value="scooter">Scooter</SelectItem>
+                <SelectItem value="motorcycle">Motorcycle</SelectItem>
+                <SelectItem value="car">Car</SelectItem>
+                <SelectItem value="van">Van</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {topVehicles.map((vehicle, index) => (
-              <div key={vehicle.id} className="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="h-12 w-12 rounded-full bg-cyan-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                  #{index + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base mb-1">{vehicle.name}</p>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                    <span>{vehicle.bookings} bookings</span>
-                    <span>•</span>
-                    <span>{formatCurrency(vehicle.revenue)} revenue</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
-                      {vehicle.rating}
-                    </span>
+            {(() => {
+              const filteredVehicles = vehicleTypeFilter === 'all' 
+                ? topVehicles 
+                : topVehicles.filter(v => v.type === vehicleTypeFilter)
+              const top5 = filteredVehicles.slice(0, 5)
+              
+              if (top5.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No vehicles found for this type</p>
+                  </div>
+                )
+              }
+              
+              return top5.map((vehicle, index) => (
+                <div key={vehicle.id} className="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="h-12 w-12 rounded-full bg-cyan-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                    #{index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-base">{vehicle.name}</p>
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize">
+                        {vehicle.type}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                      <span>{vehicle.bookings} bookings</span>
+                      <span>•</span>
+                      <span>{formatCurrency(vehicle.revenue)} revenue</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
+                        {vehicle.rating}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            })()}
           </div>
         </CardContent>
       </Card>

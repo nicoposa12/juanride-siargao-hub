@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TablePagination } from '@/components/ui/table-pagination'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import Navigation from '@/components/shared/Navigation'
 import { DollarSign, TrendingUp, Calendar, Car } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/format'
-import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import { format, parseISO, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays, startOfYear, endOfYear, subYears } from 'date-fns'
 
 interface EarningsStats {
   totalEarnings: number
@@ -36,6 +37,12 @@ interface VehicleEarnings {
   bookings_count: number
 }
 
+interface PeriodData {
+  label: string
+  earnings: number
+  bookings: number
+}
+
 export default function OwnerEarningsPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
@@ -50,6 +57,9 @@ export default function OwnerEarningsPage() {
   const [loading, setLoading] = useState(true)
   const [vehicleEarningsPage, setVehicleEarningsPage] = useState(1)
   const [transactionsPage, setTransactionsPage] = useState(1)
+  const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly')
+  const [periodData, setPeriodData] = useState<PeriodData[]>([])
+  const [allBookingsData, setAllBookingsData] = useState<any[]>([])
   const itemsPerPage = 15
 
   useEffect(() => {
@@ -63,6 +73,42 @@ export default function OwnerEarningsPage() {
       }
     }
   }, [user, profile, authLoading, router])
+
+  useEffect(() => {
+    if (allBookingsData.length > 0) {
+      calculatePeriodData()
+    }
+  }, [timePeriod, allBookingsData])
+
+  useEffect(() => {
+    if (allBookingsData.length > 0) {
+      calculatePeriodData()
+    }
+  }, [timePeriod, allBookingsData])
+
+  useEffect(() => {
+    if (allBookingsData.length > 0) {
+      calculatePeriodData()
+    }
+  }, [timePeriod, allBookingsData])
+
+  useEffect(() => {
+    if (allBookingsData.length > 0) {
+      calculatePeriodData()
+    }
+  }, [timePeriod, allBookingsData])
+
+  useEffect(() => {
+    if (allBookingsData.length > 0) {
+      calculatePeriodData()
+    }
+  }, [timePeriod, allBookingsData])
+
+  useEffect(() => {
+    if (allBookingsData.length > 0) {
+      calculatePeriodData()
+    }
+  }, [timePeriod, allBookingsData])
 
   const fetchEarningsData = async () => {
     const supabase = createClient()
@@ -92,6 +138,7 @@ export default function OwnerEarningsPage() {
         .order('created_at', { ascending: false })
 
       const completedBookings = allBookings?.filter(b => b.status === 'completed') || []
+      setAllBookingsData(completedBookings)
       const totalEarnings = completedBookings.reduce((sum, b) => sum + b.total_price, 0)
 
       // Calculate monthly earnings
@@ -159,6 +206,87 @@ export default function OwnerEarningsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const calculatePeriodData = () => {
+    let data: PeriodData[] = []
+
+    switch (timePeriod) {
+      case 'daily': {
+        // Last 7 days
+        for (let i = 6; i >= 0; i--) {
+          const date = subDays(new Date(), i)
+          const label = format(date, 'EEE') // Mon, Tue, etc.
+          const dayStart = startOfDay(date)
+          const dayEnd = endOfDay(date)
+
+          const dayBookings = allBookingsData.filter(b => {
+            const bookingDate = parseISO(b.start_date)
+            return bookingDate >= dayStart && bookingDate <= dayEnd
+          })
+
+          const earnings = dayBookings.reduce((sum, b) => sum + b.total_price, 0)
+          data.push({ label, earnings, bookings: dayBookings.length })
+        }
+        break
+      }
+      case 'weekly': {
+        // Last 8 weeks
+        for (let i = 7; i >= 0; i--) {
+          const date = subWeeks(new Date(), i)
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 }) // Monday
+          const weekEnd = endOfWeek(date, { weekStartsOn: 1 })
+          const label = `W${format(weekStart, 'w')}`
+
+          const weekBookings = allBookingsData.filter(b => {
+            const bookingDate = parseISO(b.start_date)
+            return bookingDate >= weekStart && bookingDate <= weekEnd
+          })
+
+          const earnings = weekBookings.reduce((sum, b) => sum + b.total_price, 0)
+          data.push({ label, earnings, bookings: weekBookings.length })
+        }
+        break
+      }
+      case 'yearly': {
+        // Last 5 years
+        for (let i = 4; i >= 0; i--) {
+          const date = subYears(new Date(), i)
+          const label = format(date, 'yyyy')
+          const yearStart = startOfYear(date)
+          const yearEnd = endOfYear(date)
+
+          const yearBookings = allBookingsData.filter(b => {
+            const bookingDate = parseISO(b.start_date)
+            return bookingDate >= yearStart && bookingDate <= yearEnd
+          })
+
+          const earnings = yearBookings.reduce((sum, b) => sum + b.total_price, 0)
+          data.push({ label, earnings, bookings: yearBookings.length })
+        }
+        break
+      }
+      default: {
+        // Monthly - Last 6 months
+        for (let i = 5; i >= 0; i--) {
+          const date = subMonths(new Date(), i)
+          const label = format(date, 'MMM')
+          const monthStart = startOfMonth(date)
+          const monthEnd = endOfMonth(date)
+
+          const monthBookings = allBookingsData.filter(b => {
+            const bookingDate = parseISO(b.start_date)
+            return bookingDate >= monthStart && bookingDate <= monthEnd
+          })
+
+          const earnings = monthBookings.reduce((sum, b) => sum + b.total_price, 0)
+          data.push({ label, earnings, bookings: monthBookings.length })
+        }
+        break
+      }
+    }
+
+    setPeriodData(data)
   }
 
   if (authLoading || loading) {
@@ -247,6 +375,77 @@ export default function OwnerEarningsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Earnings Trends Chart */}
+        <Card className="mb-8 card-gradient shadow-layered-md border-border/50">
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <CardTitle className="text-primary-700">
+                {timePeriod === 'daily' && 'Daily Earnings Trends'}
+                {timePeriod === 'weekly' && 'Weekly Earnings Trends'}
+                {timePeriod === 'monthly' && 'Monthly Earnings Trends'}
+                {timePeriod === 'yearly' && 'Yearly Earnings Trends'}
+              </CardTitle>
+              <Tabs value={timePeriod} onValueChange={(value) => setTimePeriod(value as any)}>
+                <TabsList>
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="yearly">Yearly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 relative">
+              {/* Grid lines */}
+              <div className="absolute inset-0 flex flex-col justify-between py-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="border-t border-gray-200" />
+                ))}
+              </div>
+              
+              {/* Chart bars */}
+              <div className="relative h-full flex items-end gap-2 sm:gap-4 pb-4">
+                {periodData.length === 0 ? (
+                  <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                    <p>No earnings data available for this period</p>
+                  </div>
+                ) : (
+                  periodData.map((data, index) => {
+                    const maxEarnings = Math.max(...periodData.map(d => d.earnings), 1)
+                    const heightPercentage = maxEarnings > 0 ? (data.earnings / maxEarnings) * 100 : 0
+                    const barHeight = heightPercentage > 0 ? Math.max(heightPercentage, 5) : 0
+                    
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                        <div className="w-full relative group flex items-end" style={{ height: '200px' }}>
+                          {barHeight > 0 ? (
+                            <div
+                              className="w-full bg-gradient-to-t from-green-500 to-green-400 hover:from-green-600 hover:to-green-500 transition-colors rounded-t cursor-pointer relative shadow-sm"
+                              style={{
+                                height: `${barHeight}%`,
+                                minHeight: '10px'
+                              }}
+                            >
+                              <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                                <div className="font-semibold">{formatCurrency(data.earnings)}</div>
+                                <div className="text-gray-300">{data.bookings} booking{data.bookings !== 1 ? 's' : ''}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-full h-1 bg-gray-200 rounded" />
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">{data.label}</span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Earnings by Vehicle */}

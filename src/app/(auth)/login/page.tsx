@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, LogIn } from 'lucide-react'
+import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -20,6 +20,18 @@ export default function LoginPage() {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
+  
+  // Check for deactivation message
+  useEffect(() => {
+    const message = searchParams?.get('message')
+    if (message === 'Your account has been deactivated') {
+      toast({
+        title: 'Account Deactivated',
+        description: 'Your account has been deactivated by an administrator. Please contact support for assistance.',
+        variant: 'destructive',
+      })
+    }
+  }, [searchParams, toast])
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -170,6 +182,19 @@ export default function LoginPage() {
           <CardDescription className="text-center">
             Sign in to your JuanRide account
           </CardDescription>
+          {searchParams?.get('message') === 'Your account has been deactivated' && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <p className="text-sm text-red-800 font-medium">
+                  Account Deactivated
+                </p>
+              </div>
+              <p className="text-xs text-red-700 mt-1">
+                Your account has been deactivated. Please contact support for assistance.
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleEmailLogin} className="space-y-4">

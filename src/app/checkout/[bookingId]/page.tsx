@@ -5,13 +5,14 @@ import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, IdCard, Eye } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
-import PriceBreakdown from '@/components/booking/PriceBreakdown'
 import PaymentMethodSelector, { PaymentMethodType } from '@/components/payment/PaymentMethodSelector'
 import CardPaymentForm, { CardDetails } from '@/components/payment/CardPaymentForm'
 import QRPHDisplay from '@/components/payment/QRPHDisplay'
@@ -22,6 +23,9 @@ import {
   createPaymentRecord,
   toCentavos,
 } from '@/lib/payment/paymongo'
+import { ID_DOCUMENT_TYPE_LABELS, VEHICLE_TYPES_REQUIRING_ID } from '@/lib/constants'
+import { getIdDocumentSignedUrl } from '@/lib/supabase/storage'
+import type { Database } from '@/types/database.types'
 
 interface BookingData {
   id: string
@@ -30,12 +34,15 @@ interface BookingData {
   end_date: string
   total_price: number
   status: string
+  identity_document_id?: string | null
+  identity_requirement_status?: 'not_required' | 'pending' | 'approved' | 'rejected' | null
   vehicle: {
     make: string
     model: string
     price_per_day: number
     image_urls: string[]
     location?: string | null
+    type?: string | null
   }
 }
 
@@ -52,6 +59,9 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [qrphData, setQrphData] = useState<{ paymentIntentId: string; qrCode: string } | null>(null)
+  const [identityDocs, setIdentityDocs] = useState<Database['public']['Tables']['id_documents']['Row'][]>([])
+  const [identityDocsLoading, setIdentityDocsLoading] = useState(false)
+  const [selectedIdentityDocId, setSelectedIdentityDocId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!bookingId) {
@@ -59,6 +69,48 @@ export default function CheckoutPage() {
     }
     fetchBookingData(bookingId)
   }, [bookingId])
+
+  useEffect(() => {
+    if (!user) return
+
+    const fetchIdentityDocs = async () => {
+      setIdentityDocsLoading(true)
+      const { data, error } = await supabase
+        .from('id_documents')
+        .select('*')
+        .eq('renter_id', user.id)
+        .eq('status', 'approved')
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Error loading identity documents:', error)
+        toast({
+          title: 'Unable to load ID documents',
+          description: error.message,
+          variant: 'destructive',
+        })
+        setIdentityDocs([])
+      } else {
+        setIdentityDocs(data ?? [])
+      }
+      setIdentityDocsLoading(false)
+    }
+
+    fetchIdentityDocs()
+  }, [supabase, toast, user])
+
+  useEffect(() => {
+    if (!booking) return
+
+    if (booking.identity_document_id && identityDocs.some((doc) => doc.id === booking.identity_document_id)) {
+      setSelectedIdentityDocId(booking.identity_document_id)
+      return
+    }
+
+    if (!selectedIdentityDocId && identityDocs.length > 0) {
+      setSelectedIdentityDocId(identityDocs[0].id)
+    }
+  }, [booking, identityDocs, selectedIdentityDocId])
 
   const fetchBookingData = async (id: string) => {
     try {
@@ -99,6 +151,33 @@ export default function CheckoutPage() {
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
   }
 
+  const handleViewIdentityDocument = async (docId: string) => {
+    const doc = identityDocs.find((d) => d.id === docId)
+    if (!doc) {
+      toast({
+        title: 'Document unavailable',
+        description: 'Please refresh and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      const signedUrl = await getIdDocumentSignedUrl(doc.file_path)
+      if (!signedUrl) {
+        throw new Error('Unable to generate secure link')
+      }
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (error: any) {
+      console.error('Unable to open ID document:', error)
+      toast({
+        title: 'Failed to open document',
+        description: error.message || 'Please try again later.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const handlePayment = async () => {
     if (!selectedPaymentMethod) {
       toast({
@@ -128,9 +207,63 @@ export default function CheckoutPage() {
       return
     }
 
-    setIsProcessing(true)
-
     try {
+      const requiresIdentityDocument = Boolean(
+        booking.vehicle?.type && VEHICLE_TYPES_REQUIRING_ID.includes(
+          booking.vehicle.type as (typeof VEHICLE_TYPES_REQUIRING_ID)[number]
+        )
+      )
+
+      if (requiresIdentityDocument) {
+        if (identityDocsLoading) {
+          toast({
+            title: 'ID Verification Pending',
+            description: 'Please wait while we load your approved ID documents.',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        const selectedDoc = selectedIdentityDocId
+          ? identityDocs.find((doc) => doc.id === selectedIdentityDocId)
+          : null
+
+        if (!selectedDoc) {
+          toast({
+            title: 'Approved ID Required',
+            description: 'Select an approved ID to proceed with checkout.',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        if (booking.identity_document_id !== selectedDoc.id || booking.identity_requirement_status !== 'approved') {
+          const { error: identityUpdateError } = await supabase
+            .from('bookings')
+            .update({
+              identity_document_id: selectedDoc.id,
+              identity_requirement_status: 'approved',
+            })
+            .eq('id', booking.id)
+
+          if (identityUpdateError) {
+            throw identityUpdateError
+          }
+
+          setBooking((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  identity_document_id: selectedDoc.id,
+                  identity_requirement_status: 'approved',
+                }
+              : prev
+          )
+        }
+      }
+
+      setIsProcessing(true)
+
       // Calculate payment processing fee (rounded to 2 decimals)
       const paymentProcessingFee = selectedPaymentMethod === 'card' 
         ? Math.round(((booking.total_price * 0.035) + 15) * 100) / 100
@@ -376,7 +509,7 @@ export default function CheckoutPage() {
       await updatePaymentRecord(booking.id, 'paid')
       await supabase
         .from('bookings')
-        .update({ status: 'confirmed' })
+        .update({ status: 'paid' })
         .eq('id', booking.id)
 
       // Send notifications
@@ -621,6 +754,83 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
+
+                  {booking.vehicle?.type && VEHICLE_TYPES_REQUIRING_ID.includes(
+                    booking.vehicle.type as (typeof VEHICLE_TYPES_REQUIRING_ID)[number]
+                  ) && (
+                    <div className="space-y-3">
+                      <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-900">
+                        <IdCard className="h-4 w-4" />
+                        <AlertDescription>
+                          This vehicle requires an approved government ID before payment.
+                          {identityDocs.length === 0 && ' Please upload an ID from your profile page and refresh this checkout.'}
+                        </AlertDescription>
+                      </Alert>
+
+                      {identityDocs.length > 0 && (
+                        <div className="rounded-lg border p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-sm">Select approved ID</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => router.push('/profile?tab=identity')}
+                            >
+                              Manage IDs
+                            </Button>
+                          </div>
+
+                          {identityDocsLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" /> Loading IDs...
+                            </div>
+                          ) : (
+                            <RadioGroup
+                              value={selectedIdentityDocId ?? undefined}
+                              onValueChange={setSelectedIdentityDocId}
+                              className="space-y-2"
+                            >
+                              {identityDocs.map((doc) => (
+                                <label
+                                  key={doc.id}
+                                  className="flex items-center justify-between rounded-md border p-3 text-sm"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <RadioGroupItem value={doc.id} />
+                                    <div>
+                                      <p className="font-medium">
+                                        {ID_DOCUMENT_TYPE_LABELS[doc.document_type] || doc.document_type}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Approved {doc.reviewed_at ? new Date(doc.reviewed_at).toLocaleDateString() : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      handleViewIdentityDocument(doc.id)
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" /> View
+                                  </Button>
+                                </label>
+                              ))}
+                            </RadioGroup>
+                          )}
+
+                          {!identityDocsLoading && identityDocs.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              No approved IDs found. Upload your ID from the profile page before continuing.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <Separator />
 

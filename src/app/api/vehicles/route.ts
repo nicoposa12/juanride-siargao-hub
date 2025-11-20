@@ -18,7 +18,7 @@ export async function GET(request: Request) {
           profile_image_url
         )
       `)
-      .eq('is_approved', true)
+      .eq('approval_status', 'approved')
       .eq('status', 'available')
 
     // Apply filters from query params
@@ -32,11 +32,40 @@ export async function GET(request: Request) {
     if (minPrice) query = query.gte('price_per_day', parseFloat(minPrice))
     if (maxPrice) query = query.lte('price_per_day', parseFloat(maxPrice))
 
-    const { data, error } = await query.order('created_at', { ascending: false })
+    const { data: vehicles, error } = await query.order('created_at', { ascending: false })
 
     if (error) throw error
 
-    return NextResponse.json({ data })
+    // Fetch stats for all vehicles
+    let vehiclesWithStats = vehicles || []
+    
+    if (vehicles && vehicles.length > 0) {
+      const vehicleIds = vehicles.map(v => v.id)
+      
+      const { data: stats, error: statsError } = await supabase
+        .from('vehicle_stats')
+        .select('*')
+        .in('vehicle_id', vehicleIds)
+      
+      if (!statsError && stats) {
+        // Merge stats with vehicles
+        vehiclesWithStats = vehicles.map(vehicle => {
+          const vehicleStats = stats.find(s => s.vehicle_id === vehicle.id)
+          return {
+            ...vehicle,
+            stats: vehicleStats || {
+              vehicle_id: vehicle.id,
+              average_rating: 0,
+              total_reviews: 0,
+              total_bookings: 0,
+              all_bookings_count: 0
+            }
+          }
+        })
+      }
+    }
+
+    return NextResponse.json({ data: vehiclesWithStats })
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch vehicles' },

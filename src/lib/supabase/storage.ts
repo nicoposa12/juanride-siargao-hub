@@ -3,6 +3,7 @@ import { createClient } from './client'
 const VEHICLE_IMAGES_BUCKET = 'vehicle-images'
 const PROFILE_IMAGES_BUCKET = 'profile-images'
 const REVIEW_IMAGES_BUCKET = 'review-images'
+const ID_DOCUMENTS_BUCKET = 'id-documents'
 
 export async function uploadVehicleImage(
   file: File,
@@ -85,5 +86,39 @@ export async function deleteImage(bucket: string, path: string): Promise<void> {
   const { error } = await supabase.storage.from(bucket).remove([path])
 
   if (error) throw error
+}
+
+export async function uploadIdDocument(
+  file: File,
+  renterId: string,
+  documentType: string
+): Promise<{ filePath: string }> {
+  const supabase = createClient()
+
+  const fileExt = file.name.includes('.') ? file.name.split('.').pop() : 'jpg'
+  const fileName = `${renterId}/${documentType}-${Date.now()}.${fileExt}`
+
+  const { error } = await supabase.storage
+    .from(ID_DOCUMENTS_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) throw error
+
+  return { filePath: fileName }
+}
+
+export async function getIdDocumentSignedUrl(filePath: string, expiresInSeconds = 60 * 15) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase.storage
+    .from(ID_DOCUMENTS_BUCKET)
+    .createSignedUrl(filePath, expiresInSeconds)
+
+  if (error) throw error
+
+  return data?.signedUrl || null
 }
 

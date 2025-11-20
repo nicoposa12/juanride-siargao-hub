@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -44,7 +45,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { useToast } from '@/hooks/use-toast'
-import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import { format, parseISO, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays, startOfYear, endOfYear, subYears } from 'date-fns'
 
 interface MaintenanceRecord {
   id: string
@@ -75,6 +76,7 @@ export default function AdminMaintenancePage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly')
   
   // Dialog states
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
@@ -330,24 +332,86 @@ export default function AdminMaintenancePage() {
   const completedCount = records.filter(r => r.status === 'completed').length
   const scheduledCount = records.filter(r => r.status === 'scheduled').length
 
-  // Calculate monthly costs for chart
-  const monthlyData = Array.from({ length: 6 }, (_, i) => {
-    const date = subMonths(new Date(), 5 - i)
-    const monthName = format(date, 'MMM')
-    const monthStart = startOfMonth(date)
-    const monthEnd = endOfMonth(date)
-    
-    const monthCost = records
-      .filter(r => {
-        const serviceDate = parseISO(r.service_date)
-        return serviceDate >= monthStart && serviceDate <= monthEnd && r.status === 'completed'
-      })
-      .reduce((sum, r) => sum + r.cost, 0)
-    
-    return { month: monthName, cost: monthCost }
-  })
+  // Calculate period data for chart based on selected time period
+  const getChartData = () => {
+    switch (timePeriod) {
+      case 'daily': {
+        // Last 7 days
+        return Array.from({ length: 7 }, (_, i) => {
+          const date = subDays(new Date(), 6 - i)
+          const label = format(date, 'EEE') // Mon, Tue, etc.
+          const dayStart = startOfDay(date)
+          const dayEnd = endOfDay(date)
+          
+          const cost = records
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= dayStart && serviceDate <= dayEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+      case 'weekly': {
+        // Last 8 weeks
+        return Array.from({ length: 8 }, (_, i) => {
+          const date = subWeeks(new Date(), 7 - i)
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 }) // Monday
+          const weekEnd = endOfWeek(date, { weekStartsOn: 1 })
+          const label = `W${format(weekStart, 'w')}`
+          
+          const cost = records
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= weekStart && serviceDate <= weekEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+      case 'yearly': {
+        // Last 5 years
+        return Array.from({ length: 5 }, (_, i) => {
+          const date = subYears(new Date(), 4 - i)
+          const label = format(date, 'yyyy')
+          const yearStart = startOfYear(date)
+          const yearEnd = endOfYear(date)
+          
+          const cost = records
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= yearStart && serviceDate <= yearEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+      default: {
+        // Monthly - Last 6 months
+        return Array.from({ length: 6 }, (_, i) => {
+          const date = subMonths(new Date(), 5 - i)
+          const label = format(date, 'MMM')
+          const monthStart = startOfMonth(date)
+          const monthEnd = endOfMonth(date)
+          
+          const cost = records
+            .filter(r => {
+              const serviceDate = parseISO(r.service_date)
+              return serviceDate >= monthStart && serviceDate <= monthEnd && r.status === 'completed'
+            })
+            .reduce((sum, r) => sum + r.cost, 0)
+          
+          return { label, cost }
+        })
+      }
+    }
+  }
 
-  const maxCost = Math.max(...monthlyData.map(d => d.cost), 1)
+  const chartData = getChartData()
+  const maxCost = Math.max(...chartData.map(d => d.cost), 1)
 
   return (
     <div className="space-y-6">
@@ -407,10 +471,25 @@ export default function AdminMaintenancePage() {
         </Card>
       </div>
 
-      {/* Monthly Maintenance Costs Chart */}
+      {/* Maintenance Costs Chart with Period Selector */}
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Maintenance Costs</CardTitle>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <CardTitle>
+              {timePeriod === 'daily' && 'Daily Maintenance Costs'}
+              {timePeriod === 'weekly' && 'Weekly Maintenance Costs'}
+              {timePeriod === 'monthly' && 'Monthly Maintenance Costs'}
+              {timePeriod === 'yearly' && 'Yearly Maintenance Costs'}
+            </CardTitle>
+            <Tabs value={timePeriod} onValueChange={(value) => setTimePeriod(value as any)}>
+              <TabsList>
+                <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-64 relative">
@@ -423,7 +502,7 @@ export default function AdminMaintenancePage() {
             
             {/* Chart bars */}
             <div className="relative h-full flex items-end gap-4 pb-4">
-              {monthlyData.map((data, index) => {
+              {chartData.map((data, index) => {
                 const heightPercentage = maxCost > 0 ? (data.cost / maxCost) * 100 : 0
                 const barHeight = heightPercentage > 0 ? Math.max(heightPercentage, 5) : 0
                 
@@ -446,7 +525,7 @@ export default function AdminMaintenancePage() {
                         <div className="w-full h-1 bg-gray-200 rounded" />
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">{data.month}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{data.label}</span>
                   </div>
                 )
               })}
