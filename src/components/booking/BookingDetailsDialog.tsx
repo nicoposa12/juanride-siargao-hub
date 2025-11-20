@@ -38,7 +38,6 @@ import { BOOKING_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { useToast } from '@/hooks/use-toast'
 import {
   confirmBooking,
-  activateBooking,
   completeBooking,
   cancelBooking,
   type BookingWithDetails,
@@ -96,7 +95,7 @@ export function BookingDetailsDialog({
     }
   }
 
-  const handleAction = async (action: 'confirm' | 'activate' | 'complete' | 'cancel') => {
+  const handleAction = async (action: 'confirm' | 'complete' | 'cancel') => {
     setActionLoading(action)
     
     try {
@@ -105,9 +104,6 @@ export function BookingDetailsDialog({
       switch (action) {
         case 'confirm':
           result = await confirmBooking(booking.id)
-          break
-        case 'activate':
-          result = await activateBooking(booking.id)
           break
         case 'complete':
           result = await completeBooking(booking.id)
@@ -392,64 +388,16 @@ export function BookingDetailsDialog({
           </div>
           
           <div className="flex gap-2">
-            {booking.status === 'pending' && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => handleAction('cancel')}
-                  disabled={!!actionLoading}
-                >
-                  {actionLoading === 'cancel' ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Declining...
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Decline
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={() => handleAction('confirm')}
-                  disabled={!!actionLoading}
-                >
-                  {actionLoading === 'confirm' ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Confirming...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Confirm
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-            
-            {booking.status === 'confirmed' && (
-              <Button
-                onClick={() => handleAction('activate')}
-                disabled={!!actionLoading}
-              >
-                {actionLoading === 'activate' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Activating...
-                  </>
-                ) : (
-                  <>
-                    <Car className="h-4 w-4 mr-2" />
-                    Mark as Picked Up
-                  </>
-                )}
-              </Button>
-            )}
-            
-            {booking.status === 'active' && (
+            {/* Show complete button for ongoing bookings (confirmed and within rental period) */}
+            {booking.status === 'confirmed' && (() => {
+              const today = new Date()
+              const startDate = new Date(booking.start_date)
+              const endDate = new Date(booking.end_date)
+              today.setHours(0, 0, 0, 0)
+              startDate.setHours(0, 0, 0, 0)
+              endDate.setHours(23, 59, 59, 999)
+              return today >= startDate && today <= endDate
+            })() && (
               <Button
                 onClick={() => handleAction('complete')}
                 disabled={!!actionLoading}
@@ -462,7 +410,7 @@ export function BookingDetailsDialog({
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Mark as Returned
+                    Mark as Completed
                   </>
                 )}
               </Button>

@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Upload, FileText, X, CheckCircle2, Loader2, AlertCircle, Eye } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { uploadVehicleDocument, deleteVehicleDocument } from '@/lib/supabase/storage'
 
 interface DocumentUploadProps {
   label: string
@@ -58,31 +58,10 @@ export function DocumentUpload({
     setUploading(true)
 
     try {
-      const supabase = createClient()
+      // Upload to Supabase Storage using helper function
+      const publicUrl = await uploadVehicleDocument(file, bucketPath)
       
-      // Generate unique filename
-      const timestamp = Date.now()
-      const randomStr = Math.random().toString(36).substring(7)
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${timestamp}_${randomStr}.${fileExt}`
-      const filePath = `${bucketPath}/${fileName}`
-
-      // Upload to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
-        .from('vehicle-assets')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        })
-
-      if (uploadError) throw uploadError
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('vehicle-assets')
-        .getPublicUrl(filePath)
-
-      onChange(urlData.publicUrl)
+      onChange(publicUrl)
 
       toast({
         title: 'Document Uploaded',
@@ -114,8 +93,6 @@ export function DocumentUpload({
     if (!documentUrl) return
 
     try {
-      const supabase = createClient()
-      
       // Extract file path from URL
       const url = new URL(documentUrl)
       const pathParts = url.pathname.split('/')
@@ -123,10 +100,8 @@ export function DocumentUpload({
       if (bucketIndex !== -1) {
         const filePath = pathParts.slice(bucketIndex + 1).join('/')
         
-        // Delete from storage
-        await supabase.storage
-          .from('vehicle-assets')
-          .remove([filePath])
+        // Delete from storage using helper function
+        await deleteVehicleDocument(filePath)
       }
 
       onChange(null)

@@ -132,7 +132,7 @@ Think of building a web app like building a house. You need different materials 
 
 #### 11. PayMongo
 - **What it is:** A Philippine-based payment gateway (like Stripe, but optimized for the Philippines) that handles GCash, Maya (formerly PayMaya), credit/debit cards, and bank transfers.
-- **Why we chose it:** Our target market is in the Philippines, where GCash and Maya are dominant. PayMongo is PCI-DSS compliant (bank-level security for credit card data) and handles complex payment flows, so we never touch raw credit card numbers.
+- **Why we chose it:** Our target market is in the Philippines, where GCash and Maya are dominant. PayMongo is PCI-DSS  compliant (bank-level security for credit card data) and handles complex payment flows, so we never touch raw credit card numbers.
 - **Simple analogy:** PayMongo is like a secure cash register that accepts all payment types and protects both the customer's credit card and our business from fraud.
 
 ### Cloud Storage (The "Photo Album")

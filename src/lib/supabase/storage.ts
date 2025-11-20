@@ -4,6 +4,7 @@ const VEHICLE_IMAGES_BUCKET = 'vehicle-images'
 const PROFILE_IMAGES_BUCKET = 'profile-images'
 const REVIEW_IMAGES_BUCKET = 'review-images'
 const ID_DOCUMENTS_BUCKET = 'id-documents'
+const VEHICLE_DOCUMENTS_BUCKET = 'vehicle-assets'
 
 export async function uploadVehicleImage(
   file: File,
@@ -121,4 +122,44 @@ export async function getIdDocumentSignedUrl(filePath: string, expiresInSeconds 
 
   return data?.signedUrl || null
 }
+
+export async function uploadVehicleDocument(
+  file: File,
+  bucketPath: string
+): Promise<string> {
+  const supabase = createClient()
+
+  const timestamp = Date.now()
+  const randomStr = Math.random().toString(36).substring(7)
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${timestamp}_${randomStr}.${fileExt}`
+  const filePath = `${bucketPath}/${fileName}`
+
+  const { data, error } = await supabase.storage
+    .from(VEHICLE_DOCUMENTS_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) throw error
+
+  const { data: urlData } = supabase.storage
+    .from(VEHICLE_DOCUMENTS_BUCKET)
+    .getPublicUrl(filePath)
+
+  return urlData.publicUrl
+}
+
+export async function deleteVehicleDocument(filePath: string): Promise<void> {
+  const supabase = createClient()
+  
+  const { error } = await supabase.storage
+    .from(VEHICLE_DOCUMENTS_BUCKET)
+    .remove([filePath])
+
+  if (error) throw error
+}
+
+export { VEHICLE_IMAGES_BUCKET, PROFILE_IMAGES_BUCKET, REVIEW_IMAGES_BUCKET, ID_DOCUMENTS_BUCKET, VEHICLE_DOCUMENTS_BUCKET }
 

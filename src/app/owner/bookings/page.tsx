@@ -135,11 +135,30 @@ function BookingsContent() {
   
   const filterBookings = () => {
     let filtered = [...bookings]
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time to start of day for accurate comparison
     
-    // Filter by status tab
-    if (activeTab !== 'all') {
-      filtered = filtered.filter(b => b.status === activeTab)
+    // Filter by status tab with date-based logic
+    if (activeTab === 'upcoming') {
+      // Confirmed bookings that haven't started yet (future dates only)
+      filtered = filtered.filter(b => {
+        const startDate = new Date(b.start_date)
+        startDate.setHours(0, 0, 0, 0)
+        return b.status === 'confirmed' && startDate > today
+      })
+    } else if (activeTab === 'ongoing') {
+      // Confirmed bookings that are due today or currently in progress
+      filtered = filtered.filter(b => {
+        const startDate = new Date(b.start_date)
+        const endDate = new Date(b.end_date)
+        startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
+        return b.status === 'confirmed' && today >= startDate && today <= endDate
+      })
+    } else if (activeTab === 'completed') {
+      filtered = filtered.filter(b => b.status === 'completed')
     }
+    // 'all' tab shows everything, no filtering needed
     
     // Filter by search query
     if (searchQuery) {
@@ -167,9 +186,6 @@ function BookingsContent() {
         case 'confirm':
           result = await confirmBooking(selectedBooking.id)
           break
-        case 'activate':
-          result = await activateBooking(selectedBooking.id)
-          break
         case 'complete':
           result = await completeBooking(selectedBooking.id)
           break
@@ -181,8 +197,7 @@ function BookingsContent() {
       if (result?.success) {
         // Optimistic update - update local state immediately
         const newStatus = actionDialog.action === 'cancel' ? 'cancelled' : 
-                         actionDialog.action === 'confirm' ? 'confirmed' :
-                         actionDialog.action === 'activate' ? 'active' : 'completed'
+                         actionDialog.action === 'confirm' ? 'confirmed' : 'completed'
         
         setBookings(prev => prev.map(b => 
           b.id === selectedBooking.id ? { ...b, status: newStatus } : b
@@ -299,23 +314,28 @@ function BookingsContent() {
             <TabsTrigger value="all">
               All ({bookings.length})
             </TabsTrigger>
-            <TabsTrigger value="pending">
-              Pending ({bookings.filter(b => b.status === 'pending').length})
+            <TabsTrigger value="upcoming">
+              Upcoming ({bookings.filter(b => {
+                const startDate = new Date(b.start_date)
+                const today = new Date()
+                startDate.setHours(0, 0, 0, 0)
+                today.setHours(0, 0, 0, 0)
+                return b.status === 'confirmed' && startDate > today
+              }).length})
             </TabsTrigger>
-            <TabsTrigger value="paid">
-              Awaiting Confirmation ({bookings.filter(b => b.status === 'paid').length})
-            </TabsTrigger>
-            <TabsTrigger value="confirmed">
-              Confirmed ({bookings.filter(b => b.status === 'confirmed').length})
-            </TabsTrigger>
-            <TabsTrigger value="active">
-              Active ({bookings.filter(b => b.status === 'active').length})
+            <TabsTrigger value="ongoing">
+              Ongoing ({bookings.filter(b => {
+                const today = new Date()
+                const startDate = new Date(b.start_date)
+                const endDate = new Date(b.end_date)
+                today.setHours(0, 0, 0, 0)
+                startDate.setHours(0, 0, 0, 0)
+                endDate.setHours(23, 59, 59, 999)
+                return b.status === 'confirmed' && today >= startDate && today <= endDate
+              }).length})
             </TabsTrigger>
             <TabsTrigger value="completed">
               Completed ({bookings.filter(b => b.status === 'completed').length})
-            </TabsTrigger>
-            <TabsTrigger value="cancelled">
-              Cancelled ({bookings.filter(b => b.status === 'cancelled').length})
             </TabsTrigger>
           </TabsList>
           
@@ -324,9 +344,19 @@ function BookingsContent() {
             <Card>
               <CardContent className="text-center py-12">
                 <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No Bookings Found</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  {searchQuery ? 'No Bookings Found' : 
+                   activeTab === 'upcoming' ? 'No Upcoming Bookings' :
+                   activeTab === 'ongoing' ? 'No Ongoing Bookings' :
+                   activeTab === 'completed' ? 'No Completed Bookings' :
+                   'No Bookings Yet'}
+                </h3>
                 <p className="text-muted-foreground">
-                  {searchQuery ? 'Try adjusting your search criteria.' : 'No bookings match the selected filter.'}
+                  {searchQuery ? 'Try adjusting your search criteria.' :
+                   activeTab === 'upcoming' ? 'You have no confirmed bookings scheduled to start in the future.' :
+                   activeTab === 'ongoing' ? 'No vehicles are currently being rented out.' :
+                   activeTab === 'completed' ? 'You have no completed rentals yet.' :
+                   'No bookings have been made for your vehicles yet.'}
                 </p>
               </CardContent>
             </Card>
@@ -418,46 +448,16 @@ function BookingsContent() {
                         </div>
                         
                         <div className="flex gap-2 flex-wrap">
-                          {(booking.status === 'pending' || booking.status === 'paid') && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBooking(booking)
-                                  setActionDialog({ open: true, action: 'cancel', processing: false })
-                                }}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Decline
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBooking(booking)
-                                  setActionDialog({ open: true, action: 'confirm', processing: false })
-                                }}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {booking.status === 'paid' ? 'Confirm Booking' : 'Confirm'}
-                              </Button>
-                            </>
-                          )}
-                          
-                          {booking.status === 'confirmed' && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedBooking(booking)
-                                setActionDialog({ open: true, action: 'activate', processing: false })
-                              }}
-                            >
-                              <Car className="h-4 w-4 mr-2" />
-                              Mark as Picked Up
-                            </Button>
-                          )}
-                          
-                          {booking.status === 'active' && (
+                          {/* Show complete button for ongoing bookings (confirmed and within rental period) */}
+                          {booking.status === 'confirmed' && (() => {
+                            const today = new Date()
+                            const startDate = new Date(booking.start_date)
+                            const endDate = new Date(booking.end_date)
+                            today.setHours(0, 0, 0, 0)
+                            startDate.setHours(0, 0, 0, 0)
+                            endDate.setHours(23, 59, 59, 999)
+                            return today >= startDate && today <= endDate
+                          })() && (
                             <Button
                               size="sm"
                               onClick={() => {
@@ -466,7 +466,7 @@ function BookingsContent() {
                               }}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Mark as Returned
+                              Mark as Completed
                             </Button>
                           )}
                           
@@ -536,18 +536,12 @@ function BookingsContent() {
             <DialogHeader>
               <DialogTitle>
                 {actionDialog.action === 'confirm' && 'Confirm Booking'}
-                {actionDialog.action === 'activate' && 'Mark as Picked Up'}
                 {actionDialog.action === 'complete' && 'Mark as Completed'}
                 {actionDialog.action === 'cancel' && 'Cancel Booking'}
               </DialogTitle>
               <DialogDescription>
-                {actionDialog.action === 'confirm' && (
-                  selectedBooking?.status === 'paid' 
-                    ? 'Payment has been completed. Confirm this booking to proceed with the rental. The renter will be notified.'
-                    : 'Are you sure you want to confirm this booking? The renter will be notified.'
-                )}
-                {actionDialog.action === 'activate' && 'Confirm that the renter has picked up the vehicle?'}
-                {actionDialog.action === 'complete' && 'Confirm that the vehicle has been returned in good condition?'}
+                {actionDialog.action === 'confirm' && 'Are you sure you want to confirm this booking? The renter will be notified.'}
+                {actionDialog.action === 'complete' && 'Mark this rental as completed? Confirm that the vehicle has been returned in good condition.'}
                 {actionDialog.action === 'cancel' && 'Are you sure you want to decline this booking? This action cannot be undone.'}
               </DialogDescription>
             </DialogHeader>

@@ -46,10 +46,10 @@ export default function PaymentSuccessPage() {
         if (paymentRecord?.status === 'paid') {
           console.log('[Payment Success] Payment already processed, skipping charge')
           
-          // Just ensure booking is paid (awaiting owner confirmation)
+          // Automatically confirm booking after successful payment
           await supabase
             .from('bookings')
-            .update({ status: 'paid' })
+            .update({ status: 'confirmed' })
             .eq('id', bookingId)
 
           setProcessing(false)
@@ -145,10 +145,10 @@ export default function PaymentSuccessPage() {
           await updatePaymentRecord(bookingId, 'paid')
         }
 
-        // Update booking status to paid (awaiting owner confirmation)
+        // Automatically confirm booking after successful payment
         await supabase
           .from('bookings')
-          .update({ status: 'paid' })
+          .update({ status: 'confirmed' })
           .eq('id', bookingId)
 
         setProcessing(false)
