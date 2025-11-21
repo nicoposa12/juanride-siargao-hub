@@ -45,39 +45,39 @@ const HowItWorks = () => {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary-600/20 rounded-full blur-3xl"></div>
       
       <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center mb-16 animate-fade-in">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-4 text-white tracking-tight">
+        <div className="text-center mb-12 sm:mb-16 animate-fade-in">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 text-white tracking-tight px-4">
             How It Works
           </h2>
-          <div className="w-24 h-1.5 bg-gradient-to-r from-accent-300 to-secondary-300 mx-auto mb-6 rounded-full shadow-layered-sm"></div>
-          <p className="text-white/80 text-lg font-medium max-w-2xl mx-auto">Simple steps to get started with JuanRide</p>
+          <div className="w-20 sm:w-24 h-1.5 bg-gradient-to-r from-accent-300 to-secondary-300 mx-auto mb-4 sm:mb-6 rounded-full shadow-layered-sm"></div>
+          <p className="text-white/80 text-base sm:text-lg font-medium max-w-2xl mx-auto px-4">Simple steps to get started with JuanRide</p>
         </div>
 
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-12">
           {/* For Renters */}
-          <div className="space-y-8 animate-slide-in">
-            <div className="text-center lg:text-left bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 shadow-layered-md">
-              <h3 className="text-3xl font-extrabold mb-2 text-accent-200 tracking-tight">For Renters</h3>
-              <p className="text-white/70 font-medium">Get on the road in 3 easy steps</p>
+          <div className="space-y-4 sm:space-y-6 md:space-y-8 animate-slide-in">
+            <div className="text-center lg:text-left bg-white/5 backdrop-blur-sm p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/10 shadow-layered-md">
+              <h3 className="text-2xl sm:text-3xl font-extrabold mb-2 text-accent-200 tracking-tight">For Renters</h3>
+              <p className="text-sm sm:text-base text-white/70 font-medium">Get on the road in 3 easy steps</p>
             </div>
             
             {renterSteps.map((step, index) => {
               const Icon = step.icon;
               return (
-                <div key={index} className="flex gap-6 group bg-white/5 backdrop-blur-sm p-6 rounded-xl border border-white/10 hover:bg-white/10 hover:border-accent-300/50 transition-all duration-300 shadow-layered-sm hover:shadow-layered-md hover:-translate-y-1">
+                <div key={index} className="flex gap-4 sm:gap-6 group bg-white/5 backdrop-blur-sm p-4 sm:p-6 rounded-lg sm:rounded-xl border border-white/10 hover:bg-white/10 hover:border-accent-300/50 transition-all duration-300 shadow-layered-sm hover:shadow-layered-lg hover:-translate-y-1">
                   <div className="flex-shrink-0">
-                    <div className="bg-gradient-to-br from-accent-300 to-accent-400 text-primary-900 rounded-full w-14 h-14 flex items-center justify-center font-extrabold text-xl group-hover:scale-110 transition-all shadow-layered-md">
+                    <div className="bg-gradient-to-br from-accent-300 to-accent-400 text-primary-900 rounded-full w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center font-extrabold text-lg sm:text-xl group-hover:scale-110 transition-all shadow-layered-md">
                       {index + 1}
                     </div>
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-accent-200/20 rounded-lg">
-                        <Icon className="h-5 w-5 text-accent-200" />
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="p-1.5 sm:p-2 bg-accent-200/20 rounded-lg">
+                        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-accent-200" />
                       </div>
-                      <h4 className="text-xl font-bold text-white">{step.title}</h4>
+                      <h4 className="text-lg sm:text-xl font-bold text-white">{step.title}</h4>
                     </div>
-                    <p className="text-white/70 leading-relaxed">{step.description}</p>
+                    <p className="text-sm sm:text-base text-white/70 leading-relaxed">{step.description}</p>
                   </div>
                 </div>
               );
@@ -85,29 +85,29 @@ const HowItWorks = () => {
           </div>
 
           {/* For Owners */}
-          <div className="space-y-8 animate-slide-in" style={{ animationDelay: "200ms" }}>
-            <div className="text-center lg:text-left bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 shadow-layered-md">
-              <h3 className="text-3xl font-extrabold mb-2 text-secondary-200 tracking-tight">For Vehicle Owners</h3>
-              <p className="text-white/70 font-medium">Start earning in 3 simple steps</p>
+          <div className="space-y-4 sm:space-y-6 md:space-y-8 animate-slide-in" style={{ animationDelay: "200ms" }}>
+            <div className="text-center lg:text-left bg-white/5 backdrop-blur-sm p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/10 shadow-layered-md">
+              <h3 className="text-2xl sm:text-3xl font-extrabold mb-2 text-secondary-200 tracking-tight">For Vehicle Owners</h3>
+              <p className="text-sm sm:text-base text-white/70 font-medium">Start earning in 3 simple steps</p>
             </div>
             
             {ownerSteps.map((step, index) => {
               const Icon = step.icon;
               return (
-                <div key={index} className="flex gap-6 group bg-white/5 backdrop-blur-sm p-6 rounded-xl border border-white/10 hover:bg-white/10 hover:border-secondary-300/50 transition-all duration-300 shadow-layered-sm hover:shadow-layered-md hover:-translate-y-1">
+                <div key={index} className="flex gap-4 sm:gap-6 group bg-white/5 backdrop-blur-sm p-4 sm:p-6 rounded-lg sm:rounded-xl border border-white/10 hover:bg-white/10 hover:border-secondary-300/50 transition-all duration-300 shadow-layered-sm hover:shadow-layered-lg hover:-translate-y-1">
                   <div className="flex-shrink-0">
-                    <div className="bg-gradient-to-br from-secondary-300 to-secondary-400 text-primary-900 rounded-full w-14 h-14 flex items-center justify-center font-extrabold text-xl group-hover:scale-110 transition-all shadow-layered-md">
+                    <div className="bg-gradient-to-br from-secondary-300 to-secondary-400 text-primary-900 rounded-full w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center font-extrabold text-lg sm:text-xl group-hover:scale-110 transition-all shadow-layered-md">
                       {index + 1}
                     </div>
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-secondary-200/20 rounded-lg">
-                        <Icon className="h-5 w-5 text-secondary-200" />
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="p-1.5 sm:p-2 bg-secondary-200/20 rounded-lg">
+                        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-secondary-200" />
                       </div>
-                      <h4 className="text-xl font-bold text-white">{step.title}</h4>
+                      <h4 className="text-lg sm:text-xl font-bold text-white">{step.title}</h4>
                     </div>
-                    <p className="text-white/70 leading-relaxed">{step.description}</p>
+                    <p className="text-sm sm:text-base text-white/70 leading-relaxed">{step.description}</p>
                   </div>
                 </div>
               );

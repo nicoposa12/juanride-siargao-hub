@@ -24,36 +24,36 @@ const testimonials = [
 
 const Testimonials = () => {
   return (
-    <section className="py-20 bg-background">
+    <section className="py-16 sm:py-20 bg-background">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16 animate-fade-in">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
+        <div className="text-center mb-12 sm:mb-16 animate-fade-in">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 text-primary-700 tracking-tight px-4">
             What Our Community Says
           </h2>
-          <div className="w-24 h-1 bg-primary mx-auto mb-6"></div>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <div className="w-20 sm:w-24 h-1.5 bg-gradient-to-r from-primary-600 to-accent-400 mx-auto mb-4 sm:mb-6 rounded-full shadow-layered-sm"></div>
+          <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium px-4">
             Empowering Siargao's tourism industry, one rental at a time
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto mb-12 sm:mb-16">
           {testimonials.map((testimonial, index) => (
             <Card
               key={index}
-              className="hover:shadow-hover transition-smooth animate-fade-in"
+              className="card-gradient shadow-layered-md hover:shadow-layered-xl transition-all duration-300 hover:-translate-y-2 animate-fade-in border-border/50 hover:border-primary-300"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <CardContent className="p-6">
-                <Quote className="h-10 w-10 text-primary/20 mb-4" />
-                <p className="text-muted-foreground mb-6 italic">"{testimonial.content}"</p>
-                <div className="flex items-center gap-1 mb-4">
+              <CardContent className="p-5 sm:p-6">
+                <Quote className="h-8 w-8 sm:h-10 sm:w-10 text-primary/20 mb-3 sm:mb-4" />
+                <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6 italic leading-relaxed">"{testimonial.content}"</p>
+                <div className="flex items-center gap-1 mb-3 sm:mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <span key={i} className="text-accent text-xl">★</span>
+                    <span key={i} className="text-accent-400 text-lg sm:text-xl">★</span>
                   ))}
                 </div>
                 <div>
-                  <div className="font-semibold text-foreground">{testimonial.name}</div>
-                  <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                  <div className="font-bold text-primary-700 text-sm sm:text-base">{testimonial.name}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground font-medium">{testimonial.role}</div>
                 </div>
               </CardContent>
             </Card>
@@ -61,13 +61,15 @@ const Testimonials = () => {
         </div>
 
         {/* Impact Stats */}
-        <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-8 md:p-12 max-w-4xl mx-auto shadow-soft">
-          <div className="text-center mb-8">
-            <MapPin className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+        <div className="bg-gradient-to-r from-primary-100/60 to-accent-100/60 rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-12 max-w-4xl mx-auto shadow-layered-lg border-2 border-primary-200/50">
+          <div className="text-center">
+            <div className="bg-primary-100 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-layered-md">
+              <MapPin className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary-600" />
+            </div>
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-700 mb-3 sm:mb-4 tracking-tight">
               Supporting Local Economy
             </h3>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
               JuanRide helps boost Siargao's tourism sector by connecting visitors with local vehicle owners, creating sustainable income opportunities while enhancing the visitor experience.
             </p>
           </div>

@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { ArrowLeft, Calendar, MapPin, Loader2, CheckCircle2, IdCard, Eye } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Loader2, CheckCircle2, IdCard, Eye, Info } from 'lucide-react'
 import { formatCurrency, formatDate, calculateDays } from '@/lib/utils/format'
 import { getVehicleById } from '@/lib/supabase/queries/vehicles'
 import { createBooking } from '@/lib/supabase/queries/bookings'
@@ -567,6 +567,17 @@ function CheckoutContent() {
                     <span>Total</span>
                     <span className="text-primary">{formatCurrency(pricing.total)}</span>
                   </div>
+                  
+                  <Alert className="mt-4">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      <p className="font-medium mb-1">Booking Policy:</p>
+                      <ul className="space-y-1 text-xs">
+                        <li>✓ Instant confirmation</li>
+                        <li>✗ No refunds, no cancellation</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
                 </CardContent>
                 <CardFooter>
                   {!user && (

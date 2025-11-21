@@ -289,26 +289,26 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="mb-2">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Dashboard</h1>
-        <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-primary-700">Dashboard</h1>
+        <p className="text-muted-foreground mt-2 text-sm sm:text-base md:text-lg font-medium">
           Welcome back! Here's what's happening with JuanRide today.
         </p>
       </div>
         
         {/* Stats Grid */}
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {/* Total Users */}
           <Card className="card-gradient border-blue-200/50 hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-500 group cursor-pointer overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-100/0 to-blue-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-blue-700 transition-colors">Total Users</CardTitle>
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-100 flex items-center justify-center shadow-layered-md group-hover:shadow-layered-lg group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
                 <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalUsers.toLocaleString()}</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-700 group-hover:scale-105 transition-transform duration-300">{stats.totalUsers.toLocaleString()}</div>
               <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.userGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3" />
                 {stats.userGrowth >= 0 ? '+' : ''}{stats.userGrowth}% from last month
@@ -321,12 +321,12 @@ export default function AdminDashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-teal-100/0 to-teal-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-teal-700 transition-colors">Total Vehicles</CardTitle>
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-teal-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 pulse-glow">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-teal-100 flex items-center justify-center shadow-layered-md group-hover:shadow-layered-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
                 <Car className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 group-hover:scale-110 transition-transform" />
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalVehicles.toLocaleString()}</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-700 group-hover:scale-105 transition-transform duration-300">{stats.totalVehicles.toLocaleString()}</div>
               <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.vehicleGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3" />
                 {stats.vehicleGrowth >= 0 ? '+' : ''}{stats.vehicleGrowth}% from last month
@@ -339,12 +339,12 @@ export default function AdminDashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-red-100/0 to-red-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-red-700 transition-colors">Total Bookings</CardTitle>
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 bounce-subtle">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-100 flex items-center justify-center shadow-layered-md group-hover:shadow-layered-lg group-hover:scale-110 transition-all duration-500">
                 <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 group-hover:scale-110 transition-transform" />
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-2xl sm:text-3xl font-extrabold text-primary-700 group-hover:scale-110 transition-transform duration-300">{stats.totalBookings.toLocaleString()}</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-700 group-hover:scale-105 transition-transform duration-300">{stats.totalBookings.toLocaleString()}</div>
               <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.bookingGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3" />
                 {stats.bookingGrowth >= 0 ? '+' : ''}{stats.bookingGrowth}% from last month
@@ -357,14 +357,14 @@ export default function AdminDashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-green-100/0 to-green-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-xs sm:text-sm font-semibold text-primary-700 group-hover:text-green-700 transition-colors">Total Revenue</CardTitle>
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 flex items-center justify-center shadow-layered-sm group-hover:shadow-layered-md group-hover:scale-110 transition-all duration-500 pulse-glow">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 flex items-center justify-center shadow-layered-md group-hover:shadow-layered-lg group-hover:scale-110 transition-all duration-500">
                 <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 group-hover:scale-110 transition-transform" />
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-2xl sm:text-3xl font-extrabold text-green-700 group-hover:scale-110 transition-transform duration-300">{formatCurrency(stats.totalRevenue)}</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-green-700 group-hover:scale-105 transition-transform duration-300">{formatCurrency(stats.totalRevenue)}</div>
               <p className={`text-xs mt-1 font-semibold flex items-center gap-1 ${stats.revenueGrowth >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                <TrendingUp className="h-3 w-3 group-hover:animate-bounce" />
+                <TrendingUp className="h-3 w-3" />
                 {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth}% from last month
               </p>
             </CardContent>
@@ -372,7 +372,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Alert Cards */}
-        <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {/* Pending Approvals */}
           <Card className="border-l-4 border-l-yellow-500 card-gradient hover:shadow-layered-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
             <CardContent className="p-6">
@@ -426,7 +426,7 @@ export default function AdminDashboardPage() {
         </div>
         
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Card className="card-gradient hover:shadow-layered-lg hover:-translate-y-2 transition-all duration-300 cursor-pointer group border-border/50 hover:border-primary-300/50" onClick={() => router.push('/admin/users')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-primary-700 group-hover:text-primary-600 transition-colors">

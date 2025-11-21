@@ -164,7 +164,28 @@ export default function AdminVerificationsPage() {
         return
       }
 
-      setDocuments(data || [])
+      // Generate signed URLs for private bucket access
+      const docsWithSignedUrls = await Promise.all(
+        (data || []).map(async (doc) => {
+          try {
+            if (doc.file_path) {
+              const { data: signedData } = await supabase
+                .storage
+                .from('id-documents')
+                .createSignedUrl(doc.file_path, 3600) // 1 hour expiry
+              
+              if (signedData?.signedUrl) {
+                return { ...doc, file_url: signedData.signedUrl }
+              }
+            }
+          } catch (err) {
+            console.error('Error generating signed URL for doc:', doc.id, err)
+          }
+          return doc
+        })
+      )
+
+      setDocuments(docsWithSignedUrls)
     } catch (error) {
       console.error('Error:', error)
       toast({
@@ -213,11 +234,32 @@ export default function AdminVerificationsPage() {
         return
       }
 
-      setBusinessDocuments(data || [])
+      // Generate signed URLs for private bucket access
+      const docsWithSignedUrls = await Promise.all(
+        (data || []).map(async (doc) => {
+          try {
+            if (doc.file_path) {
+              const { data: signedData } = await supabase
+                .storage
+                .from('business-documents')
+                .createSignedUrl(doc.file_path, 3600) // 1 hour expiry
+              
+              if (signedData?.signedUrl) {
+                return { ...doc, file_url: signedData.signedUrl }
+              }
+            }
+          } catch (err) {
+            console.error('Error generating signed URL for business doc:', doc.id, err)
+          }
+          return doc
+        })
+      )
+
+      setBusinessDocuments(docsWithSignedUrls)
       
       // Group documents by owner
       const grouped = new Map<string, BusinessDocument[]>()
-      data?.forEach(doc => {
+      docsWithSignedUrls.forEach(doc => {
         const ownerId = doc.owner_id
         if (!grouped.has(ownerId)) {
           grouped.set(ownerId, [])

@@ -257,12 +257,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full">
         <AdminSidebar />
         <SidebarInset className="flex-1">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background px-6 shadow-sm">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-6 shadow-sm">
             <SidebarTrigger className="md:hidden hover:bg-accent hover:scale-105 transition-all duration-300" />
             
-            {/* Search Bar */}
-            <div className="flex-1 max-w-xl">
-              <div className="relative group">
+            {/* Search Bar - Hidden on mobile */}
+            <div className="hidden md:flex flex-1 max-w-xl">
+              <div className="relative group w-full">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-hover:text-primary-600 transition-colors duration-300" />
                 <input
                   type="text"
@@ -272,21 +272,24 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             
+            {/* Spacer for mobile */}
+            <div className="flex-1 md:hidden" />
+            
             {/* Right Section */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* Notification Center */}
               <NotificationCenter />
               
               {/* User Profile Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-3 pl-4 border-l hover:bg-accent rounded-md px-3 py-2 transition-colors">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <button className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l hover:bg-accent rounded-md px-2 sm:px-3 py-2 transition-colors">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-layered-sm">
                       <span className="text-xs font-semibold">
                         {profile?.full_name?.charAt(0).toUpperCase() || 'A'}
                       </span>
                     </div>
-                    <div className="flex flex-col text-left">
+                    <div className="hidden lg:flex flex-col text-left">
                       <span className="text-sm font-medium leading-none">
                         {profile?.full_name || 'Juander Admin'}
                       </span>
@@ -294,7 +297,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         Administrator
                       </span>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    <ChevronDown className="hidden sm:block h-4 w-4 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
