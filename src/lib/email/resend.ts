@@ -269,6 +269,103 @@ export class EmailService {
       html,
     })
   }
+
+  // Document rejection notification email
+  static async sendDocumentRejectionEmail(data: {
+    userEmail: string
+    userName: string
+    businessName: string
+    rejectedDocuments: Array<{
+      documentType: string
+      rejectionReason: string
+    }>
+  }) {
+    const documentsList = data.rejectedDocuments
+      .map(
+        (doc) => `
+        <div style="background: #fff3cd; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ffc107;">
+          <p style="margin: 0; font-weight: bold; color: #856404;">📄 ${doc.documentType}</p>
+          <p style="margin: 5px 0 0 0; font-size: 14px; color: #856404;"><strong>Reason:</strong> ${doc.rejectionReason}</p>
+        </div>
+      `
+      )
+      .join('')
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Document Rejection Notice</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
+            .content { padding: 20px; background: #f9f9f9; }
+            .footer { padding: 15px; text-align: center; font-size: 12px; color: #666; }
+            .warning-box { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
+            .button { display: inline-block; padding: 12px 24px; background: #0066cc; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+            .steps { background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>⚠️ Document Verification Required</h1>
+              <p>Action needed for your business account</p>
+            </div>
+            <div class="content">
+              <h2>Hi ${data.userName},</h2>
+              <p>We've reviewed the documents you submitted for <strong>${data.businessName}</strong>. Unfortunately, some documents were rejected and need to be resubmitted.</p>
+              
+              <div class="warning-box">
+                <h3 style="margin-top: 0; color: #856404;">🔍 Rejected Documents</h3>
+                ${documentsList}
+              </div>
+
+              <div class="steps">
+                <h3 style="margin-top: 0;">📋 How to Resubmit Your Documents</h3>
+                <ol style="margin: 10px 0; padding-left: 20px;">
+                  <li>Log in to your JuanRide account</li>
+                  <li>Go to the <strong>Documents</strong> or <strong>Verification</strong> section</li>
+                  <li>Find the rejected documents listed above</li>
+                  <li>Select the files and upload the corrected or updated versions</li>
+                  <li>Submit for review</li>
+                </ol>
+                <p style="margin: 10px 0 0 0; font-size: 14px;">💡 <strong>Note:</strong> The review process will restart once you submit your updated documents. Please ensure all information is clear and accurate.</p>
+              </div>
+
+              <h3>📝 Important Tips</h3>
+              <ul>
+                <li>Ensure documents are clear and legible</li>
+                <li>All required information must be visible</li>
+                <li>Documents should be current and not expired</li>
+                <li>File format should be JPG, PNG, or PDF</li>
+              </ul>
+
+              <p style="text-align: center;">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL}/owner/profile" class="button">
+                  Resubmit Documents Now
+                </a>
+              </p>
+
+              <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+            </div>
+            <div class="footer">
+              <p><strong>JuanRide Siargao</strong> - Business Verification Team</p>
+              <p>📧 Email: support@juanride.com | 📱 Support available 24/7</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+
+    return this.sendEmail({
+      to: data.userEmail,
+      subject: `⚠️ Document Resubmission Required - ${data.businessName}`,
+      html,
+    })
+  }
 }
 
 export default EmailService

@@ -50,10 +50,10 @@ export async function searchVehicles(
       owner:users!owner_id (
         id,
         full_name,
-        profile_image_url
+        profile_image_url,
+        is_suspended
       )
     `, { count: 'exact' })
-    .eq('approval_status', 'approved')
     .eq('status', 'available')
 
   // Apply filters
@@ -91,11 +91,17 @@ export async function searchVehicles(
     throw error
   }
 
-  // Fetch stats for all vehicles
-  let vehiclesWithStats = vehicles || []
+  // Filter out vehicles from suspended owners
+  const activeVehicles = (vehicles || []).filter(v => {
+    const owner = Array.isArray(v.owner) ? v.owner[0] : v.owner
+    return !owner?.is_suspended
+  })
+
+  // Fetch stats for active vehicles only
+  let vehiclesWithStats = activeVehicles || []
   
-  if (vehicles && vehicles.length > 0) {
-    const vehicleIds = vehicles.map(v => v.id)
+  if (activeVehicles && activeVehicles.length > 0) {
+    const vehicleIds = activeVehicles.map(v => v.id)
     
     const { data: stats, error: statsError } = await supabase
       .from('vehicle_stats')
@@ -104,7 +110,7 @@ export async function searchVehicles(
     
     if (!statsError && stats) {
       // Merge stats with vehicles
-      vehiclesWithStats = vehicles.map(vehicle => {
+      vehiclesWithStats = activeVehicles.map(vehicle => {
         const vehicleStats = stats.find(s => s.vehicle_id === vehicle.id)
         return {
           ...vehicle,
@@ -131,10 +137,13 @@ export async function searchVehicles(
     )
   }
 
+  // Calculate actual count excluding suspended owners
+  const actualCount = activeVehicles.length
+  
   return {
     vehicles: availableVehicles as VehicleWithOwner[],
-    total: count || 0,
-    hasMore: (count || 0) > offset + limit
+    total: actualCount,
+    hasMore: actualCount > limit
   }
 }
 
@@ -296,7 +305,8 @@ export async function getVehicleById(id: string) {
         id,
         full_name,
         profile_image_url,
-        phone_number
+        phone_number,
+        is_suspended
       ),
       reviews (
         id,
@@ -361,11 +371,11 @@ export async function checkVehicleAvailability(
   // Check vehicle status
   const { data: vehicle } = await supabase
     .from('vehicles')
-    .select('status, is_approved')
+    .select('status')
     .eq('id', vehicleId)
     .single()
 
-  return vehicle?.status === 'available' && vehicle?.is_approved === true
+  return vehicle?.status === 'available'
 }
 
 /**
@@ -401,20 +411,27 @@ export async function getFeaturedVehicles(limit: number = 6) {
       owner:users!owner_id (
         id,
         full_name,
-        profile_image_url
+        profile_image_url,
+        is_suspended
       )
     `)
-    .eq('approval_status', 'approved')
     .eq('status', 'available')
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .limit(limit * 2) // Fetch extra in case some are filtered out
 
   if (error) {
     console.error('Error fetching featured vehicles:', error)
     throw error
   }
 
-  return vehicles || []
+  // Filter out vehicles from suspended owners
+  const activeVehicles = (vehicles || []).filter(v => {
+    const owner = Array.isArray(v.owner) ? v.owner[0] : v.owner
+    return !owner?.is_suspended
+  })
+
+  // Return only up to the requested limit
+  return activeVehicles.slice(0, limit)
 }
 
 /**
@@ -439,23 +456,30 @@ export async function getSimilarVehicles(
       owner:users!owner_id (
         id,
         full_name,
-        profile_image_url
+        profile_image_url,
+        is_suspended
       )
     `)
     .eq('type', type)
-    .eq('approval_status', 'approved')
     .eq('status', 'available')
     .neq('id', vehicleId)
     .gte('price_per_day', minPrice)
     .lte('price_per_day', maxPrice)
-    .limit(limit)
+    .limit(limit * 2) // Fetch extra in case some are filtered out
 
   if (error) {
     console.error('Error fetching similar vehicles:', error)
     throw error
   }
 
-  return vehicles || []
+  // Filter out vehicles from suspended owners
+  const activeVehicles = (vehicles || []).filter(v => {
+    const owner = Array.isArray(v.owner) ? v.owner[0] : v.owner
+    return !owner?.is_suspended
+  })
+
+  // Return only up to the requested limit
+  return activeVehicles.slice(0, limit)
 }
 
 /**

@@ -452,10 +452,10 @@ export default function AdminDashboardPage() {
                 <div className="p-2 bg-teal-100 rounded-lg shadow-sm group-hover:shadow-md group-hover:scale-110 group-hover:-rotate-3 transition-all">
                   <Car className="h-5 w-5 text-teal-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <span className="font-bold">Vehicle Approvals</span>
+                <span className="font-bold">View Vehicles</span>
               </CardTitle>
               <CardDescription>
-                Review and approve vehicle listings
+                View and manage all vehicle listings
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -469,7 +469,7 @@ export default function AdminDashboardPage() {
                 </Badge>
               )}
               <Button className="w-full" asChild>
-                <Link href="/admin/listings">Review Listings</Link>
+                <Link href="/admin/listings">View Listings</Link>
               </Button>
             </CardContent>
           </Card>

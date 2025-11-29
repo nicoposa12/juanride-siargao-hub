@@ -62,6 +62,15 @@ export async function POST(request: NextRequest) {
         })
         break
 
+      case 'document_rejection':
+        result = await EmailService.sendDocumentRejectionEmail({
+          userEmail: data.userEmail,
+          userName: data.userName,
+          businessName: data.businessName,
+          rejectedDocuments: data.rejectedDocuments,
+        })
+        break
+
       default:
         return NextResponse.json(
           { error: 'Invalid notification type' },

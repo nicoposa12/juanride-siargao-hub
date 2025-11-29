@@ -184,24 +184,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
-      // CRITICAL: Check for pending verification status (for renters)
+      // CRITICAL: Check for rejected accounts FIRST - redirect to resubmission page
+      if (data.account_verification_status === 'rejected') {
+        console.warn('❌ User account rejected, redirecting to resubmission page...')
+        // Don't sign out - keep them authenticated so they can resubmit
+        // Only redirect if not already on the resubmit page (prevent infinite loop)
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/resubmit')) {
+          window.location.href = '/resubmit'
+        }
+        return data // Return the profile data so the page can use it
+      }
+
+      // Check for pending verification status (for renters and owners awaiting approval)
       if (data.account_verification_status === 'pending_verification') {
         console.warn('⏳ User account pending verification, forcing sign out...')
         await supabase.auth.signOut()
         setProfile(null)
         setUser(null)
         window.location.href = '/login?message=Your+account+is+pending+verification.+Please+wait+for+admin+approval.'
-        return null
-      }
-
-      // Check for rejected accounts
-      if (data.account_verification_status === 'rejected') {
-        console.warn('❌ User account rejected, forcing sign out...')
-        await supabase.auth.signOut()
-        setProfile(null)
-        setUser(null)
-        const reason = data.account_status_reason ? `+Reason:+${encodeURIComponent(data.account_status_reason)}` : ''
-        window.location.href = `/login?message=Your+account+has+been+rejected.${reason}`
         return null
       }
 

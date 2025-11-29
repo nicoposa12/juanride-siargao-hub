@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { 
   Car, 
   Calendar, 
@@ -18,6 +19,10 @@ import {
   Clock,
   Plus,
   Eye,
+  Ban,
+  Mail,
+  EyeOff,
+  AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
@@ -45,6 +50,11 @@ export default function OwnerDashboardPage() {
   const [vehicles, setVehicles] = useState<any[]>([])
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [suspensionInfo, setSuspensionInfo] = useState<{
+    is_suspended: boolean
+    suspension_reason: string | null
+    suspended_at: string | null
+  } | null>(null)
   
   const handleVehicleStatusUpdate = (vehicleId: string, newStatus: VehicleStatus) => {
     setVehicles(prev => prev.map(vehicle => 
@@ -70,6 +80,17 @@ export default function OwnerDashboardPage() {
     if (!silent) setLoading(true)
     try {
       const supabase = createClient()
+      
+      // Check if user is suspended
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_suspended, suspension_reason, suspended_at')
+        .eq('id', user.id)
+        .single()
+      
+      if (!userError && userData) {
+        setSuspensionInfo(userData)
+      }
       
       // Load vehicles
       const { data: vehiclesData, error: vehiclesError } = await supabase
@@ -161,6 +182,57 @@ export default function OwnerDashboardPage() {
     <div className="min-h-screen bg-gradient-subtle bg-pattern-dots">
       <Navigation />
       <div className="container mx-auto px-4 pt-24 pb-8">
+        {/* Suspension Warning Banner */}
+        {suspensionInfo?.is_suspended && (
+          <Alert variant="destructive" className="mb-8 border-red-600 bg-red-50">
+            <Ban className="h-5 w-5" />
+            <AlertTitle className="text-xl font-bold">Account Suspended</AlertTitle>
+            <AlertDescription className="mt-2 space-y-2">
+              <p className="text-base">
+                Your account has been suspended and you cannot accept new bookings at this time.
+              </p>
+              {suspensionInfo.suspension_reason && (
+                <div className="mt-3 p-3 bg-red-100 rounded-md border border-red-300">
+                  <p className="font-semibold text-red-900">Reason:</p>
+                  <p className="text-red-800">{suspensionInfo.suspension_reason}</p>
+                </div>
+              )}
+              {suspensionInfo.suspended_at && (
+                <p className="text-sm text-red-700">
+                  Suspended on: {formatDate(suspensionInfo.suspended_at)}
+                </p>
+              )}
+              <div className="mt-4 flex items-center gap-2 p-3 bg-white rounded-md border border-red-200">
+                <Mail className="h-5 w-5 text-red-600" />
+                <p className="text-sm">
+                  Please contact the administrator to resolve this issue and restore your account.
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Vehicle Visibility Warning */}
+        {suspensionInfo?.is_suspended && (
+          <Alert variant="default" className="mb-8 border-amber-500 bg-amber-50">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <AlertTitle className="text-lg font-bold text-amber-900">Vehicles Not Visible to Renters</AlertTitle>
+            <AlertDescription className="mt-2">
+              <div className="flex items-start gap-3">
+                <EyeOff className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-amber-900 font-medium">
+                    Due to your account suspension, all your vehicles are currently hidden from the rental marketplace.
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    Renters cannot see or book your vehicles until your account is restored. Once your suspension is lifted, your vehicles will automatically become visible again.
+                  </p>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-extrabold text-primary-700 tracking-tight">Owner Dashboard</h1>
@@ -384,11 +456,6 @@ export default function OwnerDashboardPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {vehicle.is_approved ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-yellow-600" />
-                        )}
                         <VehicleStatusSelector 
                           vehicleId={vehicle.id}
                           currentStatus={vehicle.status}

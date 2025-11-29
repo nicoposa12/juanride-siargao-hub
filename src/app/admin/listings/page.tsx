@@ -47,17 +47,6 @@ export default function AdminListingsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('pending')
-  const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
-  const [actionDialog, setActionDialog] = useState<{
-    open: boolean
-    action: 'approve' | 'reject' | null
-    processing: boolean
-  }>({ open: false, action: null, processing: false })
-  const [documentsDialog, setDocumentsDialog] = useState<{
-    open: boolean
-    vehicle: any | null
-  }>({ open: false, vehicle: null })
-  const [adminNotes, setAdminNotes] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
   
@@ -74,7 +63,7 @@ export default function AdminListingsPage() {
   useEffect(() => {
     filterVehicles()
     setCurrentPage(1) // Reset to first page when filters change
-  }, [vehicles, activeTab, searchQuery])
+  }, [vehicles, searchQuery])
   
   const loadVehicles = async () => {
     setLoading(true)
@@ -111,16 +100,7 @@ export default function AdminListingsPage() {
   const filterVehicles = () => {
     let filtered = [...vehicles]
     
-    // Filter by approval status
-    if (activeTab === 'pending') {
-      filtered = filtered.filter(v => v.approval_status === 'pending')
-    } else if (activeTab === 'approved') {
-      filtered = filtered.filter(v => v.approval_status === 'approved')
-    } else if (activeTab === 'rejected') {
-      filtered = filtered.filter(v => v.approval_status === 'rejected')
-    }
-    
-    // Filter by search query
+    // Filter by search query only
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(v =>
@@ -134,67 +114,6 @@ export default function AdminListingsPage() {
     setFilteredVehicles(filtered)
   }
   
-  const handleAction = async () => {
-    if (!selectedVehicle || !actionDialog.action) return
-    
-    setActionDialog(prev => ({ ...prev, processing: true }))
-    
-    try {
-      const supabase = createClient()
-      
-      if (actionDialog.action === 'approve') {
-        const { error } = await supabase
-          .from('vehicles')
-          .update({
-            is_approved: true,
-            approval_status: 'approved',
-            status: 'available',
-            admin_notes: adminNotes || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedVehicle.id)
-        
-        if (error) throw error
-        
-        toast({
-          title: 'Vehicle Approved',
-          description: 'The vehicle listing has been approved.',
-        })
-      } else {
-        const { error } = await supabase
-          .from('vehicles')
-          .update({
-            is_approved: false,
-            approval_status: 'rejected',
-            status: 'inactive',
-            admin_notes: adminNotes,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedVehicle.id)
-        
-        if (error) throw error
-        
-        toast({
-          title: 'Vehicle Rejected',
-          description: 'The vehicle listing has been rejected.',
-        })
-      }
-      
-      await loadVehicles()
-      setActionDialog({ open: false, action: null, processing: false })
-      setSelectedVehicle(null)
-      setAdminNotes('')
-    } catch (error: any) {
-      console.error('Error processing action:', error)
-      toast({
-        title: 'Action Failed',
-        description: error.message || 'Failed to process action.',
-        variant: 'destructive',
-      })
-    } finally {
-      setActionDialog(prev => ({ ...prev, processing: false }))
-    }
-  }
   
   if (authLoading || loading) {
     return (
@@ -215,7 +134,7 @@ export default function AdminListingsPage() {
       <div className="mb-2">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary-700">Vehicle Listings</h1>
           <p className="text-muted-foreground mt-2 text-base sm:text-lg font-medium">
-            Review and approve vehicle listings
+            View all vehicle listings
           </p>
         </div>
         
@@ -234,24 +153,8 @@ export default function AdminListingsPage() {
           </CardContent>
         </Card>
         
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="pending">
-              Pending ({vehicles.filter(v => v.approval_status === 'pending').length})
-            </TabsTrigger>
-            <TabsTrigger value="approved">
-              Approved ({vehicles.filter(v => v.approval_status === 'approved').length})
-            </TabsTrigger>
-            <TabsTrigger value="rejected">
-              Rejected ({vehicles.filter(v => v.approval_status === 'rejected').length})
-            </TabsTrigger>
-            <TabsTrigger value="all">
-              All ({vehicles.length})
-            </TabsTrigger>
-          </TabsList>
-          
-          {/* Vehicles List */}
+        {/* Vehicles List */}
+        <div className="space-y-6">
           {filteredVehicles.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">
@@ -289,18 +192,8 @@ export default function AdminListingsPage() {
                             <h3 className="text-xl font-bold text-primary-700 group-hover:text-primary-600 transition-colors">
                               {vehicle.make} {vehicle.model}
                             </h3>
-                            <Badge className={
-                              vehicle.approval_status === 'approved' 
-                                ? 'bg-green-100 text-green-800 border border-green-200 shadow-sm'
-                                : vehicle.approval_status === 'rejected'
-                                ? 'bg-red-100 text-red-800 border border-red-200 shadow-sm'
-                                : 'bg-yellow-100 text-yellow-800 border border-yellow-200 shadow-sm pulse-glow'
-                            }>
-                              {vehicle.approval_status === 'approved' 
-                                ? 'Approved' 
-                                : vehicle.approval_status === 'rejected'
-                                ? 'Rejected'
-                                : 'Pending'}
+                            <Badge className='bg-blue-100 text-blue-800 border border-blue-200 shadow-sm'>
+                              Active
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
@@ -325,14 +218,6 @@ export default function AdminListingsPage() {
                         </div>
                       </div>
                       
-                      {vehicle.admin_notes && (
-                        <Alert className="mb-4">
-                          <AlertDescription>
-                            <strong>Admin Notes:</strong> {vehicle.admin_notes}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
                       <div className="flex gap-2 flex-wrap">
                         <Button variant="outline" size="sm" asChild className="hover:bg-primary-50 hover:border-primary-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn">
                           <a href={`/vehicles/${vehicle.id}`} target="_blank">
@@ -340,72 +225,6 @@ export default function AdminListingsPage() {
                             View Listing
                           </a>
                         </Button>
-                        
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setDocumentsDialog({ open: true, vehicle })}
-                          className="hover:bg-blue-50 hover:border-blue-500 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 group/btn"
-                        >
-                          <FileText className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
-                          View Documents
-                        </Button>
-                        
-                        {vehicle.approval_status === 'pending' && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedVehicle(vehicle)
-                                setActionDialog({ open: true, action: 'approve', processing: false })
-                              }}
-                              className="shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2 group-hover/btn:scale-110 group-hover/btn:rotate-12 transition-all" />
-                              Approve
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedVehicle(vehicle)
-                                setActionDialog({ open: true, action: 'reject', processing: false })
-                              }}
-                              className="shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
-                            >
-                              <XCircle className="h-4 w-4 mr-2 group-hover/btn:scale-110 group-hover/btn:-rotate-12 transition-all" />
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                        
-                        {vehicle.approval_status === 'approved' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedVehicle(vehicle)
-                              setActionDialog({ open: true, action: 'reject', processing: false })
-                            }}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Revoke Approval
-                          </Button>
-                        )}
-                        
-                        {vehicle.approval_status === 'rejected' && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedVehicle(vehicle)
-                              setActionDialog({ open: true, action: 'approve', processing: false })
-                            }}
-                            className="shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2 group-hover/btn:scale-110 group-hover/btn:rotate-12 transition-all" />
-                            Approve
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -426,289 +245,8 @@ export default function AdminListingsPage() {
             )}
             </>
           )}
-        </Tabs>
+        </div>
         
-        {/* Action Dialog */}
-        <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog({ ...actionDialog, open })}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {actionDialog.action === 'approve' ? 'Approve Vehicle' : 'Reject Vehicle'}
-              </DialogTitle>
-              <DialogDescription>
-                {actionDialog.action === 'approve' 
-                  ? 'This will make the vehicle visible to renters.' 
-                  : 'This will hide the vehicle and notify the owner.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="notes">Admin Notes {actionDialog.action === 'reject' && '*'}</Label>
-                <Textarea
-                  id="notes"
-                  placeholder={actionDialog.action === 'approve' 
-                    ? 'Optional notes for internal reference...' 
-                    : 'Reason for rejection (required)...'}
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setActionDialog({ open: false, action: null, processing: false })
-                  setAdminNotes('')
-                }}
-                disabled={actionDialog.processing}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAction}
-                disabled={actionDialog.processing || (actionDialog.action === 'reject' && !adminNotes)}
-                variant={actionDialog.action === 'approve' ? 'default' : 'destructive'}
-              >
-                {actionDialog.processing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  actionDialog.action === 'approve' ? 'Approve' : 'Reject'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Vehicle Documents Dialog */}
-        <Dialog open={documentsDialog.open} onOpenChange={(open) => setDocumentsDialog({ open, vehicle: documentsDialog.vehicle })}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Vehicle Documents</DialogTitle>
-              <DialogDescription>
-                Review uploaded documents for {documentsDialog.vehicle?.make} {documentsDialog.vehicle?.model}
-              </DialogDescription>
-            </DialogHeader>
-            
-            {documentsDialog.vehicle && (
-              <div className="space-y-6">
-                {/* Registration Document */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base font-semibold">Vehicle Registration (OR/CR)</Label>
-                    {documentsDialog.vehicle.registration_document_url ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Uploaded
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">Missing</Badge>
-                    )}
-                  </div>
-                  {documentsDialog.vehicle.registration_document_url ? (
-                    <Card className="border-green-200 bg-green-50/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-green-600" />
-                            <div>
-                              <p className="font-medium">Registration Document</p>
-                              <p className="text-xs text-muted-foreground">Click to view or download</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            asChild
-                            className="hover:bg-green-100"
-                          >
-                            <a href={documentsDialog.vehicle.registration_document_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Open
-                            </a>
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Alert variant="destructive">
-                      <AlertDescription>Registration document not uploaded</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-                
-                {/* Insurance Document */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base font-semibold">Insurance Certificate</Label>
-                    {documentsDialog.vehicle.insurance_document_url ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Uploaded
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">Missing</Badge>
-                    )}
-                  </div>
-                  {documentsDialog.vehicle.insurance_document_url ? (
-                    <Card className="border-green-200 bg-green-50/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-green-600" />
-                            <div>
-                              <p className="font-medium">Insurance Certificate</p>
-                              <p className="text-xs text-muted-foreground">Click to view or download</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            asChild
-                            className="hover:bg-green-100"
-                          >
-                            <a href={documentsDialog.vehicle.insurance_document_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Open
-                            </a>
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Alert variant="destructive">
-                      <AlertDescription>Insurance document not uploaded</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-                
-                {/* Proof of Ownership */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base font-semibold">Proof of Ownership</Label>
-                    {documentsDialog.vehicle.proof_of_ownership_url ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Uploaded
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">Missing</Badge>
-                    )}
-                  </div>
-                  {documentsDialog.vehicle.proof_of_ownership_url ? (
-                    <Card className="border-green-200 bg-green-50/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-green-600" />
-                            <div>
-                              <p className="font-medium">Proof of Ownership</p>
-                              <p className="text-xs text-muted-foreground">Click to view or download</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            asChild
-                            className="hover:bg-green-100"
-                          >
-                            <a href={documentsDialog.vehicle.proof_of_ownership_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Open
-                            </a>
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Alert variant="destructive">
-                      <AlertDescription>Proof of ownership not uploaded</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-                
-                {/* Inspection Certificate (Optional) */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base font-semibold">Vehicle Inspection Certificate</Label>
-                    {documentsDialog.vehicle.inspection_certificate_url ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Uploaded
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">Optional</Badge>
-                    )}
-                  </div>
-                  {documentsDialog.vehicle.inspection_certificate_url ? (
-                    <Card className="border-green-200 bg-green-50/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-green-600" />
-                            <div>
-                              <p className="font-medium">Inspection Certificate</p>
-                              <p className="text-xs text-muted-foreground">Click to view or download</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            asChild
-                            className="hover:bg-green-100"
-                          >
-                            <a href={documentsDialog.vehicle.inspection_certificate_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Open
-                            </a>
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">No inspection certificate uploaded (optional)</p>
-                  )}
-                </div>
-                
-                {/* Document Summary */}
-                <Alert className={
-                  documentsDialog.vehicle.registration_document_url && 
-                  documentsDialog.vehicle.insurance_document_url && 
-                  documentsDialog.vehicle.proof_of_ownership_url
-                    ? "border-green-300 bg-green-50"
-                    : "border-orange-300 bg-orange-50"
-                }>
-                  <AlertDescription className="text-sm">
-                    {documentsDialog.vehicle.registration_document_url && 
-                     documentsDialog.vehicle.insurance_document_url && 
-                     documentsDialog.vehicle.proof_of_ownership_url ? (
-                      <span className="text-green-900">
-                        <strong>✓ All required documents uploaded.</strong> This vehicle can be approved.
-                      </span>
-                    ) : (
-                      <span className="text-orange-900">
-                        <strong>⚠ Missing required documents.</strong> Request the owner to upload all required documents before approval.
-                      </span>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-            
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDocumentsDialog({ open: false, vehicle: null })}
-              >
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
     </div>
   )
 }

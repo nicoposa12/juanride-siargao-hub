@@ -32,6 +32,7 @@ import {
   IdCard,
   FileUp,
   Eye,
+  MapPin,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -66,6 +67,7 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [profileImageUrl, setProfileImageUrl] = useState('')
+  const [address, setAddress] = useState('')
   
   // Password form state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -83,6 +85,7 @@ export default function ProfilePage() {
       setFullName(profile.full_name || '')
       setPhoneNumber(profile.phone_number || '')
       setProfileImageUrl(profile.profile_image_url || '')
+      setAddress(profile.address || '')
     }
   }, [profile])
 
@@ -324,6 +327,7 @@ export default function ProfilePage() {
         .update({
           full_name: fullName,
           phone_number: phoneNumber,
+          address: address,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id)
@@ -517,6 +521,24 @@ export default function ProfilePage() {
                         placeholder="+63 XXX XXX XXXX"
                       />
                     </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Location / Address</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="address"
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="pl-10"
+                        placeholder="Enter your location (e.g., General Luna, Siargao)"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Helps renters know your general area for vehicle pickup
+                    </p>
                   </div>
                   
                   <Button type="submit" disabled={updating} className="w-full">

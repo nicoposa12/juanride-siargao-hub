@@ -45,6 +45,7 @@ export const SHARED_ROUTES = [
 export const PUBLIC_ROUTES = [
   '/',
   '/login',
+  '/auth/login',      // Admin-specific login
   '/signup',
   '/forgot-password',
   '/reset-password',

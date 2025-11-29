@@ -343,13 +343,38 @@ export default function AdminVerificationsPage() {
         
         if (docError) throw docError
         
-        // Update user account verification status
-        const accountStatus = action === 'approve' ? 'approved' : 'rejected'
+        // Get all documents for this renter and check latest submissions
+        const { data: allRenterDocs } = await supabase
+          .from('id_documents')
+          .select('document_type, status, submitted_at')
+          .eq('renter_id', selectedDoc.renter_id)
+          .order('submitted_at', { ascending: false })
+        
+        // Get only the latest document of each type
+        const latestDocs = new Map<string, { status: string }>()
+        allRenterDocs?.forEach(doc => {
+          if (!latestDocs.has(doc.document_type)) {
+            latestDocs.set(doc.document_type, { status: doc.status })
+          }
+        })
+        
+        // Check if any latest documents are rejected
+        const hasRejectedDocs = Array.from(latestDocs.values()).some(d => d.status === 'rejected')
+        const allApproved = Array.from(latestDocs.values()).every(d => d.status === 'approved')
+        
+        // Determine account status
+        let accountStatus = 'pending_verification'
+        if (action === 'reject' || hasRejectedDocs) {
+          accountStatus = 'rejected'
+        } else if (allApproved) {
+          accountStatus = 'approved'
+        }
+        
         const { error: userError } = await supabase
           .from('users')
           .update({
             account_verification_status: accountStatus,
-            account_verified_at: action === 'approve' ? new Date().toISOString() : null,
+            account_verified_at: accountStatus === 'approved' ? new Date().toISOString() : null,
             verified_by: user?.id,
             account_status_reason: action === 'reject' ? rejectionReason : null,
           })
@@ -358,8 +383,8 @@ export default function AdminVerificationsPage() {
         if (userError) throw userError
         
         toast({
-          title: action === 'approve' ? 'Account Approved' : 'Account Rejected',
-          description: `The renter account has been ${action === 'approve' ? 'approved' : 'rejected'} successfully.`,
+          title: action === 'approve' ? 'Document Approved' : 'Document Rejected',
+          description: `The renter document has been ${action === 'approve' ? 'approved' : 'rejected'}. ${accountStatus === 'approved' ? 'Account is now approved!' : ''}`,
         })
         
         loadDocuments()
@@ -378,22 +403,43 @@ export default function AdminVerificationsPage() {
         if (docError) throw docError
         
         // Check if owner has all required documents approved
-        const { data: ownerDocs } = await supabase
+        // Get all documents and find the latest submission for each type
+        const { data: allOwnerDocs } = await supabase
           .from('business_documents')
-          .select('document_type, status')
+          .select('document_type, status, submitted_at')
           .eq('owner_id', selectedBusinessDoc.owner_id)
+          .order('submitted_at', { ascending: false })
+        
+        // Get only the latest document of each type
+        const latestDocs = new Map<string, { status: string, submitted_at: string }>()
+        allOwnerDocs?.forEach(doc => {
+          if (!latestDocs.has(doc.document_type)) {
+            latestDocs.set(doc.document_type, { status: doc.status, submitted_at: doc.submitted_at })
+          }
+        })
+        
+        const ownerDocs = Array.from(latestDocs.entries()).map(([document_type, data]) => ({
+          document_type,
+          status: data.status
+        }))
         
         const hasBusinessPermit = ownerDocs?.some(d => d.document_type === 'business_permit' && d.status === 'approved')
         const hasDtiOrSec = ownerDocs?.some(d => (d.document_type === 'dti_registration' || d.document_type === 'sec_registration') && d.status === 'approved')
         const hasBir = ownerDocs?.some(d => d.document_type === 'bir_registration' && d.status === 'approved')
         
-        // Only approve account if ALL required documents are approved
+        // Check if ANY of the LATEST documents are rejected
+        const hasRejectedDocs = ownerDocs?.some(d => d.status === 'rejected')
+        
+        // Determine account status based on document states
         let accountStatus = 'pending_verification'
-        if (action === 'approve' && hasBusinessPermit && hasDtiOrSec && hasBir) {
-          accountStatus = 'approved'
-        } else if (action === 'reject') {
+        if (action === 'reject' || hasRejectedDocs) {
+          // If rejecting OR any latest document is rejected, set to rejected
           accountStatus = 'rejected'
+        } else if (action === 'approve' && hasBusinessPermit && hasDtiOrSec && hasBir) {
+          // Only approve if ALL required documents are approved
+          accountStatus = 'approved'
         }
+        // Otherwise remains 'pending_verification'
         
         const { error: userError } = await supabase
           .from('users')
@@ -407,10 +453,47 @@ export default function AdminVerificationsPage() {
         
         if (userError) throw userError
         
+        // Send email notification for rejections
+        if (action === 'reject') {
+          try {
+            // Get all rejected documents for this owner
+            const { data: allOwnerDocs } = await supabase
+              .from('business_documents')
+              .select('document_type, rejection_reason, status')
+              .eq('owner_id', selectedBusinessDoc.owner_id)
+              .eq('status', 'rejected')
+            
+            const rejectedDocs = (allOwnerDocs || []).map(doc => ({
+              documentType: getDocumentTypeLabel(doc.document_type),
+              rejectionReason: doc.rejection_reason || 'No reason provided'
+            }))
+            
+            if (rejectedDocs.length > 0) {
+              await fetch('/api/notifications/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'document_rejection',
+                  data: {
+                    userEmail: selectedBusinessDoc.owner?.email || '',
+                    userName: selectedBusinessDoc.owner?.full_name || 'Owner',
+                    businessName: selectedBusinessDoc.owner?.business_name || 'Your Business',
+                    rejectedDocuments: rejectedDocs,
+                  },
+                }),
+              })
+              console.log('✅ Document rejection email sent')
+            }
+          } catch (emailError) {
+            console.warn('⚠️ Failed to send rejection email:', emailError)
+            // Don't fail the rejection for email issues
+          }
+        }
+        
         const message = accountStatus === 'approved' 
           ? 'All business documents approved. Owner account is now active.'
           : action === 'reject'
-            ? 'Document rejected. Owner account cannot login.'
+            ? 'Document rejected. Owner has been notified via email with instructions to resubmit.'
             : 'Document approved. Waiting for all required documents to be approved.'
         
         toast({

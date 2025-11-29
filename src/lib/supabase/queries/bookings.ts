@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { createCommission, type PaymentMethod } from './commissions'
 
 type Booking = Database['public']['Tables']['bookings']['Row']
 type BookingInsert = Database['public']['Tables']['bookings']['Insert']
@@ -206,6 +207,35 @@ export async function createBooking(
 ): Promise<{ booking: Booking | null; error: any }> {
   const supabase = createClient()
 
+  // Check if the vehicle owner is suspended
+  const { data: vehicle, error: vehicleError } = await supabase
+    .from('vehicles')
+    .select(`
+      id,
+      owner:users!owner_id (
+        id,
+        is_suspended
+      )
+    `)
+    .eq('id', bookingData.vehicle_id)
+    .single()
+
+  if (vehicleError) {
+    return { booking: null, error: vehicleError }
+  }
+
+  // Prevent booking if owner is suspended
+  const owner = Array.isArray(vehicle.owner) ? vehicle.owner[0] : vehicle.owner
+  if (owner?.is_suspended) {
+    return { 
+      booking: null, 
+      error: { 
+        message: 'This vehicle is currently unavailable. The owner account is suspended.',
+        code: 'OWNER_SUSPENDED'
+      } 
+    }
+  }
+
   const { data: booking, error } = await supabase
     .from('bookings')
     .insert({
@@ -377,9 +407,100 @@ export async function cancelBooking(bookingId: string): Promise<{ success: boole
 
 /**
  * Confirm a booking (owner confirms)
+ * Automatically creates a 10% commission record using the renter's payment method
  */
-export async function confirmBooking(bookingId: string): Promise<{ success: boolean; error: any }> {
-  return updateBookingStatus(bookingId, 'confirmed')
+export async function confirmBooking(
+  bookingId: string,
+  paymentMethod?: PaymentMethod
+): Promise<{ success: boolean; error: any }> {
+  const supabase = createClient()
+  
+  try {
+    // First, get the booking details including payment information
+    const { data: booking, error: fetchError } = await supabase
+      .from('bookings')
+      .select(`
+        id,
+        total_price,
+        owner_id,
+        vehicle:vehicles!vehicle_id (owner_id),
+        payment:payments (
+          payment_method,
+          status
+        )
+      `)
+      .eq('id', bookingId)
+      .single()
+    
+    if (fetchError || !booking) {
+      throw new Error('Failed to fetch booking details')
+    }
+    
+    // Update booking status to confirmed
+    const statusResult = await updateBookingStatus(bookingId, 'confirmed')
+    
+    if (!statusResult.success) {
+      throw new Error('Failed to update booking status')
+    }
+    
+    // Determine owner ID (from vehicle owner)
+    const vehicle: any = Array.isArray(booking.vehicle) ? booking.vehicle[0] : booking.vehicle
+    const ownerId = vehicle?.owner_id
+    
+    if (!ownerId) {
+      throw new Error('Owner ID not found')
+    }
+    
+    // Get payment method from payment record, fallback to provided parameter or 'cash'
+    let method: PaymentMethod = 'cash' // Default fallback
+    
+    if (paymentMethod) {
+      // Use explicitly provided payment method
+      method = paymentMethod
+    } else if (booking.payment) {
+      // Extract payment method from payment record
+      const payment: any = Array.isArray(booking.payment) ? booking.payment[0] : booking.payment
+      const dbPaymentMethod = payment?.payment_method
+      
+      // Map database payment method to commission payment method
+      // Database uses: gcash, maya, card, bank_transfer, qrph, grab_pay, billease
+      // Commission uses: qrph, gcash, paymaya, grabpay, billease, cash
+      const methodMap: Record<string, PaymentMethod> = {
+        'gcash': 'gcash',
+        'maya': 'paymaya',
+        'paymaya': 'paymaya',
+        'qrph': 'qrph',
+        'grab_pay': 'grabpay',
+        'grabpay': 'grabpay',
+        'billease': 'billease',
+        'card': 'gcash', // Map card to gcash (cashless)
+        'bank_transfer': 'gcash', // Map bank transfer to gcash (cashless)
+      }
+      
+      if (dbPaymentMethod && methodMap[dbPaymentMethod]) {
+        method = methodMap[dbPaymentMethod]
+      }
+    }
+    
+    // Create commission record (10% of rental amount)
+    const commissionResult = await createCommission(
+      bookingId,
+      ownerId,
+      booking.total_price,
+      method
+    )
+    
+    if (!commissionResult.success) {
+      console.error('Failed to create commission record:', commissionResult.error)
+      // Don't fail the entire operation if commission creation fails
+      // Log it for manual intervention
+    }
+    
+    return { success: true, error: null }
+  } catch (error) {
+    console.error('Error confirming booking:', error)
+    return { success: false, error }
+  }
 }
 
 /**

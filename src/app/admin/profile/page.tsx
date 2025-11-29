@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Lock,
   AlertCircle,
+  MapPin,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -41,6 +42,7 @@ export default function AdminProfilePage() {
   const [fullName, setFullName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [profileImageUrl, setProfileImageUrl] = useState('')
+  const [address, setAddress] = useState('')
   
   // Password form state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -65,6 +67,7 @@ export default function AdminProfilePage() {
       setFullName(profile.full_name || '')
       setPhoneNumber(profile.phone_number || '')
       setProfileImageUrl(profile.profile_image_url || '')
+      setAddress(profile.address || '')
     }
   }, [profile])
   
@@ -87,6 +90,7 @@ export default function AdminProfilePage() {
         .update({
           full_name: fullName,
           phone_number: phoneNumber,
+          address: address,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user?.id)
@@ -354,6 +358,24 @@ export default function AdminProfilePage() {
                       className="pl-10"
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="address">Location / Address</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="address"
+                      type="text"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Enter your location (e.g., General Luna, Siargao)"
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your office or contact location
+                  </p>
                 </div>
                 
                 <Button type="submit" disabled={updating} className="w-full">

@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
             } else if (profile.role === 'owner') {
               roleBasedRedirect = '/owner/dashboard'
             } else if (profile.role === 'renter') {
-              roleBasedRedirect = '/dashboard/bookings'
+              roleBasedRedirect = '/vehicles' // Browse vehicles page
             } else {
               roleBasedRedirect = next // Keep default for pending/unknown
             }

@@ -114,6 +114,48 @@ export default function LoginPage() {
 
         console.log('✅ Profile loaded:', userProfile.email, '- Role:', userProfile.role)
 
+        // Check if this is an admin user - block with generic error
+        if (userProfile.role === 'admin') {
+          console.log('⚠️ Admin detected - blocking login')
+          toast({
+            title: 'Login Failed',
+            description: 'Invalid credentials or access denied.',
+            variant: 'destructive',
+          })
+          // Sign out admin users
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+
+        // Check if account is rejected - redirect to resubmission
+        if (userProfile.account_verification_status === 'rejected') {
+          console.log('❌ Account rejected - redirecting to resubmission page')
+          toast({
+            title: 'Account Rejected',
+            description: 'Your account documents have been rejected by the admin. Please review and resubmit the required documents.',
+            variant: 'destructive',
+          })
+          // Keep user authenticated so they can resubmit
+          setTimeout(() => {
+            router.push('/resubmit')
+          }, 1500)
+          return
+        }
+
+        // Check if account is pending verification
+        if (userProfile.account_verification_status === 'pending_verification') {
+          console.log('⏳ Account pending verification')
+          toast({
+            title: 'Account Pending Approval',
+            description: 'Your account is pending verification. Please wait for admin approval.',
+            variant: 'default',
+          })
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+
         // Profile loaded successfully - check if this is a new user
         const isNewUser = userProfile.created_at ? 
           new Date(userProfile.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000) : // Within last 24 hours
@@ -129,19 +171,17 @@ export default function LoginPage() {
         // Check for redirect parameter first
         const redirectParam = searchParams?.get('redirect') ?? null
         
-        // Determine redirect path based on role
+        // Determine redirect path based on role (admin already filtered out above)
         let redirectPath: string
         if (redirectParam) {
           // Respect explicit redirect parameter
           redirectPath = redirectParam
         } else {
-          // Role-based dashboard redirect
-          if (userProfile.role === 'admin') {
-            redirectPath = '/admin/dashboard'
-          } else if (userProfile.role === 'owner') {
+          // Role-based dashboard redirect for owner and renter
+          if (userProfile.role === 'owner') {
             redirectPath = '/owner/dashboard'
           } else if (userProfile.role === 'renter') {
-            redirectPath = '/dashboard/bookings' // Renter dashboard
+            redirectPath = '/vehicles' // Browse vehicles page
           } else {
             // Pending or unknown role - default to vehicles
             redirectPath = '/vehicles'

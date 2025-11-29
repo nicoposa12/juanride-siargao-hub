@@ -196,20 +196,6 @@ export default function OwnerVehiclesPage() {
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    {vehicle.approval_status === 'pending' && (
-                      <div className="absolute top-3 left-3">
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                          Pending Approval
-                        </Badge>
-                      </div>
-                    )}
-                    {vehicle.approval_status === 'rejected' && (
-                      <div className="absolute top-3 left-3">
-                        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
-                          Rejected
-                        </Badge>
-                      </div>
-                    )}
                   </div>
                   
                   {/* Vehicle Details */}
@@ -260,24 +246,6 @@ export default function OwnerVehiclesPage() {
                         </DropdownMenu>
                       </div>
                     </div>
-                    
-                    {vehicle.approval_status === 'rejected' && vehicle.admin_notes && (
-                      <Alert variant="destructive" className="mb-4">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          <strong>Rejection Reason:</strong> {vehicle.admin_notes}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    
-                    {vehicle.approval_status === 'pending' && (
-                      <Alert className="mb-4 bg-yellow-50 border-yellow-200">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <AlertDescription className="text-yellow-800">
-                          <strong>Awaiting Approval:</strong> Your vehicle listing is being reviewed by our admin team.
-                        </AlertDescription>
-                      </Alert>
-                    )}
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                       <div>

@@ -148,7 +148,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // Redirect authenticated users away from auth pages
-    if (path.startsWith('/login') || path.startsWith('/signup')) {
+    if (path.startsWith('/login') || path.startsWith('/signup') || path === '/auth/login') {
       // Redirect based on role using centralized function
       console.log('🚀 Middleware - Redirecting user with role:', userRole)
       const dashboardUrl = getDashboardRoute(userRole as UserRole)

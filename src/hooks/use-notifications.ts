@@ -80,6 +80,18 @@ export const useNotifications = () => {
     return sendEmailNotification('payment_confirmation', paymentData)
   }
 
+  const sendDocumentRejectionEmail = async (rejectionData: {
+    userEmail: string
+    userName: string
+    businessName: string
+    rejectedDocuments: Array<{
+      documentType: string
+      rejectionReason: string
+    }>
+  }) => {
+    return sendEmailNotification('document_rejection', rejectionData)
+  }
+
   // In-app notifications
   const createInAppNotification = async (notificationData: {
     userId: string
@@ -160,6 +172,7 @@ export const useNotifications = () => {
     sendWelcomeEmail,
     sendBookingConfirmation,
     sendPaymentConfirmation,
+    sendDocumentRejectionEmail,
     createInAppNotification,
     markNotificationAsRead,
     getUserNotifications,

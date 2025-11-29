@@ -16,7 +16,8 @@ import {
   Search,
   User,
   ChevronDown,
-  ShieldCheck
+  ShieldCheck,
+  Percent
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -52,6 +53,7 @@ const adminIconMap: Record<string, React.ComponentType<{ className?: string }>> 
   '/admin/bookings': Calendar,
   '/admin/verifications': ShieldCheck,
   '/admin/transactions': CreditCard,
+  '/admin/commissions': Percent,
   '/admin/reports': FileText,
   '/admin/feedback': MessageSquare,
   '/admin/settings': Settings,
