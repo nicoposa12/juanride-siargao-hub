@@ -20,6 +20,7 @@ export interface Database {
           phone_number: string | null
           role: 'pending' | 'renter' | 'owner' | 'admin'
           profile_image_url: string | null
+          address: string | null
           is_verified: boolean
           is_active: boolean
           needs_onboarding: boolean
@@ -34,6 +35,7 @@ export interface Database {
           phone_number?: string | null
           role?: 'pending' | 'renter' | 'owner' | 'admin'
           profile_image_url?: string | null
+          address?: string | null
           is_verified?: boolean
           is_active?: boolean
           needs_onboarding?: boolean
@@ -48,6 +50,7 @@ export interface Database {
           phone_number?: string | null
           role?: 'pending' | 'renter' | 'owner' | 'admin'
           profile_image_url?: string | null
+          address?: string | null
           is_verified?: boolean
           is_active?: boolean
           needs_onboarding?: boolean

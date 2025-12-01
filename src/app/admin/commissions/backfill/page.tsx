@@ -75,12 +75,17 @@ export default function CommissionBackfillPage() {
       // Check which bookings don't have commission records
       const bookingsWithoutCommissions = []
       
+      console.log('Total bookings found:', bookings?.length || 0)
+      
       for (const booking of bookings || []) {
-        const { data: commission } = await supabase
+        const { data: commission, error: commError } = await supabase
           .from('commissions')
           .select('id')
           .eq('booking_id', booking.id)
           .single()
+        
+        const vehicle: any = Array.isArray(booking.vehicle) ? booking.vehicle[0] : booking.vehicle
+        console.log(`Booking ${booking.id.slice(0, 8)} - ${vehicle?.make} ${vehicle?.model} - Status: ${booking.status} - Has Commission: ${!!commission}`)
         
         if (!commission) {
           bookingsWithoutCommissions.push(booking)
@@ -92,7 +97,7 @@ export default function CommissionBackfillPage() {
       
       toast({
         title: 'Analysis Complete',
-        description: `Found ${bookingsWithoutCommissions.length} bookings without commission records.`,
+        description: `Scanned ${bookings?.length || 0} confirmed bookings. Found ${bookingsWithoutCommissions.length} without commission records.`,
       })
     } catch (error: any) {
       console.error('Error analyzing bookings:', error)
@@ -241,25 +246,23 @@ export default function CommissionBackfillPage() {
         <AlertDescription>
           This tool will scan for confirmed, active, or completed bookings that don't have commission records
           and create them automatically. The commission payment method will be based on the <strong>renter's chosen payment method</strong>.
-          All commissions will be created with <strong>Pending</strong> status.
+          All commissions will be created with <strong>Unpaid</strong> status.
         </AlertDescription>
       </Alert>
       
-      {/* Migration Warning */}
-      <Alert className="mb-6 border-orange-300 bg-orange-50">
-        <AlertCircle className="h-4 w-4 text-orange-600" />
-        <AlertDescription className="text-orange-800">
-          <strong>Important:</strong> Before using this tool, make sure you've applied the database migration:
-          <br />
-          <code className="bg-orange-100 px-2 py-1 rounded mt-2 inline-block">
-            supabase db push
-          </code>
-          <br />
-          <span className="text-sm mt-1 inline-block">
-            Or run: <code className="bg-orange-100 px-1 py-0.5 rounded">supabase/migrations/00043_create_commissions_table.sql</code>
-          </span>
-        </AlertDescription>
-      </Alert>
+      {/* Important Notice - Only show if there are commissions to analyze */}
+      {missingCount > 0 && (
+        <Alert className="mb-6 border-orange-300 bg-orange-50">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            <strong>Important Notice:</strong> There are <strong>{missingCount}</strong> confirmed booking{missingCount !== 1 ? 's' : ''} without commission records that need{missingCount === 1 ? 's' : ''} to be analyzed and processed.
+            <br />
+            <span className="text-sm mt-1 inline-block">
+              Please proceed to <strong>Step 2</strong> to create the missing commission records.
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
       
       {/* Action Buttons */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">

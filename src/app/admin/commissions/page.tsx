@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -22,6 +23,7 @@ import {
   Loader2,
   Users,
   Ban,
+  RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { formatCurrency } from '@/lib/utils/format'
@@ -126,6 +128,14 @@ export default function AdminCommissionsOwnersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Commission Management</h1>
           <p className="text-muted-foreground">Track and manage commission payments by owner</p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push('/admin/commissions/backfill')}
+          className="gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Backfill Missing Commissions
+        </Button>
       </div>
       
       {/* Summary Cards */}
