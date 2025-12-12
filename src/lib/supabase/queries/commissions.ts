@@ -736,3 +736,108 @@ export async function getOwnerCommissionDetails(
   
   return { commissions, summary }
 }
+
+/**
+ * Get owner's unpaid commission summary (for owner dashboard)
+ */
+export async function getOwnerUnpaidCommissionSummary(ownerId: string): Promise<{
+  unpaid_total: number
+  unpaid_count: number
+  for_verification_count: number
+}> {
+  const supabase = createClient()
+  
+  const { data, error } = await supabase
+    .from('commissions')
+    .select('commission_amount, status')
+    .eq('owner_id', ownerId)
+    .in('status', ['unpaid', 'for_verification'])
+  
+  if (error || !data) {
+    console.error('Error fetching owner unpaid commissions:', error)
+    return {
+      unpaid_total: 0,
+      unpaid_count: 0,
+      for_verification_count: 0,
+    }
+  }
+  
+  const summary = data.reduce(
+    (acc, commission) => {
+      if (commission.status === 'unpaid') {
+        acc.unpaid_total += commission.commission_amount
+        acc.unpaid_count++
+      } else if (commission.status === 'for_verification') {
+        acc.unpaid_total += commission.commission_amount
+        acc.for_verification_count++
+      }
+      return acc
+    },
+    {
+      unpaid_total: 0,
+      unpaid_count: 0,
+      for_verification_count: 0,
+    }
+  )
+  
+  return summary
+}
+
+/**
+ * Clear all unpaid commissions for an owner (Admin bulk action)
+ * Marks all unpaid commissions (unpaid + for_verification) as paid
+ */
+export async function clearAllUnpaidCommissions(
+  ownerId: string,
+  adminId: string,
+  filters?: {
+    period?: 'daily' | 'monthly' | 'yearly'
+    startDate?: string
+    endDate?: string
+  }
+): Promise<{ success: boolean; count?: number; error?: any }> {
+  try {
+    const supabase = createClient()
+    
+    // Build query to get unpaid commissions for this owner
+    let query = supabase
+      .from('commissions')
+      .select('id')
+      .eq('owner_id', ownerId)
+      .in('status', ['unpaid', 'for_verification'])
+    
+    // Apply date filters if provided
+    if (filters?.startDate && filters?.endDate) {
+      query = query
+        .gte('created_at', filters.startDate)
+        .lte('created_at', filters.endDate)
+    }
+    
+    const { data: commissionsToUpdate, error: fetchError } = await query
+    
+    if (fetchError) throw fetchError
+    
+    if (!commissionsToUpdate || commissionsToUpdate.length === 0) {
+      return { success: true, count: 0 }
+    }
+    
+    // Update all commissions to paid status
+    const { error: updateError } = await supabase
+      .from('commissions')
+      .update({
+        status: 'paid',
+        verified_by: adminId,
+        verified_at: new Date().toISOString(),
+        verification_notes: 'Bulk cleared by admin',
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', commissionsToUpdate.map(c => c.id))
+    
+    if (updateError) throw updateError
+    
+    return { success: true, count: commissionsToUpdate.length }
+  } catch (error) {
+    console.error('Error clearing all unpaid commissions:', error)
+    return { success: false, error }
+  }
+}

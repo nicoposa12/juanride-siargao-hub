@@ -57,6 +57,7 @@ import {
   updateCommissionStatus,
   suspendOwner,
   unsuspendOwner,
+  clearAllUnpaidCommissions,
   PAYMENT_METHOD_LABELS,
   COMMISSION_STATUS_LABELS,
   type Commission,
@@ -94,6 +95,7 @@ export default function OwnerCommissionDetailPage() {
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
   const [statusDialog, setStatusDialog] = useState(false)
   const [suspendDialog, setSuspendDialog] = useState(false)
+  const [clearAllDialog, setClearAllDialog] = useState(false)
   const [selectedAction, setSelectedAction] = useState<CommissionStatus | null>(null)
   const [suspensionReason, setSuspensionReason] = useState('')
   
@@ -305,6 +307,43 @@ export default function OwnerCommissionDetailPage() {
     }
   }
   
+  const handleClearAllUnpaid = async () => {
+    if (!ownerId || !user) return
+    
+    setProcessing('clearAll')
+    setClearAllDialog(false)
+    
+    try {
+      const dateFilters = getDateFilters(period)
+      const { success, count, error } = await clearAllUnpaidCommissions(
+        ownerId,
+        user.id,
+        dateFilters
+      )
+      
+      if (success) {
+        toast({
+          title: 'Commissions Cleared',
+          description: `Successfully marked ${count} commission${count !== 1 ? 's' : ''} as paid.`,
+        })
+        
+        // Reload transactions and owner data
+        await Promise.all([loadTransactions(), loadOwnerData()])
+      } else {
+        throw error
+      }
+    } catch (error: any) {
+      console.error('Error clearing all unpaid commissions:', error)
+      toast({
+        title: 'Clear Failed',
+        description: error?.message || 'Failed to clear unpaid commissions.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessing(null)
+    }
+  }
+  
   if (loading || authLoading) {
     return (
       <div className="container py-8">
@@ -504,10 +543,29 @@ export default function OwnerCommissionDetailPage() {
       {/* Transaction History */}
       <Card>
         <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>
-            Detailed commission records for {getPeriodLabel().toLowerCase()}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Transaction History</CardTitle>
+              <CardDescription>
+                Detailed commission records for {getPeriodLabel().toLowerCase()}
+              </CardDescription>
+            </div>
+            {summary.unpaid_count > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setClearAllDialog(true)}
+                disabled={processing === 'clearAll'}
+              >
+                {processing === 'clearAll' ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                )}
+                Clear All Unpaid ({summary.unpaid_count})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
@@ -704,6 +762,49 @@ export default function OwnerCommissionDetailPage() {
             <Button variant="destructive" onClick={handleSuspendOwner}>
               <Ban className="h-4 w-4 mr-2" />
               Suspend Owner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Clear All Unpaid Dialog */}
+      <Dialog open={clearAllDialog} onOpenChange={setClearAllDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear All Unpaid Commissions</DialogTitle>
+            <DialogDescription>
+              This will mark all unpaid commissions for {owner?.owner_name} in {getPeriodLabel().toLowerCase()} as paid.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-yellow-900">Bulk Action</p>
+                  <p className="text-sm text-yellow-800 mt-1">
+                    {summary.unpaid_count} unpaid commission{summary.unpaid_count !== 1 ? 's' : ''} will be marked as paid.
+                  </p>
+                  {summary.for_verification_count > 0 && (
+                    <p className="text-sm text-yellow-800 mt-1">
+                      This includes {summary.for_verification_count} commission{summary.for_verification_count !== 1 ? 's' : ''} pending verification.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-between text-sm p-3 bg-gray-50 rounded-lg">
+              <span className="text-muted-foreground">Total Amount:</span>
+              <span className="font-bold text-lg">{formatCurrency(summary.total_commission)}</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClearAllDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleClearAllUnpaid}>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Clear All ({summary.unpaid_count})
             </Button>
           </DialogFooter>
         </DialogContent>

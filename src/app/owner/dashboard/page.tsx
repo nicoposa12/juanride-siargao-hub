@@ -29,11 +29,13 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { BOOKING_STATUS_LABELS } from '@/lib/constants'
 import { getOwnerBookings } from '@/lib/supabase/queries/bookings'
+import { getOwnerUnpaidCommissionSummary } from '@/lib/supabase/queries/commissions'
 import Image from 'next/image'
 import Navigation from '@/components/shared/Navigation'
 import { VehicleStatusSelector } from '@/components/vehicle/VehicleStatusSelector'
 import type { VehicleStatus } from '@/lib/supabase/queries/vehicles'
 import { BookingDetailsDialog } from '@/components/booking/BookingDetailsDialog'
+import { CommissionPaymentModal } from '@/components/owner/CommissionPaymentModal'
 
 export default function OwnerDashboardPage() {
   const router = useRouter()
@@ -46,10 +48,16 @@ export default function OwnerDashboardPage() {
     totalEarnings: 0,
     thisMonthEarnings: 0,
   })
+  const [commissionBalance, setCommissionBalance] = useState({
+    unpaid_total: 0,
+    unpaid_count: 0,
+    for_verification_count: 0,
+  })
   const [recentBookings, setRecentBookings] = useState<any[]>([])
   const [vehicles, setVehicles] = useState<any[]>([])
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [commissionModalOpen, setCommissionModalOpen] = useState(false)
   const [suspensionInfo, setSuspensionInfo] = useState<{
     is_suspended: boolean
     suspension_reason: string | null
@@ -136,6 +144,10 @@ export default function OwnerDashboardPage() {
         totalEarnings,
         thisMonthEarnings,
       })
+      
+      // Load commission balance
+      const commissionData = await getOwnerUnpaidCommissionSummary(user.id)
+      setCommissionBalance(commissionData)
       
       // Get recent bookings
       setRecentBookings(bookings.slice(0, 5))
@@ -247,6 +259,37 @@ export default function OwnerDashboardPage() {
             })()}
           </p>
         </div>
+        
+        {/* Commission Balance Alert */}
+        {commissionBalance.unpaid_total > 0 && (
+          <Alert variant="default" className="mb-6 border-red-500 bg-red-50">
+            <DollarSign className="h-5 w-5 text-red-600" />
+            <AlertTitle className="text-lg font-bold text-red-900">Commission Payment Due</AlertTitle>
+            <AlertDescription className="mt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-800 font-semibold text-base">
+                    You have {formatCurrency(commissionBalance.unpaid_total)} in unpaid commissions
+                  </p>
+                  <p className="text-sm text-red-700 mt-1">
+                    {commissionBalance.unpaid_count} unpaid transaction{commissionBalance.unpaid_count !== 1 ? 's' : ''}
+                    {commissionBalance.for_verification_count > 0 && (
+                      <>, {commissionBalance.for_verification_count} pending verification</>
+                    )}
+                  </p>
+                </div>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={() => setCommissionModalOpen(true)}
+                >
+                  View Details
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         
         {/* Stats Cards */}
         <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -489,6 +532,14 @@ export default function OwnerDashboardPage() {
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
         onBookingUpdate={() => loadDashboardData(true)}
+      />
+      
+      {/* Commission Payment Modal */}
+      <CommissionPaymentModal
+        open={commissionModalOpen}
+        onOpenChange={setCommissionModalOpen}
+        unpaidAmount={commissionBalance.unpaid_total}
+        unpaidCount={commissionBalance.unpaid_count}
       />
     </div>
   )
